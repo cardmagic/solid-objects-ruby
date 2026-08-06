@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Retry SQLite synchronous lock contention in Ruby so a native busy wait
+  cannot starve the thread holding the database lock.
+- Allow maintainers to dispatch CI manually when a push webhook is dropped.
+
 ## 0.3.0 - 2026-08-06
 
 - Reject application-record writes from actor handlers and provide registered

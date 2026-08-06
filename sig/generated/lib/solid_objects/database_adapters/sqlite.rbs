@@ -3,8 +3,13 @@
 module SolidObjects
   module DatabaseAdapters
     class Sqlite < DatabaseAdapter
+      LOCK_RETRY_INTERVAL: ::Float
+
       # @rbs () -> String
       def current_time_expression: () -> String
+
+      # @rbs () { () -> untyped } -> untyped
+      def transaction: () { () -> untyped } -> untyped
 
       private
 

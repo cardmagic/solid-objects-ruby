@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "database_test_helper"
+require "solid_objects/mailbox"
 require "timeout"
 
 class SynchronousInvocationTest < ActiveSupport::TestCase
@@ -487,12 +488,26 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     second_thread&.join
   end
 
-  test "concurrent sync calls for different actors execute together" do
-    results = Queue.new
-    threads = [
-      Thread.new { results << BlockingActor.ref("alice").append(value: 1) },
-      Thread.new { results << BlockingActor.ref("bob").append(value: 2) }
+  test "concurrent synchronous executions for different actors run together" do
+    mailbox = SolidObjects::Mailbox.new
+    message_references = [
+      mailbox.enqueue(
+        BlockingActor.ref("alice"),
+        :append,
+        { value: 1 },
+        kind: "sync"
+      ),
+      mailbox.enqueue(
+        BlockingActor.ref("bob"),
+        :append,
+        { value: 2 },
+        kind: "sync"
+      )
     ]
+    results = Queue.new
+    threads = message_references.map do |message_reference|
+      Thread.new { results << message_reference.wait }
+    end
 
     started = 2.times.map { Timeout.timeout(2) { BlockingActor.started.pop } }
 
