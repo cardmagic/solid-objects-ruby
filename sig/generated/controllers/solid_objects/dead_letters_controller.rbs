@@ -1,0 +1,11 @@
+# Generated from app/controllers/solid_objects/dead_letters_controller.rb with RBS::Inline
+
+module SolidObjects
+  class DeadLettersController < ApplicationController
+    # @rbs () -> void
+    def index: () -> void
+
+    # @rbs () -> void
+    def retry: () -> void
+  end
+end

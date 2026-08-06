@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+# rbs_inline: enabled
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "solid_objects"
+require "solid_objects/cli"
+
+SolidObjects::CLI.start(ARGV)

@@ -1,0 +1,41 @@
+# Generated from lib/solid_objects/mailbox.rb with RBS::Inline
+
+module SolidObjects
+  class Mailbox
+    @database_adapter: DatabaseAdapter
+
+    # @rbs (?database_adapter: DatabaseAdapter) -> void
+    def initialize: (?database_adapter: DatabaseAdapter) -> void
+
+    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], kind: String, ?available_at: Time?, idempotency_key: String?) -> MessageReference
+    def enqueue: (Reference, Symbol | String, Hash[Symbol | String, untyped], kind: String, idempotency_key: String?, ?available_at: Time?) -> MessageReference
+
+    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], kind: String, ?available_at: Time?, idempotency_key: String?, ?actor_class: Class?) -> Message
+    def enqueue_in_transaction: (Reference, Symbol | String, Hash[Symbol | String, untyped], kind: String, idempotency_key: String?, ?available_at: Time?, ?actor_class: Class?) -> Message
+
+    # @rbs (Message) -> void
+    def announce: (Message) -> void
+
+    private
+
+    attr_reader database_adapter: untyped
+
+    # @rbs (Reference, Class) -> Instance
+    def find_or_create_instance: (Reference, Class) -> Instance
+
+    # @rbs (Instance, String?) -> Message?
+    def find_idempotent_message: (Instance, String?) -> Message?
+
+    # @rbs (Message, Symbol | String, String, untyped) -> Message
+    def validate_idempotent_message!: (Message, Symbol | String, String, untyped) -> Message
+
+    # @rbs (Instance) -> void
+    def enforce_mailbox_limit!: (Instance) -> void
+
+    # @rbs (Instance, Reference, Symbol | String, untyped, kind: String, available_at: Time?, idempotency_key: String?) -> Message
+    def create_message: (Instance, Reference, Symbol | String, untyped, kind: String, available_at: Time?, idempotency_key: String?) -> Message
+
+    # @rbs (Time?, Time) -> Time
+    def normalize_availability: (Time?, Time) -> Time
+  end
+end

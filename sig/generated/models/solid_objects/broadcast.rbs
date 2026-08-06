@@ -1,0 +1,6 @@
+# Generated from app/models/solid_objects/broadcast.rb with RBS::Inline
+
+module SolidObjects
+  class Broadcast < Record
+  end
+end

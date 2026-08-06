@@ -1,0 +1,42 @@
+# Generated from lib/solid_objects/database_adapter.rb with RBS::Inline
+
+module SolidObjects
+  class DatabaseAdapter
+    # @rbs (untyped) -> DatabaseAdapter
+    def self.for: (untyped) -> DatabaseAdapter
+
+    @connection_pool: untyped
+
+    @fixed_connection: untyped
+
+    # @rbs (untyped) -> void
+    def initialize: (untyped) -> void
+
+    # @rbs () -> bool
+    def supports_skip_locked?: () -> bool
+
+    # @rbs () -> String?
+    def claim_lock: () -> String?
+
+    # @rbs () -> String
+    def current_time_expression: () -> String
+
+    # @rbs () -> Time
+    def database_now: () -> Time
+
+    # @rbs () { () -> untyped } -> untyped
+    def transaction: () { () -> untyped } -> untyped
+
+    # @rbs (ActiveRecord::Relation[untyped]) -> ActiveRecord::Relation[untyped]
+    def lock_candidates: (ActiveRecord::Relation[untyped]) -> ActiveRecord::Relation[untyped]
+
+    private
+
+    attr_reader connection_pool: untyped
+
+    attr_reader fixed_connection: untyped
+
+    # @rbs () { (untyped) -> untyped } -> untyped
+    def with_connection: () { (untyped) -> untyped } -> untyped
+  end
+end

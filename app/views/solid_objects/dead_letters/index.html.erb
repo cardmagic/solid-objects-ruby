@@ -1,0 +1,26 @@
+<h1>Dead letters</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Actor</th>
+      <th>Message</th>
+      <th>Attempts</th>
+      <th>Error</th>
+      <th>Failed</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @dead_letters.each do |dead_letter| %>
+      <tr>
+        <td><%= dead_letter.actor_type %>(<%= dead_letter.actor_id %>)</td>
+        <td><%= dead_letter.message_name %></td>
+        <td><%= dead_letter.attempts %></td>
+        <td><%= dead_letter.exception_class %>: <%= dead_letter.exception_message %></td>
+        <td><%= dead_letter.last_failed_at %></td>
+        <td><%= button_to "Retry", retry_dead_letter_path(dead_letter), method: :post %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

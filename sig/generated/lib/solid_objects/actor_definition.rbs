@@ -1,0 +1,94 @@
+# Generated from lib/solid_objects/actor_definition.rb with RBS::Inline
+
+module SolidObjects
+  class ActorDefinition
+    class Handler < Data
+      attr_reader name(): untyped
+
+      attr_reader block(): untyped
+
+      def self.new: (untyped name, untyped block) -> instance
+                  | (name: untyped, block: untyped) -> instance
+
+      def self.members: () -> [ :name, :block ]
+
+      def members: () -> [ :name, :block ]
+    end
+
+    class StateMigration < Data
+      attr_reader from(): untyped
+
+      attr_reader to(): untyped
+
+      attr_reader block(): untyped
+
+      def self.new: (untyped from, untyped to, untyped block) -> instance
+                  | (from: untyped, to: untyped, block: untyped) -> instance
+
+      def self.members: () -> [ :from, :to, :block ]
+
+      def members: () -> [ :from, :to, :block ]
+    end
+
+    @deactivation_hooks: Array[Proc]
+
+    @activation_hooks: Array[Proc]
+
+    @state_migrations: Array[StateMigration]
+
+    @state_version: Integer
+
+    @observables: Hash[Symbol, Handler]
+
+    @queries: Hash[Symbol, Handler]
+
+    @messages: Hash[Symbol, Handler]
+
+    @state_definition: StateDefinition
+
+    attr_reader state_definition: untyped
+
+    attr_reader messages: untyped
+
+    attr_reader queries: untyped
+
+    attr_reader observables: untyped
+
+    attr_reader state_version: untyped
+
+    attr_reader state_migrations: untyped
+
+    attr_reader activation_hooks: untyped
+
+    attr_reader deactivation_hooks: untyped
+
+    # @rbs () -> void
+    def initialize: () -> void
+
+    # @rbs (Symbol | String, Proc) -> Handler
+    def add_message: (Symbol | String, Proc) -> Handler
+
+    # @rbs (Symbol | String, Proc) -> Handler
+    def add_query: (Symbol | String, Proc) -> Handler
+
+    # @rbs (Symbol | String, Proc?) -> Handler
+    def add_observable: (Symbol | String, Proc?) -> Handler
+
+    # @rbs (Integer) -> Integer
+    def set_state_version: (Integer) -> Integer
+
+    # @rbs (Integer, Integer, Proc) -> StateMigration
+    def add_state_migration: (Integer, Integer, Proc) -> StateMigration
+
+    # @rbs (Integer, Hash[String, untyped]) -> Hash[String, untyped]
+    def migrate_state: (Integer, Hash[String, untyped]) -> Hash[String, untyped]
+
+    # @rbs () -> ActorDefinition
+    def duplicate: () -> ActorDefinition
+
+    private
+
+    # @rbs (Hash[Symbol, Handler], Symbol | String, Proc) -> Handler
+    def add_handler: (Hash[Symbol, Handler], Symbol | String, Proc) -> Handler
+  end
+end

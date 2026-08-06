@@ -1,0 +1,22 @@
+# Generated from app/models/solid_objects/message.rb with RBS::Inline
+
+module SolidObjects
+  class Message < Record
+    # @rbs () -> bool
+    def ready?: () -> bool
+
+    # @rbs () -> bool
+    def claimed?: () -> bool
+
+    # @rbs () -> bool
+    def completed?: () -> bool
+
+    # @rbs () -> bool
+    def dead?: () -> bool
+
+    private
+
+    # @rbs () -> void
+    def supply_defaults: () -> void
+  end
+end

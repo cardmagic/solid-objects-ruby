@@ -1,0 +1,143 @@
+# Generated from lib/solid_objects/configuration.rb with RBS::Inline
+
+module SolidObjects
+  class Configuration
+    @table_name_prefix: String
+
+    @max_attempts: Integer
+
+    @retry_delay: Proc
+
+    @process_heartbeat_interval: Float
+
+    @process_alive_threshold: Float
+
+    @shutdown_timeout: Float
+
+    @worker_count: Integer
+
+    @effect_worker_count: Integer
+
+    @broadcast_worker_count: Integer
+
+    @reminder_scheduler_count: Integer
+
+    @connects_to: Hash[Symbol, untyped]?
+
+    @logger: untyped
+
+    @stream_signing_secret: String?
+
+    @broadcast_adapter: Proc?
+
+    @wake_up_adapter: untyped
+
+    @authorize_message: Proc
+
+    @authorize_query: Proc
+
+    @authorize_subscription: Proc
+
+    @authorize_administration: Proc
+
+    @polling_interval: Float
+
+    @ask_polling_interval: Float
+
+    @lease_duration: Float
+
+    @lease_renewal_interval: Float
+
+    @idle_deactivation_timeout: Float
+
+    @max_messages_per_activation_pass: Integer
+
+    @max_activation_duration: Float
+
+    @max_mailbox_length: Integer
+
+    @claim_scan_limit: Integer
+
+    @max_payload_bytes: Integer
+
+    @max_state_bytes: Integer
+
+    @max_result_bytes: Integer
+
+    attr_accessor table_name_prefix: untyped
+
+    attr_accessor polling_interval: untyped
+
+    attr_accessor ask_polling_interval: untyped
+
+    attr_accessor lease_duration: untyped
+
+    attr_accessor lease_renewal_interval: untyped
+
+    attr_accessor idle_deactivation_timeout: untyped
+
+    attr_accessor max_messages_per_activation_pass: untyped
+
+    attr_accessor max_activation_duration: untyped
+
+    attr_accessor max_mailbox_length: untyped
+
+    attr_accessor claim_scan_limit: untyped
+
+    attr_accessor max_payload_bytes: untyped
+
+    attr_accessor max_state_bytes: untyped
+
+    attr_accessor max_result_bytes: untyped
+
+    attr_accessor max_attempts: untyped
+
+    attr_accessor retry_delay: untyped
+
+    attr_accessor process_heartbeat_interval: untyped
+
+    attr_accessor process_alive_threshold: untyped
+
+    attr_accessor shutdown_timeout: untyped
+
+    attr_accessor worker_count: untyped
+
+    attr_accessor effect_worker_count: untyped
+
+    attr_accessor broadcast_worker_count: untyped
+
+    attr_accessor reminder_scheduler_count: untyped
+
+    attr_accessor connects_to: untyped
+
+    attr_accessor logger: untyped
+
+    attr_accessor stream_signing_secret: untyped
+
+    attr_accessor broadcast_adapter: untyped
+
+    attr_accessor wake_up_adapter: untyped
+
+    attr_accessor authorize_message: untyped
+
+    attr_accessor authorize_query: untyped
+
+    attr_accessor authorize_subscription: untyped
+
+    attr_accessor authorize_administration: untyped
+
+    # @rbs () -> void
+    def initialize: () -> void
+
+    # @rbs () -> self
+    def validate!: () -> self
+
+    private
+
+    # @rbs () -> Hash[Symbol, Numeric]
+    def positive_values: () -> Hash[Symbol, Numeric]
+
+    # @rbs () -> Hash[Symbol, Integer]
+    def component_counts: () -> Hash[Symbol, Integer]
+  end
+end

@@ -1,0 +1,6 @@
+# Generated from app/models/solid_objects/claimed_message.rb with RBS::Inline
+
+module SolidObjects
+  class ClaimedMessage < Record
+  end
+end

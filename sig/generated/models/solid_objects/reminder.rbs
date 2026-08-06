@@ -1,0 +1,6 @@
+# Generated from app/models/solid_objects/reminder.rb with RBS::Inline
+
+module SolidObjects
+  class Reminder < Record
+  end
+end

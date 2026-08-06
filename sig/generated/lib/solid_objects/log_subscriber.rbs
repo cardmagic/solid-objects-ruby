@@ -1,0 +1,11 @@
+# Generated from lib/solid_objects/log_subscriber.rb with RBS::Inline
+
+module SolidObjects
+  module LogSubscriber
+    # @rbs () -> void
+    def self.install: () -> void
+
+    # @rbs () -> void
+    def self.uninstall: () -> void
+  end
+end

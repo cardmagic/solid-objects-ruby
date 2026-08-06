@@ -1,0 +1,16 @@
+# Generated from lib/solid_objects/database_adapters/mysql.rb with RBS::Inline
+
+module SolidObjects
+  module DatabaseAdapters
+    class Mysql < DatabaseAdapter
+      # @rbs () -> bool
+      def supports_skip_locked?: () -> bool
+
+      # @rbs () -> String
+      def claim_lock: () -> String
+
+      # @rbs () -> String
+      def current_time_expression: () -> String
+    end
+  end
+end

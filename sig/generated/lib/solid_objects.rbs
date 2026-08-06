@@ -1,0 +1,41 @@
+# Generated from lib/solid_objects.rb with RBS::Inline
+
+module SolidObjects
+  extend Instrumentation
+
+  # @rbs () -> Configuration
+  def self.configuration: () -> Configuration
+
+  # @rbs () { (Configuration) -> void } -> Configuration
+  def self.configure: () { (Configuration) -> void } -> Configuration
+
+  # @rbs () -> ActorRegistry
+  def self.registry: () -> ActorRegistry
+
+  # @rbs () -> EffectRegistry
+  def self.effect_registry: () -> EffectRegistry
+
+  # @rbs (String | Symbol) { (Hash[String, untyped], EffectContext) -> untyped } -> Proc
+  def self.register_effect: (String | Symbol) { (Hash[String, untyped], EffectContext) -> untyped } -> Proc
+
+  # @rbs () -> Client
+  def self.client: () -> Client
+
+  # @rbs () -> DeadLetterManager
+  def self.dead_letters: () -> DeadLetterManager
+
+  # @rbs (String | Symbol) -> String
+  def self.table_name: (String | Symbol) -> String
+
+  # @rbs (String, Class) -> Class
+  def self.register_actor: (String, Class) -> Class
+
+  # @rbs () -> void
+  def self.reset!: () -> void
+
+  # @rbs () -> DatabaseAdapter
+  def self.database_adapter: () -> DatabaseAdapter
+
+  # @rbs () -> WakeUp
+  def self.wake_up: () -> WakeUp
+end

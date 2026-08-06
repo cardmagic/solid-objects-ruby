@@ -1,0 +1,55 @@
+# Generated from lib/solid_objects/broadcast_executor.rb with RBS::Inline
+
+module SolidObjects
+  class BroadcastExecutor
+    @shutdown_requested: bool
+
+    @stopped: bool
+
+    @database_adapter: DatabaseAdapter
+
+    @process_registry: ProcessRegistry
+
+    # @rbs (?process_registry: ProcessRegistry, ?database_adapter: DatabaseAdapter) -> void
+    def initialize: (?process_registry: ProcessRegistry, ?database_adapter: DatabaseAdapter) -> void
+
+    # @rbs () -> bool
+    def run_once: () -> bool
+
+    # @rbs () -> void
+    def stop: () -> void
+
+    # @rbs () -> void
+    def run: () -> void
+
+    # @rbs () -> void
+    def request_shutdown: () -> void
+
+    # @rbs () -> bool
+    def stopped?: () -> bool
+
+    # @rbs () -> bool
+    def shutdown_requested?: () -> bool
+
+    private
+
+    attr_reader process_registry: untyped
+
+    attr_reader database_adapter: untyped
+
+    # @rbs () -> Broadcast?
+    def claim_next: () -> Broadcast?
+
+    # @rbs () -> Proc | ActionCableBroadcastAdapter
+    def broadcast_adapter: () -> Proc
+
+    # @rbs (Broadcast) -> void
+    def complete: (Broadcast) -> void
+
+    # @rbs (Broadcast, Exception) -> void
+    def fail_broadcast: (Broadcast, Exception) -> void
+
+    # @rbs (Broadcast) -> void
+    def verify_claim!: (Broadcast) -> void
+  end
+end

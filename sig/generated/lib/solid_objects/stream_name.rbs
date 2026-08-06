@@ -1,0 +1,11 @@
+# Generated from lib/solid_objects/stream_name.rb with RBS::Inline
+
+module SolidObjects
+  module StreamName
+    # @rbs (Reference | Hash[String, String]) -> String
+    def self?.for: (Reference | Hash[String, String]) -> String
+
+    # @rbs (Reference | Hash[String, String]) -> Hash[String, String]
+    def self?.identity_for: (Reference | Hash[String, String]) -> Hash[String, String]
+  end
+end

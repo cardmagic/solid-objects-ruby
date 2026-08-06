@@ -1,0 +1,8 @@
+# Generated from lib/solid_objects/action_cable_broadcast_adapter.rb with RBS::Inline
+
+module SolidObjects
+  class ActionCableBroadcastAdapter
+    # @rbs (Broadcast) -> void
+    def call: (Broadcast) -> void
+  end
+end

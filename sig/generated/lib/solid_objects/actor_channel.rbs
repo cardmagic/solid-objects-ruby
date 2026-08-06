@@ -1,0 +1,8 @@
+# Generated from lib/solid_objects/actor_channel.rb with RBS::Inline
+
+module SolidObjects
+  class ActorChannel < ActionCable::Channel::Base
+    # @rbs () -> void
+    def subscribed: () -> void
+  end
+end

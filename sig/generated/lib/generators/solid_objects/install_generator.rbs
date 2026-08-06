@@ -1,0 +1,13 @@
+# Generated from lib/generators/solid_objects/install_generator.rb with RBS::Inline
+
+module SolidObjects
+  module Generators
+    class InstallGenerator < Rails::Generators::Base
+      # @rbs () -> void
+      def copy_initializer: () -> void
+
+      # @rbs () -> void
+      def copy_migrations: () -> void
+    end
+  end
+end

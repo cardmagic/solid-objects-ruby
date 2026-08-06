@@ -1,0 +1,46 @@
+# Generated from lib/solid_objects/process_registry.rb with RBS::Inline
+
+module SolidObjects
+  class ProcessRegistry
+    # @rbs (?now: Time) -> Integer
+    def self.cleanup_dead: (?now: Time) -> Integer
+
+    # @rbs (Process, ?now: Time) -> bool
+    def self.deregister: (Process, ?now: Time) -> bool
+
+    # @rbs (Process, Time) -> void
+    private def self.cleanup_process: (Process, Time) -> void
+
+    @process_record: Process?
+
+    @last_heartbeat_at: Float?
+
+    attr_reader process_record: untyped
+
+    # @rbs () -> void
+    def initialize: () -> void
+
+    # @rbs (?kind: String, ?metadata: Hash[String | Symbol, untyped]) -> Process
+    def register: (?kind: String, ?metadata: Hash[String | Symbol, untyped]) -> Process
+
+    # @rbs () -> bool
+    def heartbeat: () -> bool
+
+    # @rbs () -> bool
+    def start_draining: () -> bool
+
+    # @rbs () -> bool
+    def stop: () -> bool
+
+    private
+
+    # @rbs () -> Hash[Symbol, String]
+    def default_metadata: () -> Hash[Symbol, String]
+
+    # @rbs () -> bool
+    def heartbeat_recent?: () -> bool
+
+    # @rbs () -> Float
+    def monotonic_now: () -> Float
+  end
+end

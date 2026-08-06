@@ -1,0 +1,61 @@
+# Generated from lib/solid_objects/errors.rb with RBS::Inline
+
+module SolidObjects
+  class Error < StandardError
+  end
+
+  class UnsupportedDatabase < Error
+  end
+
+  class InvalidActor < Error
+  end
+
+  class UnknownActorType < Error
+  end
+
+  class UnknownMessage < Error
+  end
+
+  class InvalidPayload < Error
+  end
+
+  class PayloadTooLarge < InvalidPayload
+  end
+
+  class MailboxFull < Error
+  end
+
+  class IdempotencyConflict < Error
+  end
+
+  class Unauthorized < Error
+  end
+
+  class InvalidStreamToken < Error
+  end
+
+  class LostActivation < Error
+  end
+
+  class AskTimeout < Error
+  end
+
+  class MessageFailed < Error
+    @message_id: Integer
+
+    @details: Hash[String, untyped]
+
+    attr_reader message_id: untyped
+
+    attr_reader details: untyped
+
+    # @rbs (String, message_id: Integer, details: Hash[String, untyped]) -> void
+    def initialize: (String, message_id: Integer, details: Hash[String, untyped]) -> void
+  end
+
+  class StateMigrationError < Error
+  end
+
+  class ActorCallCycle < Error
+  end
+end

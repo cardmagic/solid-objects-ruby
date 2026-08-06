@@ -1,0 +1,6 @@
+# Generated from app/models/solid_objects/process.rb with RBS::Inline
+
+module SolidObjects
+  class Process < Record
+  end
+end

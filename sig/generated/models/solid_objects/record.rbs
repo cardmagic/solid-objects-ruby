@@ -1,0 +1,8 @@
+# Generated from app/models/solid_objects/record.rb with RBS::Inline
+
+module SolidObjects
+  class Record < ActiveRecord::Base
+    # @rbs () -> void
+    def self.configure_connection: () -> void
+  end
+end

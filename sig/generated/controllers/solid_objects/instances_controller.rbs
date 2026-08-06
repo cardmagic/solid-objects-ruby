@@ -1,0 +1,11 @@
+# Generated from app/controllers/solid_objects/instances_controller.rb with RBS::Inline
+
+module SolidObjects
+  class InstancesController < ApplicationController
+    # @rbs () -> void
+    def index: () -> void
+
+    # @rbs () -> void
+    def show: () -> void
+  end
+end

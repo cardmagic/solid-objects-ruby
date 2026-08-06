@@ -1,0 +1,6 @@
+# Generated from app/models/solid_objects/ready_message.rb with RBS::Inline
+
+module SolidObjects
+  class ReadyMessage < Record
+  end
+end

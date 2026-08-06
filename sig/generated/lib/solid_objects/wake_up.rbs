@@ -1,0 +1,24 @@
+# Generated from lib/solid_objects/wake_up.rb with RBS::Inline
+
+module SolidObjects
+  class WakeUp
+    @mutex: Mutex
+
+    @condition: Thread::ConditionVariable
+
+    # @rbs () -> void
+    def initialize: () -> void
+
+    # @rbs () -> void
+    def signal: () -> void
+
+    # @rbs (timeout: Numeric) -> void
+    def wait: (timeout: Numeric) -> void
+
+    private
+
+    attr_reader mutex: untyped
+
+    attr_reader condition: untyped
+  end
+end

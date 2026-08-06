@@ -1,0 +1,28 @@
+# Generated from lib/solid_objects/actor_snapshot.rb with RBS::Inline
+
+module SolidObjects
+  class ActorSnapshot
+    @reference: Reference
+
+    @actor_class: Class
+
+    @actor: Actor
+
+    attr_reader reference: untyped
+
+    attr_reader actor_class: untyped
+
+    attr_reader actor: untyped
+
+    # @rbs (Reference) -> void
+    def initialize: (Reference) -> void
+
+    # @rbs () -> Hash[String, untyped]
+    def observable_values: () -> Hash[String, untyped]
+
+    private
+
+    # @rbs () -> Actor
+    def build_actor: () -> Actor
+  end
+end

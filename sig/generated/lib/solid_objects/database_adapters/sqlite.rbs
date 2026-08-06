@@ -1,0 +1,10 @@
+# Generated from lib/solid_objects/database_adapters/sqlite.rb with RBS::Inline
+
+module SolidObjects
+  module DatabaseAdapters
+    class Sqlite < DatabaseAdapter
+      # @rbs () -> String
+      def current_time_expression: () -> String
+    end
+  end
+end

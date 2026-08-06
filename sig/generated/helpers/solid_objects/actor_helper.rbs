@@ -1,0 +1,8 @@
+# Generated from app/helpers/solid_objects/actor_helper.rb with RBS::Inline
+
+module SolidObjects
+  module ActorHelper
+    # @rbs (Reference, ?authorization_context: untyped) { (ActorView) -> untyped } -> untyped
+    def actor_scope: (Reference, ?authorization_context: untyped) { (ActorView) -> untyped } -> untyped
+  end
+end

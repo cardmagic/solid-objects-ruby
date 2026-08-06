@@ -1,0 +1,10 @@
+/.bundle
+/.ruby-lsp
+/coverage
+/pkg
+/test/dummy/log
+/test/dummy/storage
+/test/dummy/tmp
+/tmp
+/.claude
+/.codex

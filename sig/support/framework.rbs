@@ -1,0 +1,37 @@
+module ActiveRecord
+  class Base
+  end
+
+  class Relation[unchecked out Element]
+  end
+end
+
+module ActiveSupport
+  class MessageVerifier
+  end
+end
+
+module ActionCable
+  module Channel
+    class Base
+    end
+  end
+end
+
+module ActionController
+  class Base
+  end
+end
+
+module Rails
+  class Engine
+  end
+
+  module Generators
+    class Base
+    end
+  end
+end
+
+class Thor
+end

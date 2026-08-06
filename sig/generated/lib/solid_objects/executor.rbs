@@ -1,0 +1,60 @@
+# Generated from lib/solid_objects/executor.rb with RBS::Inline
+
+module SolidObjects
+  class Executor
+    @message: Message
+
+    @activation: Activation
+
+    # @rbs (activation: Activation, message: Message) -> void
+    def initialize: (activation: Activation, message: Message) -> void
+
+    # @rbs () -> bool
+    def call: () -> bool
+
+    private
+
+    attr_reader activation: untyped
+
+    attr_reader message: untyped
+
+    # @rbs () -> Actor
+    def actor: () -> Actor
+
+    # @rbs (Hash[String, untyped]) -> void
+    def ensure_query_did_not_mutate_state!: (Hash[String, untyped]) -> void
+
+    # @rbs (Hash[String, untyped], Hash[String, untyped]) -> Hash[String, untyped]
+    def changed_observables: (Hash[String, untyped], Hash[String, untyped]) -> Hash[String, untyped]
+
+    # @rbs (untyped, Hash[String, untyped]) -> void
+    def complete: (untyped, Hash[String, untyped]) -> void
+
+    # @rbs (Message, Instance, Array[Actor::EffectIntent]) -> Array[Effect]
+    def enqueue_effects: (Message, Instance, Array[Actor::EffectIntent]) -> Array[Effect]
+
+    # @rbs (Instance, Array[Actor::ReminderIntent]) -> void
+    def schedule_reminders: (Instance, Array[Actor::ReminderIntent]) -> void
+
+    # @rbs (Message, Instance, Array[Actor::OutboundMessageIntent]) -> Array[Effect]
+    def enqueue_actor_messages: (Message, Instance, Array[Actor::OutboundMessageIntent]) -> Array[Effect]
+
+    # @rbs (Message, Instance, Hash[String, untyped]) -> void
+    def enqueue_broadcasts: (Message, Instance, Hash[String, untyped]) -> void
+
+    # @rbs (Exception) -> void
+    def fail_message: (Exception) -> void
+
+    # @rbs () -> ClaimedMessage
+    def matching_claim!: () -> ClaimedMessage
+
+    # @rbs (Exception) -> Hash[String, untyped]
+    def serialized_error: (Exception) -> Hash[String, untyped]
+
+    # @rbs (Message, Hash[String, untyped], Time) -> DeadLetter
+    def create_dead_letter: (Message, Hash[String, untyped], Time) -> DeadLetter
+
+    # @rbs () -> Hash[Symbol, untyped]
+    def instrumentation_payload: () -> Hash[Symbol, untyped]
+  end
+end

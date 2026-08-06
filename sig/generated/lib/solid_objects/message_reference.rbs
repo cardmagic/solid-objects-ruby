@@ -1,0 +1,37 @@
+# Generated from lib/solid_objects/message_reference.rb with RBS::Inline
+
+module SolidObjects
+  class MessageReference
+    # @rbs (Message) -> MessageReference
+    def self.from_message: (Message) -> MessageReference
+
+    @id: Integer
+
+    @request_id: String
+
+    @actor_type: String
+
+    @actor_id: String
+
+    @sequence: Integer
+
+    attr_reader id: untyped
+
+    attr_reader request_id: untyped
+
+    attr_reader actor_type: untyped
+
+    attr_reader actor_id: untyped
+
+    attr_reader sequence: untyped
+
+    # @rbs (id: Integer, request_id: String, actor_type: String, actor_id: String, sequence: Integer) -> void
+    def initialize: (id: Integer, request_id: String, actor_type: String, actor_id: String, sequence: Integer) -> void
+
+    # @rbs () -> String
+    def status: () -> String
+
+    # @rbs () -> untyped
+    def result: () -> untyped
+  end
+end

@@ -1,0 +1,10 @@
+<ul>
+  <% actor.state.items.each do |item| %>
+    <li>
+      <%= item.fetch("product_id") %>
+      × <%= item.fetch("quantity") %>
+    </li>
+  <% end %>
+</ul>
+
+<p>Checkout: <%= actor.state.checkout_status %></p>

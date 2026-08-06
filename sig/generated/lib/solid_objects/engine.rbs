@@ -1,0 +1,7 @@
+# Generated from lib/solid_objects/engine.rb with RBS::Inline
+
+module SolidObjects
+  class Engine < ::Rails::Engine
+    include SolidObjects::ActorHelper
+  end
+end

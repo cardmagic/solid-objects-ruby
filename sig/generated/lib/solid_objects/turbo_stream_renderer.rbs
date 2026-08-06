@@ -1,0 +1,14 @@
+# Generated from lib/solid_objects/turbo_stream_renderer.rb with RBS::Inline
+
+module SolidObjects
+  module TurboStreamRenderer
+    # @rbs (Broadcast) -> String
+    def self?.observable: (Broadcast) -> String
+
+    # @rbs (Reference, Symbol | String, untyped) -> String
+    def self?.observable_value: (Reference, Symbol | String, untyped) -> String
+
+    # @rbs (untyped) -> String
+    def self?.display_value: (untyped) -> String
+  end
+end

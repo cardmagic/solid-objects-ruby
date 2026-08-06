@@ -1,0 +1,6 @@
+# Generated from app/models/solid_objects/effect.rb with RBS::Inline
+
+module SolidObjects
+  class Effect < Record
+  end
+end

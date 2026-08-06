@@ -1,0 +1,36 @@
+# Generated from lib/solid_objects/actor_registry.rb with RBS::Inline
+
+module SolidObjects
+  class ActorRegistry
+    @actors: Hash[String, Class]
+
+    @mutex: Mutex
+
+    # @rbs () -> void
+    def initialize: () -> void
+
+    # @rbs (String | Symbol, Class) -> Class
+    def register: (String | Symbol, Class) -> Class
+
+    # @rbs (String | Symbol) -> Class
+    def fetch: (String | Symbol) -> Class
+
+    # @rbs (String | Symbol) -> bool
+    def registered?: (String | Symbol) -> bool
+
+    # @rbs () -> Hash[String, Class]
+    def to_h: () -> Hash[String, Class]
+
+    private
+
+    attr_reader actors: untyped
+
+    attr_reader mutex: untyped
+
+    # @rbs (String | Symbol) -> String
+    def normalize: (String | Symbol) -> String
+
+    # @rbs (untyped) -> void
+    def validate_actor_class!: (untyped) -> void
+  end
+end

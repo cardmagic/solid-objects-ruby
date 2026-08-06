@@ -1,0 +1,8 @@
+<%= actor_scope @room do |room| %>
+  <p>
+    Present:
+    <%= room.value :presence %>
+  </p>
+
+  <%= room.component :messages %>
+<% end %>

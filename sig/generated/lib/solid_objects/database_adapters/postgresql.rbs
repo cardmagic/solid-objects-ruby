@@ -1,0 +1,13 @@
+# Generated from lib/solid_objects/database_adapters/postgresql.rb with RBS::Inline
+
+module SolidObjects
+  module DatabaseAdapters
+    class Postgresql < DatabaseAdapter
+      # @rbs () -> bool
+      def supports_skip_locked?: () -> bool
+
+      # @rbs () -> String
+      def claim_lock: () -> String
+    end
+  end
+end

@@ -1,0 +1,19 @@
+# Generated from lib/solid_objects/stream_token.rb with RBS::Inline
+
+module SolidObjects
+  module StreamToken
+    PURPOSE: ::String
+
+    # @rbs (Reference) -> String
+    def self?.generate: (Reference) -> String
+
+    # @rbs (String) -> Hash[String, String]
+    def self?.verify: (String) -> Hash[String, String]
+
+    # @rbs () -> ActiveSupport::MessageVerifier
+    def self?.verifier: () -> ActiveSupport::MessageVerifier
+
+    # @rbs () -> String
+    def self?.signing_secret: () -> String
+  end
+end

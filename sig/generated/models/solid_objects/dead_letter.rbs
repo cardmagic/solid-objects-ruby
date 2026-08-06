@@ -1,0 +1,6 @@
+# Generated from app/models/solid_objects/dead_letter.rb with RBS::Inline
+
+module SolidObjects
+  class DeadLetter < Record
+  end
+end

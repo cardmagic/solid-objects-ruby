@@ -1,0 +1,65 @@
+# Generated from lib/solid_objects/activation.rb with RBS::Inline
+
+module SolidObjects
+  class Activation
+    @pass_exhausted: bool
+
+    @last_used_at: Float
+
+    @actor: Actor
+
+    @actor_class: Class
+
+    @lease: Lease
+
+    attr_reader lease: untyped
+
+    attr_reader actor: untyped
+
+    # @rbs (lease: Lease) -> void
+    def initialize: (lease: Lease) -> void
+
+    # @rbs () -> Integer
+    def drain: () -> Integer
+
+    # @rbs () -> bool
+    def ready?: () -> bool
+
+    # @rbs () -> bool
+    def pass_exhausted?: () -> bool
+
+    # @rbs () -> bool
+    def idle?: () -> bool
+
+    # @rbs () -> void
+    def renew_lease: () -> void
+
+    # @rbs () -> bool
+    def lease_renewal_due?: () -> bool
+
+    # @rbs () -> void
+    def yield_ready_messages: () -> void
+
+    # @rbs (Hash[String, untyped]) -> void
+    def restore_state: (Hash[String, untyped]) -> void
+
+    # @rbs () -> void
+    def deactivate: () -> void
+
+    private
+
+    attr_reader actor_class: untyped
+
+    # @rbs (Instance) -> Actor
+    def build_actor: (Instance) -> Actor
+
+    # @rbs () -> Message?
+    def claim_next_message: () -> Message?
+
+    # @rbs (Instance) -> void
+    def recover_stale_claim: (Instance) -> void
+
+    # @rbs () -> Float
+    def monotonic_now: () -> Float
+  end
+end

@@ -1,0 +1,36 @@
+# Generated from lib/solid_objects/activation_manager.rb with RBS::Inline
+
+module SolidObjects
+  class ActivationManager
+    @owner_id: String
+
+    @database_adapter: DatabaseAdapter
+
+    # @rbs (owner_id: String, ?database_adapter: DatabaseAdapter) -> void
+    def initialize: (owner_id: String, ?database_adapter: DatabaseAdapter) -> void
+
+    # @rbs () -> Activation?
+    def claim_next: () -> Activation?
+
+    private
+
+    attr_reader owner_id: untyped
+
+    attr_reader database_adapter: untyped
+
+    # @rbs (Time) -> Array[Integer]
+    def candidate_instance_ids: (Time) -> Array[Integer]
+
+    # @rbs (Time) -> Array[Integer]
+    def ready_instance_ids: (Time) -> Array[Integer]
+
+    # @rbs (Time) -> Array[Integer]
+    def claimed_instance_ids: (Time) -> Array[Integer]
+
+    # @rbs (Instance, Time) -> bool
+    def claimable?: (Instance, Time) -> bool
+
+    # @rbs () -> String
+    def available_lease_sql: () -> String
+  end
+end

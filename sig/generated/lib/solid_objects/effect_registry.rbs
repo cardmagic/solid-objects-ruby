@@ -1,0 +1,24 @@
+# Generated from lib/solid_objects/effect_registry.rb with RBS::Inline
+
+module SolidObjects
+  class EffectRegistry
+    @handlers: Hash[String, Proc]
+
+    @mutex: Mutex
+
+    # @rbs () -> void
+    def initialize: () -> void
+
+    # @rbs (String | Symbol, Proc) -> Proc
+    def register: (String | Symbol, Proc) -> Proc
+
+    # @rbs (String | Symbol) -> Proc
+    def fetch: (String | Symbol) -> Proc
+
+    private
+
+    attr_reader handlers: untyped
+
+    attr_reader mutex: untyped
+  end
+end

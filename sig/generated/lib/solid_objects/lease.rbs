@@ -1,0 +1,57 @@
+# Generated from lib/solid_objects/lease.rb with RBS::Inline
+
+module SolidObjects
+  class Lease
+    # @rbs (instance: Instance, owner_id: String, now: Time, ?duration: Numeric, database_adapter: DatabaseAdapter) -> Lease?
+    def self.claim: (instance: Instance, owner_id: String, now: Time, database_adapter: DatabaseAdapter, ?duration: Numeric) -> Lease?
+
+    # @rbs (instance_id: Integer, owner_id: String, ?duration: Numeric, ?database_adapter: DatabaseAdapter) -> Lease?
+    def self.acquire: (instance_id: Integer, owner_id: String, ?duration: Numeric, ?database_adapter: DatabaseAdapter) -> Lease?
+
+    # @rbs (Instance, String, Time) -> bool
+    private def self.held_by_another_live_owner?: (Instance, String, Time) -> bool
+
+    @instance_id: Integer
+
+    @owner_id: String
+
+    @generation: Integer
+
+    @expires_at: Time
+
+    @database_adapter: DatabaseAdapter
+
+    attr_reader instance_id: untyped
+
+    attr_reader owner_id: untyped
+
+    attr_reader generation: untyped
+
+    attr_reader expires_at: untyped
+
+    # @rbs (instance_id: Integer, owner_id: String, generation: Integer, expires_at: Time, database_adapter: DatabaseAdapter) -> void
+    def initialize: (instance_id: Integer, owner_id: String, generation: Integer, expires_at: Time, database_adapter: DatabaseAdapter) -> void
+
+    # @rbs (?duration: Numeric) -> Lease
+    def renew: (?duration: Numeric) -> Lease
+
+    # @rbs () -> bool
+    def release: () -> bool
+
+    # @rbs () { (Instance) -> untyped } -> untyped
+    def fenced_transaction: () { (Instance) -> untyped } -> untyped
+
+    private
+
+    attr_reader database_adapter: untyped
+
+    # @rbs () -> Instance
+    def locked_owned_instance!: () -> Instance
+
+    # @rbs (Instance) -> bool
+    def owned_generation?: (Instance) -> bool
+
+    # @rbs (Instance, Time) -> void
+    def verify_unexpired!: (Instance, Time) -> void
+  end
+end

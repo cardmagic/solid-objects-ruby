@@ -1,0 +1,8 @@
+<ol>
+  <% actor.state.recent_messages.each do |message| %>
+    <li id="message_<%= message.fetch("id") %>">
+      <strong><%= message.fetch("user_id") %></strong>
+      <%= message.fetch("body") %>
+    </li>
+  <% end %>
+</ol>

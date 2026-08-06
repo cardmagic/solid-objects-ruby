@@ -1,0 +1,174 @@
+# Generated from lib/solid_objects/actor.rb with RBS::Inline
+
+module SolidObjects
+  class Actor
+    class EffectIntent < Data
+      attr_reader name(): untyped
+
+      attr_reader arguments(): untyped
+
+      attr_reader success_message_name(): untyped
+
+      attr_reader failure_message_name(): untyped
+
+      def self.new: (untyped name, untyped arguments, untyped success_message_name, untyped failure_message_name) -> instance
+                  | (name: untyped, arguments: untyped, success_message_name: untyped, failure_message_name: untyped) -> instance
+
+      def self.members: () -> [ :name, :arguments, :success_message_name, :failure_message_name ]
+
+      def members: () -> [ :name, :arguments, :success_message_name, :failure_message_name ]
+    end
+
+    class ReminderIntent < Data
+      attr_reader name(): untyped
+
+      attr_reader at(): untyped
+
+      attr_reader arguments(): untyped
+
+      attr_reader interval_seconds(): untyped
+
+      attr_reader missed_policy(): untyped
+
+      def self.new: (untyped name, untyped at, untyped arguments, untyped interval_seconds, untyped missed_policy) -> instance
+                  | (name: untyped, at: untyped, arguments: untyped, interval_seconds: untyped, missed_policy: untyped) -> instance
+
+      def self.members: () -> [ :name, :at, :arguments, :interval_seconds, :missed_policy ]
+
+      def members: () -> [ :name, :at, :arguments, :interval_seconds, :missed_policy ]
+    end
+
+    class OutboundMessageIntent < Data
+      attr_reader actor_type(): untyped
+
+      attr_reader actor_id(): untyped
+
+      attr_reader message_name(): untyped
+
+      attr_reader arguments(): untyped
+
+      attr_reader available_at(): untyped
+
+      attr_reader idempotency_key(): untyped
+
+      def self.new: (untyped actor_type, untyped actor_id, untyped message_name, untyped arguments, untyped available_at, untyped idempotency_key) -> instance
+                  | (actor_type: untyped, actor_id: untyped, message_name: untyped, arguments: untyped, available_at: untyped, idempotency_key: untyped) -> instance
+
+      def self.members: () -> [ :actor_type, :actor_id, :message_name, :arguments, :available_at, :idempotency_key ]
+
+      def members: () -> [ :actor_type, :actor_id, :message_name, :arguments, :available_at, :idempotency_key ]
+    end
+
+    # @rbs (Class) -> void
+    def self.inherited: (Class) -> void
+
+    # @rbs (?String | Symbol) -> String
+    def self.actor_type: (?String | Symbol) -> String
+
+    # @rbs (Symbol | String, ?default: untyped) -> StateDefinition::Attribute
+    def self.attribute: (Symbol | String, ?default: untyped) -> StateDefinition::Attribute
+
+    # @rbs (Symbol | String) { (*untyped, **untyped) -> untyped } -> ActorDefinition::Handler
+    def self.message: (Symbol | String) { (*untyped, **untyped) -> untyped } -> ActorDefinition::Handler
+
+    # @rbs (Symbol | String) { (*untyped, **untyped) -> untyped } -> ActorDefinition::Handler
+    def self.query: (Symbol | String) { (*untyped, **untyped) -> untyped } -> ActorDefinition::Handler
+
+    # @rbs (Symbol | String) ?{ () -> untyped } -> ActorDefinition::Handler
+    def self.observable: (Symbol | String) ?{ () -> untyped } -> ActorDefinition::Handler
+
+    # @rbs (?Integer) -> Integer
+    def self.state_version: (?Integer) -> Integer
+
+    # @rbs (from: Integer, to: Integer) { (Hash[String, untyped]) -> Hash[String, untyped] } -> ActorDefinition::StateMigration
+    def self.migrate_state: (from: Integer, to: Integer) { (Hash[String, untyped]) -> Hash[String, untyped] } -> ActorDefinition::StateMigration
+
+    # @rbs () { () -> untyped } -> Proc
+    def self.on_activate: () { () -> untyped } -> Proc
+
+    # @rbs () { () -> untyped } -> Proc
+    def self.on_deactivate: () { () -> untyped } -> Proc
+
+    # @rbs (String | Integer) -> Reference
+    def self.ref: (String | Integer) -> Reference
+
+    # @rbs () -> ActorDefinition
+    def self.definition: () -> ActorDefinition
+
+    # @rbs () -> Class
+    def self.ensure_registered!: () -> Class
+
+    # @rbs () -> String
+    private def self.default_actor_type: () -> String
+
+    @outbound_message_intents: Array[OutboundMessageIntent]
+
+    @reminder_intents: Array[ReminderIntent]
+
+    @effect_intents: Array[EffectIntent]
+
+    @state: State
+
+    @actor_id: String
+
+    attr_reader actor_id: untyped
+
+    attr_reader state: untyped
+
+    # @rbs (actor_id: String, state: State) -> void
+    def initialize: (actor_id: String, state: State) -> void
+
+    # @rbs () -> MessageContext?
+    def current_message: () -> MessageContext?
+
+    # @rbs (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> EffectIntent
+    def emit: (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> EffectIntent
+
+    # @rbs (Symbol | String, at: Time, ?every: Numeric?, ?missed: Symbol | String, arguments: Hash[Symbol | String, untyped]) -> ReminderIntent
+    def remind: (Symbol | String, at: Time, arguments: Hash[Symbol | String, untyped], ?every: Numeric?, ?missed: Symbol | String) -> ReminderIntent
+
+    # @rbs (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> OutboundMessageIntent
+    def send_to: (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> OutboundMessageIntent
+
+    # @rbs (Symbol | String, Hash[String, untyped]) -> untyped
+    def invoke: (Symbol | String, Hash[String, untyped]) -> untyped
+
+    # @rbs () -> Hash[String, untyped]
+    def observable_values: () -> Hash[String, untyped]
+
+    # @rbs () -> void
+    def activate: () -> void
+
+    # @rbs () -> void
+    def deactivate: () -> void
+
+    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], ?available_at: Time?, idempotency_key: String?) -> OutboundMessageIntent
+    def stage_outbound_message: (Reference, Symbol | String, Hash[Symbol | String, untyped], idempotency_key: String?, ?available_at: Time?) -> OutboundMessageIntent
+
+    # @rbs () -> Array[EffectIntent]
+    def drain_effect_intents: () -> Array[EffectIntent]
+
+    # @rbs () -> Array[ReminderIntent]
+    def drain_reminder_intents: () -> Array[ReminderIntent]
+
+    # @rbs () -> Array[OutboundMessageIntent]
+    def drain_outbound_message_intents: () -> Array[OutboundMessageIntent]
+
+    # @rbs () -> void
+    def discard_intents: () -> void
+
+    private
+
+    attr_reader effect_intents: untyped
+
+    attr_reader reminder_intents: untyped
+
+    attr_reader outbound_message_intents: untyped
+
+    # @rbs (Hash[String, untyped]) -> Hash[Symbol, untyped]
+    def keyword_arguments: (Hash[String, untyped]) -> Hash[Symbol, untyped]
+
+    # @rbs (Symbol | String?) -> void
+    def validate_effect_callback!: (Symbol | String?) -> void
+  end
+end

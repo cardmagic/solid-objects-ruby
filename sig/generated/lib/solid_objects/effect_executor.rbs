@@ -1,0 +1,82 @@
+# Generated from lib/solid_objects/effect_executor.rb with RBS::Inline
+
+module SolidObjects
+  class EffectContext < Data
+    attr_reader id(): untyped
+
+    attr_reader attempt(): untyped
+
+    attr_reader source_message_id(): untyped
+
+    attr_reader actor_type(): untyped
+
+    attr_reader actor_id(): untyped
+
+    def self.new: (untyped id, untyped attempt, untyped source_message_id, untyped actor_type, untyped actor_id) -> instance
+                | (id: untyped, attempt: untyped, source_message_id: untyped, actor_type: untyped, actor_id: untyped) -> instance
+
+    def self.members: () -> [ :id, :attempt, :source_message_id, :actor_type, :actor_id ]
+
+    def members: () -> [ :id, :attempt, :source_message_id, :actor_type, :actor_id ]
+  end
+
+  class EffectExecutor
+    ACTOR_MESSAGE_EFFECT: ::String
+
+    @shutdown_requested: bool
+
+    @stopped: bool
+
+    @database_adapter: DatabaseAdapter
+
+    @process_registry: ProcessRegistry
+
+    # @rbs (?process_registry: ProcessRegistry, ?database_adapter: DatabaseAdapter) -> void
+    def initialize: (?process_registry: ProcessRegistry, ?database_adapter: DatabaseAdapter) -> void
+
+    # @rbs () -> bool
+    def run_once: () -> bool
+
+    # @rbs () -> void
+    def stop: () -> void
+
+    # @rbs () -> void
+    def run: () -> void
+
+    # @rbs () -> void
+    def request_shutdown: () -> void
+
+    # @rbs () -> bool
+    def stopped?: () -> bool
+
+    # @rbs () -> bool
+    def shutdown_requested?: () -> bool
+
+    private
+
+    attr_reader process_registry: untyped
+
+    attr_reader database_adapter: untyped
+
+    # @rbs () -> Effect?
+    def claim_next: () -> Effect?
+
+    # @rbs (Effect) -> untyped
+    def deliver: (Effect) -> untyped
+
+    # @rbs (Effect) -> Integer
+    def deliver_actor_message: (Effect) -> Integer
+
+    # @rbs (Effect, untyped) -> void
+    def complete: (Effect, untyped) -> void
+
+    # @rbs (Effect, Exception) -> void
+    def fail_effect: (Effect, Exception) -> void
+
+    # @rbs (Effect) -> void
+    def verify_claim!: (Effect) -> void
+
+    # @rbs (Effect, String?, String, Hash[String, untyped]) -> Message?
+    def enqueue_result_message: (Effect, String?, String, Hash[String, untyped]) -> Message?
+  end
+end

@@ -1,0 +1,56 @@
+# Generated from lib/solid_objects/context.rb with RBS::Inline
+
+module SolidObjects
+  class MessageContext < Data
+    attr_reader id(): untyped
+
+    attr_reader attempt(): untyped
+
+    attr_reader enqueued_at(): untyped
+
+    attr_reader idempotency_key(): untyped
+
+    attr_reader request_id(): untyped
+
+    def self.new: (untyped id, untyped attempt, untyped enqueued_at, untyped idempotency_key, untyped request_id) -> instance
+                | (id: untyped, attempt: untyped, enqueued_at: untyped, idempotency_key: untyped, request_id: untyped) -> instance
+
+    def self.members: () -> [ :id, :attempt, :enqueued_at, :idempotency_key, :request_id ]
+
+    def members: () -> [ :id, :attempt, :enqueued_at, :idempotency_key, :request_id ]
+  end
+
+  module Context
+    STORAGE_KEY: ::Symbol
+
+    class Frame < Data
+      attr_reader actor(): untyped
+
+      attr_reader message(): untyped
+
+      attr_reader authorization_context(): untyped
+
+      def self.new: (untyped actor, untyped message, untyped authorization_context) -> instance
+                  | (actor: untyped, message: untyped, authorization_context: untyped) -> instance
+
+      def self.members: () -> [ :actor, :message, :authorization_context ]
+
+      def members: () -> [ :actor, :message, :authorization_context ]
+    end
+
+    # @rbs () -> Frame?
+    def self.current: () -> Frame?
+
+    # @rbs () -> Actor?
+    def self.current_actor: () -> Actor?
+
+    # @rbs () -> MessageContext?
+    def self.current_message: () -> MessageContext?
+
+    # @rbs () -> untyped
+    def self.authorization_context: () -> untyped
+
+    # @rbs (actor: Actor?, message: MessageContext?, authorization_context: untyped) { () -> untyped } -> untyped
+    def self.with: (actor: Actor?, message: MessageContext?, authorization_context: untyped) { () -> untyped } -> untyped
+  end
+end

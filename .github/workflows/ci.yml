@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - run: bundle exec rake
+
+  postgresql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: solid_objects
+          POSTGRES_PASSWORD: solid_objects
+          POSTGRES_DB: solid_objects_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U solid_objects"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SOLID_OBJECTS_DATABASE_URL: postgresql://solid_objects:solid_objects@127.0.0.1:5432/solid_objects_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - run: bundle exec rake test
+
+  mysql:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_USER: solid_objects
+          MYSQL_PASSWORD: solid_objects
+          MYSQL_DATABASE: solid_objects_test
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      SOLID_OBJECTS_DATABASE_URL: mysql2://solid_objects:solid_objects@127.0.0.1:3306/solid_objects_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - run: bundle exec rake test
+
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - run: bundle exec rake standard rubocop rbs steep security

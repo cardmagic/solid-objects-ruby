@@ -1,0 +1,8 @@
+# Generated from lib/solid_objects/instrumentation.rb with RBS::Inline
+
+module SolidObjects
+  module Instrumentation
+    # @rbs (Symbol, **untyped) { (Hash[Symbol, untyped]) -> untyped } -> untyped
+    def instrument: (Symbol, **untyped) { (Hash[Symbol, untyped]) -> untyped } -> untyped
+  end
+end

@@ -1,0 +1,35 @@
+<h1><%= @instance.actor_type %>(<%= @instance.actor_id %>)</h1>
+
+<dl>
+  <dt>State version</dt>
+  <dd><%= @instance.state_version %></dd>
+  <dt>Activation generation</dt>
+  <dd><%= @instance.activation_generation %></dd>
+  <dt>Activation owner</dt>
+  <dd><%= @instance.activation_owner_id || "inactive" %></dd>
+</dl>
+
+<h2>State</h2>
+<pre><%= JSON.pretty_generate(@instance.state) %></pre>
+
+<h2>Recent messages</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Sequence</th>
+      <th>Name</th>
+      <th>Attempts</th>
+      <th>Completed</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @messages.each do |message| %>
+      <tr>
+        <td><%= message.sequence %></td>
+        <td><%= message.message_name %></td>
+        <td><%= message.attempt_count %></td>
+        <td><%= message.completed_at %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

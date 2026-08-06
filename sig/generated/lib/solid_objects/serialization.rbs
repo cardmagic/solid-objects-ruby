@@ -1,0 +1,25 @@
+# Generated from lib/solid_objects/serialization.rb with RBS::Inline
+
+module SolidObjects
+  module Serialization
+    MAX_NESTING: ::Integer
+
+    # @rbs (untyped, ?max_bytes: Integer?) -> untyped
+    def self.dump: (untyped, ?max_bytes: Integer?) -> untyped
+
+    # @rbs (untyped) -> untyped
+    def self.load: (untyped) -> untyped
+
+    # @rbs (untyped) -> untyped
+    def self.deep_copy: (untyped) -> untyped
+
+    # @rbs (untyped, ?depth: Integer) -> untyped
+    private def self.normalize: (untyped, ?depth: Integer) -> untyped
+
+    # @rbs (Hash[untyped, untyped], depth: Integer) -> Hash[String, untyped]
+    private def self.normalize_hash: (Hash[untyped, untyped], depth: Integer) -> Hash[String, untyped]
+
+    # @rbs (untyped) -> String
+    private def self.normalize_key: (untyped) -> String
+  end
+end

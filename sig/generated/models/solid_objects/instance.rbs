@@ -1,0 +1,25 @@
+# Generated from app/models/solid_objects/instance.rb with RBS::Inline
+
+module SolidObjects
+  class Instance < Record
+    # @rbs (?actor_type: String?) -> ActiveRecord::Relation[Instance]
+    def self.active: (?actor_type: String?) -> ActiveRecord::Relation[Instance]
+
+    # @rbs (quiet_for: Numeric, ?now: Time) -> ActiveRecord::Relation[Instance]
+    def self.without_pending_work: (quiet_for: Numeric, ?now: Time) -> ActiveRecord::Relation[Instance]
+
+    # @rbs (actor_type: String, owner: ActiveRecord::Relation[untyped] | Class) -> ActiveRecord::Relation[Instance]
+    def self.orphaned: (actor_type: String, owner: ActiveRecord::Relation[untyped] | Class) -> ActiveRecord::Relation[Instance]
+
+    # @rbs (actor_type: String, actor_ids: Array[String]) -> Hash[String, Hash[String, untyped]]
+    def self.states_for: (actor_type: String, actor_ids: Array[String]) -> Hash[String, Hash[String, untyped]]
+
+    # @rbs () -> String
+    private def self.owner_id_cast_type: () -> String
+
+    private
+
+    # @rbs () -> void
+    def supply_defaults: () -> void
+  end
+end

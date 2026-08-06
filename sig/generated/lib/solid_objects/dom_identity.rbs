@@ -1,0 +1,20 @@
+# Generated from lib/solid_objects/dom_identity.rb with RBS::Inline
+
+module SolidObjects
+  module DomIdentity
+    # @rbs (Reference) -> String
+    def self?.scope: (Reference) -> String
+
+    # @rbs (Reference, Symbol | String) -> String
+    def self?.observable: (Reference, Symbol | String) -> String
+
+    # @rbs (Reference, Symbol | String) -> String
+    def self?.component: (Reference, Symbol | String) -> String
+
+    # @rbs (Reference) -> String
+    def self?.identity_digest: (Reference) -> String
+
+    # @rbs (Symbol | String) -> String
+    def self?.normalized_name: (Symbol | String) -> String
+  end
+end

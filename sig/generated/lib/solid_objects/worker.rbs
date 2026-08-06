@@ -1,0 +1,56 @@
+# Generated from lib/solid_objects/worker.rb with RBS::Inline
+
+module SolidObjects
+  class Worker
+    @shutdown_requested: bool
+
+    @stopped: bool
+
+    @activations: Hash[Integer, Activation]
+
+    @activation_manager: ActivationManager
+
+    @process_registry: ProcessRegistry
+
+    # @rbs (?process_registry: ProcessRegistry) -> void
+    def initialize: (?process_registry: ProcessRegistry) -> void
+
+    # @rbs () -> Integer
+    def run_once: () -> Integer
+
+    # @rbs (?max_passes: Integer) -> Integer
+    def run_until_idle: (?max_passes: Integer) -> Integer
+
+    # @rbs () -> void
+    def run: () -> void
+
+    # @rbs () -> void
+    def request_shutdown: () -> void
+
+    # @rbs () -> void
+    def stop: () -> void
+
+    # @rbs () -> bool
+    def stopped?: () -> bool
+
+    # @rbs () -> bool
+    def shutdown_requested?: () -> bool
+
+    private
+
+    attr_reader process_registry: untyped
+
+    attr_reader activation_manager: untyped
+
+    attr_reader activations: untyped
+
+    # @rbs () -> Activation?
+    def cached_ready_activation: () -> Activation?
+
+    # @rbs () -> void
+    def maintain_cached_activations: () -> void
+
+    # @rbs (Activation) -> void
+    def release_activation: (Activation) -> void
+  end
+end

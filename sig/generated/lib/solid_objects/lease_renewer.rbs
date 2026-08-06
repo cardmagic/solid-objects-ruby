@@ -1,0 +1,42 @@
+# Generated from lib/solid_objects/lease_renewer.rb with RBS::Inline
+
+module SolidObjects
+  class LeaseRenewer
+    @activation: Activation
+
+    @process_registry: ProcessRegistry
+
+    @mutex: Thread::Mutex
+
+    @condition: Thread::ConditionVariable
+
+    @stopped: bool
+
+    @thread: Thread?
+
+    # @rbs (activation: Activation, process_registry: ProcessRegistry) -> void
+    def initialize: (activation: Activation, process_registry: ProcessRegistry) -> void
+
+    # @rbs () { () -> untyped } -> untyped
+    def around: () { () -> untyped } -> untyped
+
+    private
+
+    attr_reader activation: untyped
+
+    attr_reader process_registry: untyped
+
+    attr_reader mutex: untyped
+
+    attr_reader condition: untyped
+
+    # @rbs () -> void
+    def start: () -> void
+
+    # @rbs () -> bool
+    def wait_for_interval: () -> bool
+
+    # @rbs () -> void
+    def stop: () -> void
+  end
+end

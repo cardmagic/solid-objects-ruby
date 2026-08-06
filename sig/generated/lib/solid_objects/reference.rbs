@@ -1,0 +1,25 @@
+# Generated from lib/solid_objects/reference.rb with RBS::Inline
+
+module SolidObjects
+  class Reference
+    @actor_type: String
+
+    @actor_id: String
+
+    attr_reader actor_type: untyped
+
+    attr_reader actor_id: untyped
+
+    # @rbs (actor_type: String, actor_id: String) -> void
+    def initialize: (actor_type: String, actor_id: String) -> void
+
+    # @rbs (Symbol | String, ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> (MessageReference | Actor::OutboundMessageIntent)
+    def tell: (Symbol | String, ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> (MessageReference | Actor::OutboundMessageIntent)
+
+    # @rbs (Symbol | String, ?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> untyped
+    def ask: (Symbol | String, ?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> untyped
+
+    # @rbs () -> String
+    def to_s: () -> String
+  end
+end

@@ -1,0 +1,47 @@
+# Generated from lib/solid_objects/actor_view.rb with RBS::Inline
+
+module SolidObjects
+  class ActorView
+    @reference: Reference
+
+    @view_context: untyped
+
+    @authorization_context: untyped
+
+    @snapshot: ActorSnapshot
+
+    attr_reader reference: untyped
+
+    # @rbs (reference: Reference, view_context: untyped, authorization_context: untyped) -> void
+    def initialize: (reference: Reference, view_context: untyped, authorization_context: untyped) -> void
+
+    # @rbs (Symbol | String) -> untyped
+    def value: (Symbol | String) -> untyped
+
+    # @rbs (Symbol | String, ?partial: String?) -> untyped
+    def component: (Symbol | String, ?partial: String?) -> untyped
+
+    # @rbs () -> State
+    def state: () -> State
+
+    private
+
+    attr_reader view_context: untyped
+
+    attr_reader authorization_context: untyped
+
+    attr_reader snapshot: untyped
+
+    # @rbs (Symbol | String) -> void
+    def authorize_read!: (Symbol | String) -> void
+
+    # @rbs (untyped) -> String
+    def display_value: (untyped) -> String
+
+    # @rbs (Symbol | String) -> String
+    def normalized_component_name: (Symbol | String) -> String
+
+    # @rbs (String) -> String
+    def default_partial: (String) -> String
+  end
+end

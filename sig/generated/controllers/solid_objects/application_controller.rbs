@@ -1,0 +1,10 @@
+# Generated from app/controllers/solid_objects/application_controller.rb with RBS::Inline
+
+module SolidObjects
+  class ApplicationController < ActionController::Base
+    private
+
+    # @rbs () -> void
+    def authorize_administration!: () -> void
+  end
+end

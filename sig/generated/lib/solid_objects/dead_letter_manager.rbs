@@ -1,0 +1,16 @@
+# Generated from lib/solid_objects/dead_letter_manager.rb with RBS::Inline
+
+module SolidObjects
+  class DeadLetterManager
+    # @rbs (?authorization_context: untyped) -> ActiveRecord::Relation[DeadLetter]
+    def all: (?authorization_context: untyped) -> ActiveRecord::Relation[DeadLetter]
+
+    # @rbs (Integer, ?authorization_context: untyped) -> MessageReference
+    def retry: (Integer, ?authorization_context: untyped) -> MessageReference
+
+    private
+
+    # @rbs (Symbol, authorization_context: untyped, ?dead_letter_id: Integer?) -> void
+    def authorize!: (Symbol, authorization_context: untyped, ?dead_letter_id: Integer?) -> void
+  end
+end

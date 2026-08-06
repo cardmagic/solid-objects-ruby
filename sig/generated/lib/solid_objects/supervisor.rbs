@@ -1,0 +1,38 @@
+# Generated from lib/solid_objects/supervisor.rb with RBS::Inline
+
+module SolidObjects
+  class Supervisor
+    @components: Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
+
+    @threads: Array[Thread]
+
+    @started: bool
+
+    # @rbs (?worker_count: Integer, ?effect_worker_count: Integer, ?broadcast_worker_count: Integer, ?reminder_scheduler_count: Integer) -> void
+    def initialize: (?worker_count: Integer, ?effect_worker_count: Integer, ?broadcast_worker_count: Integer, ?reminder_scheduler_count: Integer) -> void
+
+    # @rbs () -> void
+    def run: () -> void
+
+    # @rbs () -> void
+    def start: () -> void
+
+    # @rbs () -> void
+    def stop: () -> void
+
+    private
+
+    attr_reader components: untyped
+
+    attr_reader threads: untyped
+
+    # @rbs (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
+    def build_components: (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
+
+    # @rbs () -> void
+    def join_until_timeout: () -> void
+
+    # @rbs () -> Float
+    def monotonic_now: () -> Float
+  end
+end

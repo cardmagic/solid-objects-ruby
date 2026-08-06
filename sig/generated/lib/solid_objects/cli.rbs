@@ -1,0 +1,31 @@
+# Generated from lib/solid_objects/cli.rb with RBS::Inline
+
+module SolidObjects
+  class CLI < Thor
+    # @rbs () -> void
+    def start: () -> void
+
+    # @rbs () -> void
+    def status: () -> void
+
+    # @rbs () -> void
+    def cleanup: () -> void
+
+    # @rbs () -> void
+    def dead_letters: () -> void
+
+    # @rbs (String) -> void
+    def retry_dead_letter: (String) -> void
+
+    private
+
+    # @rbs () -> void
+    def boot_application: () -> void
+
+    # @rbs (Symbol, Integer) -> Integer
+    def numeric_option: (Symbol, Integer) -> Integer
+
+    # @rbs (Symbol) -> void
+    def authorize_administration!: (Symbol) -> void
+  end
+end

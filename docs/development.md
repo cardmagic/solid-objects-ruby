@@ -1,0 +1,87 @@
+# Development guide
+
+## Requirements
+
+- Ruby 3.3 or newer
+- Rails 8.0 or newer
+- SQLite 3.35+, PostgreSQL 14+, and MySQL 8.0/InnoDB for the full matrix
+
+Install dependencies:
+
+```bash
+bundle install
+```
+
+## Tests
+
+The suite uses Minitest and follows Solid Queue's broad structure: unit tests,
+model/schema tests, engine boot tests, and real database integration tests.
+Concurrency tests use queues and notification barriers instead of timing-only
+sleeps.
+
+```bash
+bundle exec rake test
+SOLID_OBJECTS_DATABASE_URL=postgresql://... bundle exec rake test
+SOLID_OBJECTS_DATABASE_URL=mysql2://... bundle exec rake test
+```
+
+Each database run must start from an empty dedicated test database because the
+test helper applies the engine migration.
+
+## Inline RBS
+
+Ruby source starts with:
+
+```ruby
+# rbs_inline: enabled
+```
+
+Methods and instance variables use `# @rbs` annotations. Generate and validate
+signatures with:
+
+```bash
+bundle exec rake rbs
+```
+
+This follows the inline convention used by `cardmagic/classifier`.
+
+## Formatting and security
+
+```bash
+bundle exec standardrb
+bundle exec rubocop
+bundle exec rake rbs steep
+bundle exec brakeman --force --no-pager -q .
+bundle exec rake
+```
+
+`.rubocop.yml` is pinned to the policy shape in Solid Queue main at commit
+`86f3d92f1dd68547ec0ebe960fc9933c203d9e51`: Rails Omakase, Ruby 3.3, and its
+schema/template exclusions. Rails Omakase is canonical where the policies
+conflict. Standard remains an additional gate with only its opposing
+array/hash-bracket whitespace cops ignored.
+
+Run a failing Minitest first for behavioral changes, implement the smallest
+correct change, rerun the focused test, then the complete database matrix.
+
+## Benchmarks
+
+Scripts in `benchmark/` cover enqueue, claim, processing, cold actors, a hot
+actor, concurrent actors, ask latency, cache reuse, and query counts. Results
+describe one machine and database configuration; they are not universal
+capacity guarantees.
+
+```bash
+COUNT=500 bundle exec ruby -Ilib benchmark/enqueue.rb
+COUNT=500 bundle exec ruby -Ilib benchmark/claim.rb
+COUNT=500 bundle exec ruby -Ilib benchmark/processing.rb
+COUNT=500 bundle exec ruby -Ilib benchmark/cold_actors.rb
+COUNT=500 bundle exec ruby -Ilib benchmark/hot_actor.rb
+COUNT=500 CONCURRENCY=4 bundle exec ruby -Ilib benchmark/concurrent_actors.rb
+COUNT=100 bundle exec ruby -Ilib benchmark/ask_latency.rb
+COUNT=500 bundle exec ruby -Ilib benchmark/activation_cache.rb
+bundle exec ruby -Ilib benchmark/query_count.rb
+```
+
+SQLite is the default. Set `SOLID_OBJECTS_DATABASE_URL` to benchmark a dedicated
+empty PostgreSQL or MySQL database.
