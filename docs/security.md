@@ -3,14 +3,16 @@
 ## Policy hooks
 
 Solid Objects has separate hooks for sending messages, querying state,
-subscribing to actor streams, and administration. The host application supplies
-the authenticated request or connection as `authorization_context`.
-All four hooks deny by default.
+destroying actors, subscribing to actor streams, and administration. The host
+application supplies the authenticated request or connection as
+`authorization_context`. All five hooks deny by default.
 
 Method-style reference calls do not bypass these hooks. Public instance methods
 declared on an actor are part of its remotely addressable message surface and
 delegate to the authorized `tell` path. Keep implementation helpers private or
 protected. Query and attribute methods delegate to the authorized `ask` path.
+`reference.destroy` delegates to `authorize_destroy` before checking whether
+the actor exists, so denial does not reveal actor existence.
 
 Internal runtime delivery bypasses the public client only for rows already
 created by a committed actor turn. It never converts a database actor type into
@@ -46,6 +48,10 @@ host authentication and audit their use.
 
 Instrumentation excludes arguments, state, results, and effect payloads by
 default. Review custom logging and effect handlers for accidental disclosure.
+
+Actor destruction is not an administrative shortcut. Authorize tenancy and
+ownership explicitly in `authorize_destroy`; knowledge of an actor ID is never
+permission to delete its state or queued work.
 
 ## Denial of service
 

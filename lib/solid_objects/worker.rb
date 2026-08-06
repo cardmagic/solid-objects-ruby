@@ -40,6 +40,9 @@ module SolidObjects
       ).around { activation.drain }
       release_activation(activation) if activation.pass_exhausted?
       processed
+    rescue ActorDestroyed
+      release_activation(activation) if activation
+      0
     rescue StateMigrationError, LostActivation => error
       release_activation(activation) if activation
       SolidObjects.configuration.logger.error(

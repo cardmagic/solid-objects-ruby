@@ -40,11 +40,8 @@ module SolidObjects
     # @rbs () -> Reminder?
     def claim_next: () -> Reminder?
 
-    # @rbs (Reminder) -> MessageReference
-    def enqueue: (Reminder) -> MessageReference
-
-    # @rbs (Reminder) -> void
-    def complete: (Reminder) -> void
+    # @rbs (Reminder) -> MessageReference?
+    def enqueue: (Reminder) -> MessageReference?
 
     # @rbs (Reminder) -> void
     def release: (Reminder) -> void

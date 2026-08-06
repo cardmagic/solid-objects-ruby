@@ -12,4 +12,6 @@
 - Add JSON actor state, versioned migrations, retries, and dead letters.
 - Add transactional effects, actor-to-actor messages, and durable reminders.
 - Add observable Turbo replacements through a durable broadcast outbox.
+- Add authorized, fenced actor destruction with cascading mailbox, reminder,
+  effect, broadcast, and dead-letter cleanup.
 - Support SQLite, PostgreSQL, and MySQL.

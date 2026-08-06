@@ -2,8 +2,6 @@
 
 module SolidObjects
   class Configuration
-    @table_name_prefix: String
-
     @max_attempts: Integer
 
     @retry_delay: Proc
@@ -36,9 +34,13 @@ module SolidObjects
 
     @authorize_query: Proc
 
+    @authorize_destroy: Proc
+
     @authorize_subscription: Proc
 
     @authorize_administration: Proc
+
+    @table_name_prefix: String
 
     @polling_interval: Float
 
@@ -121,6 +123,8 @@ module SolidObjects
     attr_accessor authorize_message: untyped
 
     attr_accessor authorize_query: untyped
+
+    attr_accessor authorize_destroy: untyped
 
     attr_accessor authorize_subscription: untyped
 

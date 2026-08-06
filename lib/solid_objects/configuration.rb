@@ -31,6 +31,7 @@ module SolidObjects
     # @rbs @wake_up_adapter: untyped
     # @rbs @authorize_message: Proc
     # @rbs @authorize_query: Proc
+    # @rbs @authorize_destroy: Proc
     # @rbs @authorize_subscription: Proc
     # @rbs @authorize_administration: Proc
 
@@ -63,6 +64,7 @@ module SolidObjects
       :wake_up_adapter,
       :authorize_message,
       :authorize_query,
+      :authorize_destroy,
       :authorize_subscription,
       :authorize_administration
 
@@ -101,6 +103,7 @@ module SolidObjects
       end
       @authorize_message = ->(**) { false }
       @authorize_query = ->(**) { false }
+      @authorize_destroy = ->(**) { false }
       @authorize_subscription = ->(**) { false }
       @authorize_administration = ->(**) { false }
     end

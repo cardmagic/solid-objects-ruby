@@ -2,7 +2,13 @@
 
 ## Purpose
 
-Solid Objects is a Rails engine that provides database-backed virtual actors for MySQL, PostgreSQL, and SQLite. A virtual actor is a logical object addressed by type and ID whose in-memory activation is created on demand, processes one mailbox turn at a time, persists JSON state, and can disappear when idle without losing its identity or state.
+Solid Objects ports the Cloudflare Durable Objects programming model to Rails.
+It is a database-backed virtual actor runtime for MySQL, PostgreSQL, and
+SQLite. A virtual actor is a logical object addressed by type and ID whose
+in-memory activation is created on demand, processes one mailbox turn at a
+time, persists JSON state, and can disappear when idle without losing its
+identity or state. This ports the programming model, not Cloudflare's
+serverless runtime, global placement, storage API, or platform guarantees.
 
 The runtime contract is:
 
@@ -53,11 +59,12 @@ The registry maps a stable persisted actor type string to a Ruby actor class. Re
 A reference contains actor type and normalized actor ID. It is cheap,
 serializable as data, and does not imply an active Ruby object. Declared
 message methods delegate to `tell`; declared query and attribute methods
-delegate to `ask`. Both paths authorize and enqueue through the client.
+delegate to `ask`. `destroy` is a reserved synchronous reference operation.
+All three paths authorize through the client.
 
 ### Client and mailbox
 
-The client finds or creates the actor instance and atomically allocates a sequence. It inserts one durable message-history row and one ready-membership row. It validates message names and JSON payloads before writing and enforces idempotency-key uniqueness, payload limits, and the per-actor mailbox cap. Distributed rate limiting and global admission control are not implemented.
+The client finds or creates the actor instance and atomically allocates a sequence. It inserts one durable message-history row and one ready-membership row. It validates message names and JSON payloads before writing and enforces idempotency-key uniqueness, payload limits, and the per-actor mailbox cap. It also authorizes and coordinates actor destruction. Distributed rate limiting and global admission control are not implemented.
 
 Message execution state is table membership, not a status column. The durable message remains for results, retention, and diagnostics. Only live work occupies `ready_messages` or `claimed_messages`, so completed history cannot inflate the polling index.
 
@@ -100,7 +107,11 @@ An effect worker claims due effect rows through the database coordination adapte
 
 ### Reminder scheduler
 
-The scheduler claims due reminder definitions, enqueues ordinary actor messages, and advances recurring reminders or completes one-shot reminders. A unique occurrence key prevents two schedulers from producing two mailbox rows for the same reminder occurrence.
+The scheduler claims due reminder definitions, locks the source actor instance,
+then enqueues the ordinary actor message and advances or completes the reminder
+in one transaction. A unique occurrence key prevents two schedulers from
+producing two mailbox rows for the same reminder occurrence. Locking the source
+instance first prevents a claimed reminder from recreating a destroyed actor.
 
 ### Broadcast worker
 
@@ -141,9 +152,9 @@ updates; it is not independently persisted.
 Lifecycle hooks are deterministic local hooks:
 
 - `on_activate` runs after state load and migration. State changes made there are included with the next successful message commit, not persisted on activation alone.
-- `on_deactivate` runs only on graceful local deactivation. Its state changes are not persisted and it must not be used for durable work.
+- `on_deactivate` runs only on graceful local deactivation. Its state changes are not persisted and it must not be used for durable work. Explicit destruction does not run lifecycle hooks.
 
-Durable cleanup belongs in messages, reminders, or effects.
+Durable application cleanup belongs in messages, reminders, or effects.
 
 ## Enqueue and sequence allocation
 
@@ -163,6 +174,37 @@ Enqueue uses one transaction:
 The increment and insert roll back together. The unique index on `(actor_type, actor_id, sequence)` is the final invariant. Concurrent first access is resolved by the unique actor identity index and retrying the instance lookup.
 
 Committed concurrent enqueues have one database-defined sequence order. No order is promised between transactions that have not committed.
+
+## Actor destruction
+
+`ActorClass.ref(actor_id).destroy` is a synchronous, idempotent runtime
+operation. It is forbidden from actor context and has a separate
+`authorize_destroy` policy that runs before actor existence is revealed.
+
+Destruction uses one transaction:
+
+1. Resolve the actor type through the registry.
+2. Authorize the actor type and ID.
+3. Lock the actor instance by logical identity.
+4. Return `false` if it does not exist.
+5. Delete the instance.
+6. Let foreign-key cascades delete message history, ready and claimed
+   memberships, dead letters, reminders, effects, and broadcasts.
+7. Commit, emit `solid_objects.actor.destroyed`, and wake local waiters.
+
+The instance primary key is the actor-incarnation boundary. A worker holding an
+old lease can continue running Ruby code, but its fenced transaction cannot
+find the deleted instance and raises `LostActivation`. If the same logical
+identity is referenced later, enqueue creates a new instance with default
+state, state version, sequence 1, and a new primary key. An enqueue that loses
+the instance between lookup and locking retries against the new incarnation.
+
+A claimed reminder locks the source instance before enqueueing its occurrence,
+so it either commits before destruction and is deleted by the cascade, or
+observes the missing instance and does nothing. An already-running external
+effect, actor-to-actor delivery, or broadcast may have crossed the database
+boundary before destruction; it cannot be recalled. Its completion sees the
+deleted outbox row and cannot enqueue a callback or recreate the source actor.
 
 ## Candidate selection and fairness
 
@@ -324,7 +366,10 @@ A reminder record contains actor identity, a reminder name, target message, JSON
 schedule :expire, at: 30.minutes.from_now, arguments: {}
 ```
 
-When due, the scheduler creates a normal mailbox row with an idempotency key derived from reminder ID and occurrence. The mailbox provides sequential processing and ordinary retry behavior.
+When due, the scheduler locks the source instance and creates a normal mailbox
+row with an idempotency key derived from reminder ID and occurrence. The
+mailbox insert and reminder advancement commit atomically. The mailbox provides
+sequential processing and ordinary retry behavior.
 
 Solid Objects persists each occurrence by its mailbox row. Unlike Orleans reminders, an outage does not intentionally discard a due occurrence. Recurring catch-up is configurable:
 
@@ -373,14 +418,18 @@ Each channel subscription transmits current observable replacements before strea
 
 ## Authorization
 
-Configuration provides four explicit policies:
+Configuration provides five explicit policies:
 
 - `authorize_message`
 - `authorize_query`
+- `authorize_destroy`
 - `authorize_subscription`
 - `authorize_administration`
 
-Each receives a request context, registered actor class, actor ID, and operation details. A host can set request context using an isolated execution-state carrier. Internal runtime deliveries carry a system context that is separately recognizable.
+Each receives a request context, actor type, actor ID, and relevant operation
+details. A host can set request context using an isolated execution-state
+carrier. Internal runtime deliveries carry a system context that is separately
+recognizable.
 
 No controller, channel, or administrative command treats an actor ID, message ID, request ID, or signed stream name as authorization.
 
@@ -515,7 +564,8 @@ PostgreSQL transaction-level advisory locks may be used for optional singleton m
 | Successful message commit | Fenced state, durable message result, claimed-membership deletion, effects, reminders, actor outbox, broadcasts |
 | Failed message attempt | Conditional error, claimed deletion, ready reinsertion or dead letter |
 | Renew or release lease | Conditional instance update |
-| Deliver reminder occurrence | Mailbox enqueue is one transaction; reminder advance is a second claim-checked transaction, bridged by a stable occurrence idempotency key |
+| Destroy actor | Instance identity lock and cascading delete of state, mailbox, reminders, and outboxes |
+| Deliver reminder occurrence | Source instance lock, mailbox enqueue, and reminder advance, with a stable occurrence idempotency key |
 | Claim outbox batch | Backend claim transaction and delivery ownership |
 | Record outbox outcome | Success or retry/dead status |
 

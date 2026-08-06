@@ -11,5 +11,6 @@ class ActiveSupport::TestCase
     SolidObjects.reset!
     SolidObjects.configuration.authorize_message = ->(**) { true }
     SolidObjects.configuration.authorize_query = ->(**) { true }
+    SolidObjects.configuration.authorize_destroy = ->(**) { true }
   end
 end

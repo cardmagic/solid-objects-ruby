@@ -37,6 +37,9 @@ module SolidObjects
   class LostActivation < Error
   end
 
+  class ActorDestroyed < LostActivation
+  end
+
   class AskTimeout < Error
   end
 

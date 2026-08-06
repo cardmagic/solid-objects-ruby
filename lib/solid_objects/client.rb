@@ -59,6 +59,35 @@ module SolidObjects
       wait_for_result(message_reference, timeout:)
     end
 
+    # @rbs (Reference, ?authorization_context: untyped) -> bool
+    def destroy(reference, authorization_context: nil)
+      raise ActorCallCycle, "actors cannot synchronously destroy another actor" if Context.current_actor
+
+      SolidObjects.registry.fetch(reference.actor_type)
+      authorize_destroy!(reference, authorization_context:)
+      instance_id = SolidObjects.database_adapter.transaction do
+        instance = Instance.lock.find_by(
+          actor_type: reference.actor_type,
+          actor_id: reference.actor_id
+        )
+        next unless instance
+
+        instance_id = instance.id
+        instance.delete
+        instance_id
+      end
+      return false unless instance_id
+
+      SolidObjects.instrument(
+        :"actor.destroyed",
+        instance_id:,
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id
+      )
+      SolidObjects.wake_up.signal
+      true
+    end
+
     private
 
     attr_reader :mailbox
@@ -75,6 +104,18 @@ module SolidObjects
       return if authorized
 
       raise Unauthorized, "actor invocation is not authorized"
+    end
+
+    # @rbs (Reference, authorization_context: untyped) -> void
+    def authorize_destroy!(reference, authorization_context:)
+      authorized = SolidObjects.configuration.authorize_destroy.call(
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id,
+        authorization_context:
+      )
+      return if authorized
+
+      raise Unauthorized, "actor destruction is not authorized"
     end
 
     # @rbs (MessageReference, timeout: Numeric) -> untyped
@@ -100,6 +141,8 @@ module SolidObjects
           timeout: [ remaining, SolidObjects.configuration.ask_polling_interval ].min
         )
       end
+    rescue ActiveRecord::RecordNotFound
+      raise ActorDestroyed, "actor was destroyed while waiting for its result"
     end
 
     # @rbs () -> Float

@@ -76,6 +76,24 @@ is evidence that alarms are being lost.
 
 Never bulk-update actor state. That bypasses lease ownership and fencing.
 
+## Actor destruction
+
+Delete an actor only through its authorized reference:
+
+```ruby
+Counter.ref("global").destroy(authorization_context: Current.user)
+```
+
+Do not delete `solid_objects_instances` directly. The public operation locks
+the identity, invalidates stale activations through the deleted incarnation
+key, cascades through all actor-owned rows, emits
+`solid_objects.actor.destroyed`, and wakes local waiters.
+
+Destruction removes pending outboxes but cannot recall external I/O,
+actor-to-actor delivery, or a broadcast that already started. Confirm
+downstream idempotency and application retention requirements before deleting
+an actor. Reusing the same actor type and ID creates a fresh incarnation.
+
 ## Monitoring
 
 Alert on:
@@ -86,6 +104,7 @@ Alert on:
 - actor turn duration and failures;
 - lost-activation rate;
 - dead-letter creation;
+- actor destruction rate;
 - stale process heartbeats;
 - effect and broadcast retry/dead counts;
 - due-reminder lag;

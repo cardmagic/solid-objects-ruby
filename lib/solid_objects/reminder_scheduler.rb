@@ -27,9 +27,7 @@ module SolidObjects
       reminder = claim_next
       return false unless reminder
 
-      enqueue(reminder)
-      complete(reminder)
-      true
+      enqueue(reminder).present?
     rescue
       release(reminder) if reminder
       raise
@@ -96,28 +94,30 @@ module SolidObjects
       end
     end
 
-    # @rbs (Reminder) -> MessageReference
+    # @rbs (Reminder) -> MessageReference?
     def enqueue(reminder)
       actor_class = SolidObjects.registry.fetch(reminder.actor_type)
       unless actor_class.definition.messages.key?(reminder.message_name.to_sym)
         raise UnknownMessage, "unknown reminder message #{reminder.message_name.inspect}"
       end
 
-      Mailbox.new.enqueue(
-        Reference.new(actor_type: reminder.actor_type, actor_id: reminder.actor_id),
-        reminder.message_name,
-        reminder.arguments,
-        kind: "internal",
-        idempotency_key: "reminder:#{reminder.id}:#{reminder.occurrence}"
-      )
-    end
+      mailbox = Mailbox.new(database_adapter:)
+      message = database_adapter.transaction do
+        instance = Instance.lock.find_by(id: reminder.instance_id)
+        next unless instance
 
-    # @rbs (Reminder) -> void
-    def complete(reminder)
-      database_adapter.transaction do
-        locked_reminder = Reminder.lock.find(reminder.id)
+        locked_reminder = Reminder.lock.find_by(id: reminder.id)
+        next unless locked_reminder
         verify_claim!(locked_reminder)
         now = database_adapter.database_now
+        message = mailbox.enqueue_in_transaction(
+          Reference.new(actor_type: instance.actor_type, actor_id: instance.actor_id),
+          locked_reminder.message_name,
+          locked_reminder.arguments,
+          kind: "internal",
+          idempotency_key: "reminder:#{locked_reminder.id}:#{locked_reminder.occurrence}",
+          actor_class:
+        )
         recurring = locked_reminder.interval_seconds.present?
         locked_reminder.update!(
           status: recurring ? "scheduled" : "completed",
@@ -126,7 +126,11 @@ module SolidObjects
           claimed_by: nil,
           claimed_at: nil
         )
+        message
       end
+      return unless message
+
+      mailbox.announce(message)
       SolidObjects.instrument(
         :"reminder.enqueued",
         reminder_id: reminder.id,
@@ -134,6 +138,7 @@ module SolidObjects
         actor_id: reminder.actor_id,
         occurrence: reminder.occurrence
       )
+      MessageReference.from_message(message)
     end
 
     # @rbs (Reminder) -> void

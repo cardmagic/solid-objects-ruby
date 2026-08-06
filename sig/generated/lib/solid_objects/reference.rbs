@@ -19,6 +19,9 @@ module SolidObjects
     # @rbs (Symbol | String, ?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> untyped
     def ask: (Symbol | String, ?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> untyped
 
+    # @rbs (?authorization_context: untyped) -> bool
+    def destroy: (?authorization_context: untyped) -> bool
+
     # @rbs (Symbol, *untyped, **untyped) -> untyped
     def method_missing: (Symbol, *untyped, **untyped) -> untyped
 

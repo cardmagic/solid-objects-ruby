@@ -11,6 +11,11 @@ One row per `(actor_type, actor_id)`. Stores JSON state, state version,
 next-message sequence, activation owner/expiration/generation, pause state, and
 lifecycle timestamps.
 
+Deleting an instance is the actor-incarnation boundary. Foreign keys cascade
+the delete through messages, ready and claimed memberships, reminders, effects,
+broadcasts, and dead letters. Reusing the logical identity creates a new
+instance primary key with fresh state and message sequence.
+
 Indexes:
 
 - unique identity: enforces one logical actor;
@@ -96,3 +101,11 @@ index. Moving a message between ready and claimed tables makes executable state
 physical table membership. The hot indexes stay proportional to live work,
 avoid backend-specific partial indexes, and are portable across all supported
 databases.
+
+## Cascading destruction
+
+The public `reference.destroy` operation locks the instance row before deleting
+it. Every actor-owned table has a cascading foreign key either directly to the
+instance or through its message row. No application-side bulk delete can leave
+an executable orphan. Process registry rows are not actor-owned and remain
+available for worker lifecycle accounting.

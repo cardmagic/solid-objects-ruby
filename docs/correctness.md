@@ -32,6 +32,35 @@ finalization locks the instance and checks:
 A stale worker can continue running Ruby code, but it cannot commit state,
 completion, or outboxes.
 
+## Destruction
+
+`reference.destroy` locks and deletes the actor instance in one transaction.
+Cascading foreign keys delete its message history, ready and claimed
+memberships, dead letters, reminders, effects, and broadcasts. The operation
+returns `true` when it deletes an incarnation and `false` when no incarnation
+exists.
+
+The deleted instance primary key is also the fencing boundary. An activation
+that was executing before destruction raises `LostActivation` when it attempts
+to commit because its instance no longer exists. Reusing the logical actor
+type and ID creates a fresh incarnation with a different primary key, default
+state, and sequence 1; an old lease cannot address or commit into it.
+
+An enqueue racing with destruction is ordered by the instance lock. Work that
+commits first is deleted; work that observes the deletion retries against a new
+incarnation. A claimed reminder cannot resurrect an old incarnation because
+reminder delivery locks the source instance and atomically advances the
+reminder with its mailbox insert.
+
+Destruction removes pending and claimed outbox records, but it cannot recall
+external I/O, actor-to-actor delivery, or a broadcast that began before the
+delete. A stale outbox completion cannot record success, enqueue an actor
+callback, or recreate the source actor. Applications must still make external
+effect handlers idempotent.
+
+Destruction is synchronous, forbidden from actor context, authorized by
+`authorize_destroy`, and does not run `on_deactivate`.
+
 ## Crash matrix
 
 | Failure point | Durable outcome |
@@ -71,7 +100,9 @@ The following are atomic:
 - state, state version, message result/completion, claimed deletion, effects,
   reminders, outbound actor messages, and observable broadcasts;
 - failed-attempt record plus ready reinsertion or dead letter;
-- effect completion plus its optional actor outcome message.
+- effect completion plus its optional actor outcome message;
+- reminder occurrence enqueue plus reminder advancement; and
+- actor destruction plus cascading removal of all actor-owned rows.
 
 Actor Ruby code and external I/O are never inside the actor-state transaction.
 
@@ -80,6 +111,8 @@ Actor Ruby code and external I/O are never inside the actor-state transaction.
 `ask` is a durable message followed by result polling and wake-up hints. Timeout
 does not cancel the message. The current cross-process fallback is polling;
 therefore polling-only ask is not recommended in latency-sensitive HTTP paths.
+Destroying the actor while an `ask` is waiting removes its message, wakes the
+caller, and raises `SolidObjects::ActorDestroyed`.
 
 ## Database dependencies
 

@@ -52,6 +52,11 @@ module SolidObjects
       )
     end
 
+    # @rbs (?authorization_context: untyped) -> bool
+    def destroy(authorization_context: nil)
+      SolidObjects.client.destroy(self, authorization_context:)
+    end
+
     # @rbs (Symbol, *untyped, **untyped) -> untyped
     def method_missing(name, *arguments, **keywords)
       return super if arguments.any? || block_given?

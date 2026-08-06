@@ -2,6 +2,8 @@
 
 module SolidObjects
   class Mailbox
+    INSTANCE_RETRY_LIMIT: ::Integer
+
     @database_adapter: DatabaseAdapter
 
     # @rbs (?database_adapter: DatabaseAdapter) -> void
@@ -19,6 +21,9 @@ module SolidObjects
     private
 
     attr_reader database_adapter: untyped
+
+    # @rbs () { () -> Message } -> Message
+    def with_instance_retry: () { () -> Message } -> Message
 
     # @rbs (Reference, Class) -> Instance
     def find_or_create_instance: (Reference, Class) -> Instance

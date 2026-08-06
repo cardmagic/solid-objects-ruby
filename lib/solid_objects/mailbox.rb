@@ -2,6 +2,8 @@
 
 module SolidObjects
   class Mailbox
+    INSTANCE_RETRY_LIMIT = 3
+
     # @rbs @database_adapter: DatabaseAdapter
 
     # @rbs (?database_adapter: DatabaseAdapter) -> void
@@ -16,16 +18,18 @@ module SolidObjects
         arguments,
         max_bytes: SolidObjects.configuration.max_payload_bytes
       )
-      message = database_adapter.transaction do
-        enqueue_in_transaction(
-          reference,
-          message_name,
-          normalized_arguments,
-          kind:,
-          available_at:,
-          idempotency_key:,
-          actor_class:
-        )
+      message = with_instance_retry do
+        database_adapter.transaction do
+          enqueue_in_transaction(
+            reference,
+            message_name,
+            normalized_arguments,
+            kind:,
+            available_at:,
+            idempotency_key:,
+            actor_class:
+          )
+        end
       end
 
       announce(message)
@@ -81,6 +85,19 @@ module SolidObjects
     private
 
     attr_reader :database_adapter
+
+    # @rbs () { () -> Message } -> Message
+    def with_instance_retry
+      attempts = 0
+      begin
+        yield
+      rescue ActiveRecord::RecordNotFound
+        attempts += 1
+        retry if attempts < INSTANCE_RETRY_LIMIT
+
+        raise ActorDestroyed, "actor changed repeatedly while enqueueing"
+      end
+    end
 
     # @rbs (Reference, Class) -> Instance
     def find_or_create_instance(reference, actor_class)

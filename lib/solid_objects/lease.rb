@@ -113,7 +113,8 @@ module SolidObjects
     # @rbs () -> bool
     def release
       released = database_adapter.transaction do
-        instance = Instance.lock.find(instance_id)
+        instance = Instance.lock.find_by(id: instance_id)
+        next false unless instance
         next false unless owned_generation?(instance)
 
         instance.update!(activation_owner_id: nil, activation_expires_at: nil)
@@ -147,7 +148,10 @@ module SolidObjects
 
     # @rbs () -> Instance
     def locked_owned_instance!
-      Instance.lock.find(instance_id).tap do |instance|
+      instance = Instance.lock.find_by(id: instance_id)
+      raise ActorDestroyed, "actor instance no longer exists" unless instance
+
+      instance.tap do
         raise LostActivation, "activation owner or generation changed" unless owned_generation?(instance)
       end
     end

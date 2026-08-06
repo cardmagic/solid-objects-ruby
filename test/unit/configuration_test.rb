@@ -8,6 +8,7 @@ class ConfigurationTest < ActiveSupport::TestCase
 
     refute configuration.authorize_message.call
     refute configuration.authorize_query.call
+    refute configuration.authorize_destroy.call
     refute configuration.authorize_subscription.call
     refute configuration.authorize_administration.call
   end
