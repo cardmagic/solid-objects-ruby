@@ -7,32 +7,28 @@ class ChatRoomActor < SolidObjects::Actor
   attribute :recent_messages, default: -> { [] }
 
   observable :presence do
-    state.members.length
+    members.length
   end
 
   observable :recent_messages
 
-  message :join do |user_id:|
-    state.members << user_id unless state.members.include?(user_id)
+  def join(user_id:)
+    members << user_id unless members.include?(user_id)
   end
 
-  message :leave do |user_id:|
-    state.members.delete(user_id)
+  def leave(user_id:)
+    members.delete(user_id)
   end
 
-  message :send_message do |message_id:, user_id:, body:|
-    return if state.recent_messages.any? { |message| message.fetch("id") == message_id }
-    return unless state.members.include?(user_id)
+  def send_message(message_id:, user_id:, body:)
+    return if recent_messages.any? { |message| message.fetch("id") == message_id }
+    return unless members.include?(user_id)
 
-    state.recent_messages << {
+    recent_messages << {
       "id" => message_id,
       "user_id" => user_id,
       "body" => body
     }
-    state.recent_messages.shift while state.recent_messages.length > MAX_RECENT_MESSAGES
-  end
-
-  query :recent_messages do
-    state.recent_messages
+    recent_messages.shift while recent_messages.length > MAX_RECENT_MESSAGES
   end
 end

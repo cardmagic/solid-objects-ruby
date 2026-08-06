@@ -58,4 +58,14 @@ class SerializationTest < ActiveSupport::TestCase
 
     assert_equal 1, original.fetch("items").first.fetch("quantity")
   end
+
+  test "returns a deeply frozen read-only copy" do
+    original = { "items" => [ { "quantity" => 1 } ] }
+    copy = SolidObjects::Serialization.readonly_copy(original)
+
+    assert_predicate copy, :frozen?
+    assert_predicate copy.fetch("items"), :frozen?
+    assert_predicate copy.fetch("items").first, :frozen?
+    assert_raises(FrozenError) { copy.fetch("items").first["quantity"] = 2 }
+  end
 end

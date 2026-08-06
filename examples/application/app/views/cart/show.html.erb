@@ -1,12 +1,12 @@
 <%= actor_scope @cart do |cart| %>
   <span>
     Cart items:
-    <%= cart.value :items_count %>
+    <%= cart.items_count %>
   </span>
 
   <span>
     Subtotal:
-    <%= cart.value :subtotal_cents %>
+    <%= cart.subtotal_cents %>
   </span>
 
   <%= cart.component :summary %>

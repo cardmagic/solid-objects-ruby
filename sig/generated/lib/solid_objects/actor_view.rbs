@@ -2,13 +2,13 @@
 
 module SolidObjects
   class ActorView
-    @reference: Reference
-
-    @view_context: untyped
+    @snapshot: ActorSnapshot
 
     @authorization_context: untyped
 
-    @snapshot: ActorSnapshot
+    @view_context: untyped
+
+    @reference: Reference
 
     attr_reader reference: untyped
 
@@ -24,6 +24,12 @@ module SolidObjects
     # @rbs () -> State
     def state: () -> State
 
+    # @rbs (Symbol, *untyped, **untyped) -> untyped
+    def method_missing: (Symbol, *untyped, **untyped) -> untyped
+
+    # @rbs (Symbol, bool) -> bool
+    def respond_to_missing?: (Symbol, bool) -> bool
+
     private
 
     attr_reader view_context: untyped
@@ -34,6 +40,9 @@ module SolidObjects
 
     # @rbs (Symbol | String) -> void
     def authorize_read!: (Symbol | String) -> void
+
+    # @rbs (Symbol | String) -> bool
+    def observable?: (Symbol | String) -> bool
 
     # @rbs (untyped) -> String
     def display_value: (untyped) -> String

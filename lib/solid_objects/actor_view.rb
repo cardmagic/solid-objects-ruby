@@ -52,6 +52,18 @@ module SolidObjects
       snapshot.actor.state
     end
 
+    # @rbs (Symbol, *untyped, **untyped) -> untyped
+    def method_missing(name, *arguments, **keywords)
+      return value(name) if arguments.empty? && keywords.empty? && observable?(name)
+
+      super
+    end
+
+    # @rbs (Symbol, bool) -> bool
+    def respond_to_missing?(name, include_private = false)
+      observable?(name) || super
+    end
+
     private
 
     attr_reader :view_context, :authorization_context, :snapshot
@@ -68,6 +80,11 @@ module SolidObjects
       return if authorized
 
       raise Unauthorized, "actor state query is not authorized"
+    end
+
+    # @rbs (Symbol | String) -> bool
+    def observable?(name)
+      snapshot.actor_class.definition.observables.key?(name.to_sym)
     end
 
     # @rbs (untyped) -> String

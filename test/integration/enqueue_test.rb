@@ -96,7 +96,7 @@ class EnqueueTest < ActiveSupport::TestCase
     SolidObjects.configuration.authorize_message = ->(**) { false }
 
     assert_raises(SolidObjects::Unauthorized) do
-      CartActor.ref("alice").tell(:add, product_id: "shirt")
+      CartActor.ref("alice").add(product_id: "shirt")
     end
 
     assert_empty SolidObjects::Message.all

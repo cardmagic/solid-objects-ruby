@@ -7,6 +7,11 @@ subscribing to actor streams, and administration. The host application supplies
 the authenticated request or connection as `authorization_context`.
 All four hooks deny by default.
 
+Method-style reference calls do not bypass these hooks. Public instance methods
+declared on an actor are part of its remotely addressable message surface and
+delegate to the authorized `tell` path. Keep implementation helpers private or
+protected. Query and attribute methods delegate to the authorized `ask` path.
+
 Internal runtime delivery bypasses the public client only for rows already
 created by a committed actor turn. It never converts a database actor type into
 a Ruby constant.

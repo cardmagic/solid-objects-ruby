@@ -8,8 +8,7 @@ class ChatRoomsController < ApplicationController
 
   # @rbs () -> void
   def join
-    current_room.tell(
-      :join,
+    current_room.join(
       user_id: current_user.id.to_s,
       authorization_context: self
     )
@@ -18,8 +17,7 @@ class ChatRoomsController < ApplicationController
 
   # @rbs () -> void
   def leave
-    current_room.tell(
-      :leave,
+    current_room.leave(
       user_id: current_user.id.to_s,
       authorization_context: self
     )
@@ -28,8 +26,7 @@ class ChatRoomsController < ApplicationController
 
   # @rbs () -> void
   def create_message
-    current_room.tell(
-      :send_message,
+    current_room.send_message(
       message_id: SecureRandom.uuid,
       user_id: current_user.id.to_s,
       body: params.require(:body),

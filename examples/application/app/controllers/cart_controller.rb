@@ -8,8 +8,7 @@ class CartController < ApplicationController
 
   # @rbs () -> void
   def add_item
-    ShoppingCartActor.ref(current_user.id).tell(
-      :add_item,
+    ShoppingCartActor.ref(current_user.id).add_item(
       product_id: params.require(:product_id),
       unit_price_cents: params.require(:unit_price_cents).to_i,
       quantity: params.fetch(:quantity, 1).to_i,
@@ -20,8 +19,7 @@ class CartController < ApplicationController
 
   # @rbs () -> void
   def remove_item
-    current_cart.tell(
-      :remove_item,
+    current_cart.remove_item(
       product_id: params.require(:product_id),
       authorization_context: self
     )
@@ -30,8 +28,7 @@ class CartController < ApplicationController
 
   # @rbs () -> void
   def change_quantity
-    current_cart.tell(
-      :change_quantity,
+    current_cart.change_quantity(
       product_id: params.require(:product_id),
       quantity: params.require(:quantity).to_i,
       authorization_context: self
@@ -41,8 +38,7 @@ class CartController < ApplicationController
 
   # @rbs () -> void
   def checkout
-    current_cart.tell(
-      :checkout,
+    current_cart.checkout(
       payment_id: SecureRandom.uuid,
       authorization_context: self
     )

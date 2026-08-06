@@ -7,7 +7,7 @@
 
 ```erb
 <%= actor_scope ShoppingCartActor.ref(current_user.id) do |cart| %>
-  Items: <%= cart.value :items_count %>
+  Items: <%= cart.items_count %>
 <% end %>
 ```
 
@@ -26,8 +26,8 @@ it does not grant access. `ActorChannel` verifies the token, resolves the actor
 through the registry, calls `authorize_subscription`, and streams only after
 approval.
 
-Initial `value` reads separately call `authorize_query`. Never authorize solely
-from actor ID, token possession, stream name, or DOM ID.
+Initial observable method reads separately call `authorize_query`. Never
+authorize solely from actor ID, token possession, stream name, or DOM ID.
 
 ## Broadcast durability
 

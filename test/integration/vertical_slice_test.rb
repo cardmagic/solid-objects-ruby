@@ -9,12 +9,8 @@ class VerticalSliceTest < ActiveSupport::TestCase
 
     attribute :items, default: -> { [] }
 
-    message :add do |product_id:, quantity: 1|
-      state.items << { "product_id" => product_id, "quantity" => quantity }
-    end
-
-    query :items do
-      state.items
+    def add(product_id:, quantity: 1)
+      items << { "product_id" => product_id, "quantity" => quantity }
     end
   end
 
@@ -74,6 +70,43 @@ class VerticalSliceTest < ActiveSupport::TestCase
     worker.run_until_idle
 
     assert_equal [], Timeout.timeout(2) { result.pop }
+    caller.join
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
+    worker&.stop
+  end
+
+  test "reads declared attributes through ordered query methods" do
+    reference = CartActor.ref("alice")
+    message_reference = reference.add(product_id: "shirt", quantity: 2)
+    enqueued = Queue.new
+    subscription = ActiveSupport::Notifications.subscribe("solid_objects.message.enqueued") do |event|
+      enqueued << true if event.payload[:sequence] == 2
+    end
+    result = Queue.new
+
+    caller = Thread.new do
+      result << reference.items
+    rescue => error
+      result << error
+    end
+
+    Timeout.timeout(2) { enqueued.pop }
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    items = Timeout.timeout(2) { result.pop }
+
+    assert_equal(
+      [ { "product_id" => "shirt", "quantity" => 2 } ],
+      items
+    )
+    assert_predicate items, :frozen?
+    assert_predicate items.first, :frozen?
+    assert_raises(FrozenError) { items << { "product_id" => "pants" } }
+    assert_equal "completed", message_reference.status
+    query = SolidObjects::Message.order(:sequence).last
+    assert_equal "items", query.message_name
+    assert_equal "ask", query.message_kind
     caller.join
   ensure
     ActiveSupport::Notifications.unsubscribe(subscription) if subscription

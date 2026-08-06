@@ -25,7 +25,7 @@ class AskTest < ActiveSupport::TestCase
     SolidObjects.configuration.authorize_query = ->(**) { false }
 
     assert_raises(SolidObjects::Unauthorized) do
-      QueryActor.ref("one").ask(:value, timeout: 0.01)
+      QueryActor.ref("one").value
     end
 
     assert_empty SolidObjects::Message.all

@@ -10,13 +10,12 @@ MySQL, PostgreSQL, or SQLite database the application already has.
 ```ruby
 cart = ShoppingCartActor.ref("alice")
 
-cart.tell(
-  :add_item,
+cart.add_item(
   product_id: "shirt-123",
   quantity: 2
 )
 
-items = cart.ask(:items)
+items = cart.items
 ```
 
 `ShoppingCartActor / alice` is a logical identity. Solid Objects activates it
@@ -91,7 +90,7 @@ Recurring job schedules are global task definitions. Actor reminders are
 durable alarms owned by one logical identity:
 
 ```ruby
-message :schedule_expiration do
+def schedule_expiration
   remind :expire, at: 30.minutes.from_now, arguments: {}
 end
 ```
@@ -114,7 +113,7 @@ class ShoppingCartActor < SolidObjects::Actor
   attribute :items, default: -> { [] }
 
   observable :items_count do
-    state.items.sum { |item| item.fetch("quantity") }
+    items.sum { |item| item.fetch("quantity") }
   end
 end
 ```
@@ -123,7 +122,7 @@ Render it:
 
 ```erb
 <%= actor_scope current_cart do |cart| %>
-  Cart items: <%= cart.value :items_count %>
+  Cart items: <%= cart.items_count %>
 <% end %>
 ```
 
@@ -191,34 +190,45 @@ class ShoppingCartActor < SolidObjects::Actor
   attribute :items, default: -> { [] }
   attribute :checkout_status, default: "open"
 
-  message :add_item do |product_id:, quantity: 1|
-    item = state.items.find do |candidate|
+  def add_item(product_id:, quantity: 1)
+    item = items.find do |candidate|
       candidate.fetch("product_id") == product_id
     end
 
     if item
       item["quantity"] += quantity
     else
-      state.items << {
+      items << {
         "product_id" => product_id,
         "quantity" => quantity
       }
     end
   end
 
-  query :items do
-    state.items
-  end
-
   observable :items_count do
-    state.items.sum { |item| item.fetch("quantity") }
+    items.sum { |item| item.fetch("quantity") }
   end
 end
 ```
 
-Class-level `attribute` declarations define persisted actor state. Handlers
-read and write those values through `state`, keeping the mutation boundary
-visible.
+Class-level `attribute` declarations define persisted actor state and generate
+actor instance readers and writers. Public instance methods declared on the
+actor are durable message handlers. They can use `items`,
+`self.checkout_status = "pending"`, or the lower-level `state` object. Declare
+helper methods as private or protected so they are not exposed as messages.
+
+Attributes also become ordered read queries on a reference. Declared messages
+become asynchronous methods:
+
+```ruby
+cart = ShoppingCartActor.ref("alice")
+message = cart.add_item(product_id: "shirt-123", quantity: 2)
+items = cart.items
+```
+
+`message` is a `SolidObjects::MessageReference`. `items` is a deeply frozen
+JSON snapshot; mutating it cannot bypass the actor mailbox. State changes must
+go through public actor message methods.
 
 State, arguments, results, effects, and reminder arguments accept
 JSON-compatible values. Solid Objects never deserializes Ruby `Marshal` data.
@@ -267,6 +277,28 @@ constantizes a type supplied by a client.
 
 ## Messages and queries
 
+Declared actor operations are available directly on a reference:
+
+```ruby
+class Counter < SolidObjects::Actor
+  attribute :value, default: 0
+
+  def increment(amount: 1)
+    self.value += amount
+  end
+end
+
+counter = Counter.ref("global")
+message = counter.increment(amount: 5)
+value = counter.value
+```
+
+Public actor methods are messages and become asynchronous syntax over `tell`.
+Declared queries and attribute readers are synchronous syntax over `ask`.
+The `message(:name) { ... }` DSL remains available for dynamic definitions.
+The explicit `tell` and `ask` forms remain available for dynamic operation
+names or names that collide with Ruby or reference methods.
+
 ### `tell`
 
 `tell` durably enqueues work and immediately returns a message reference:
@@ -305,10 +337,10 @@ Sequential does not mean once. A handler can run again after a process crash or
 lease loss, so guard logical transitions in durable actor state:
 
 ```ruby
-message :launch do
-  return if state.status == "launched"
+def launch
+  return if status == "launched"
 
-  state.status = "launched"
+  self.status = "launched"
   emit :launch_vehicle, launch_id: actor_id
 end
 ```
@@ -321,13 +353,13 @@ Slow external I/O does not run inside an actor-state transaction. `emit`
 creates a transactional outbox entry alongside state and message completion:
 
 ```ruby
-message :checkout do
-  return unless state.checkout_status == "open"
+def checkout
+  return unless checkout_status == "open"
 
-  state.checkout_status = "pending"
+  self.checkout_status = "pending"
   emit(
     :charge_payment,
-    payment_id: state.payment_id,
+    payment_id:,
     amount_cents: total_cents,
     on_success: :payment_succeeded,
     on_failure: :payment_failed
@@ -355,7 +387,7 @@ before recording completion. The stable effect ID is the idempotency key.
 One-shot and recurring reminders are actor-owned database records:
 
 ```ruby
-message :schedule_evaluation do
+def schedule_evaluation
   remind :evaluate, at: 1.hour.from_now, every: 1.hour, missed: :latest
 end
 ```

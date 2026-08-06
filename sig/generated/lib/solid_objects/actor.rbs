@@ -98,6 +98,15 @@ module SolidObjects
     # @rbs () -> Class
     def self.ensure_registered!: () -> Class
 
+    # @rbs (Symbol) -> void
+    private def self.method_added: (Symbol) -> void
+
+    # @rbs () -> Hash[Symbol, bool]
+    private def self.generated_attribute_methods: () -> Hash[Symbol, bool]
+
+    # @rbs (Symbol) -> void
+    private def self.ensure_attribute_methods_available!: (Symbol) -> void
+
     # @rbs () -> String
     private def self.default_actor_type: () -> String
 

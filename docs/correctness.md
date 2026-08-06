@@ -50,10 +50,10 @@ Sequential does not mean once. A message such as `launch` still needs a durable
 guard:
 
 ```ruby
-message :launch do
-  return if state.status == "launched"
+def launch
+  return if status == "launched"
 
-  state.status = "launched"
+  self.status = "launched"
   emit :launch_vehicle, launch_id: actor_id
 end
 ```

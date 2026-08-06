@@ -3,6 +3,9 @@
 ## 0.1.0 - 2026-08-06
 
 - Introduce the Rails engine, actor API, and `solid_objects` executable.
+- Register public actor methods as durable messages and add method-style
+  reference calls, ordered attribute reads, actor attribute accessors, and
+  observable view helpers.
 - Add ordered durable mailboxes with ready and claimed membership tables.
 - Add renewable activation leases with monotonically increasing fencing
   generations.

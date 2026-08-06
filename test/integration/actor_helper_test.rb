@@ -26,7 +26,7 @@ class ActorHelperTest < ActionView::TestCase
     reference = CartActor.ref("alice")
 
     html = actor_scope(reference) do |actor|
-      safe_join([ actor.value(:items_count), actor.value(:items_count) ])
+      safe_join([ actor.items_count, actor.items_count ])
     end
 
     assert_equal 1, html.scan("<turbo-cable-stream-source").length

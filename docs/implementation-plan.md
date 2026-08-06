@@ -75,8 +75,10 @@ Bundle installs, each dummy database boots, and the empty Minitest suite, Standa
 
 - `SolidObjects::Actor`
 - `actor_type`
-- `state`, `attribute`
-- `message`, `query`, `observable`
+- `attribute` with actor instance readers and writers
+- Public instance methods as messages
+- `message` for explicit dynamic definitions
+- `query`, `observable`
 - `state_version`, `migrate_state`
 - `on_activate`, `on_deactivate`
 - `ActorClass.ref(actor_id)`
@@ -88,7 +90,7 @@ None.
 ### Tests
 
 - Registration and duplicate rejection
-- Message/query/observable lookup
+- Public, private, query, and observable method lookup
 - Defaults are not shared
 - JSON normalization and unsafe value rejection
 - Complete state migration chains and newer-state rejection
@@ -176,6 +178,7 @@ The schema installs in PostgreSQL, MySQL, and SQLite dummy databases and databas
 
 - `Reference#tell`
 - `Reference#ask`
+- Method-style message, query, and read-only attribute dispatch
 - `MessageReference#id`, `#status`, `#result`
 - Authorization context and hooks
 

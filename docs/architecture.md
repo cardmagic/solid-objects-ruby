@@ -50,7 +50,10 @@ The registry maps a stable persisted actor type string to a Ruby actor class. Re
 
 ### Actor reference
 
-A reference contains actor type and normalized actor ID. It is cheap, serializable as data, and does not imply an active Ruby object. `tell` and `ask` authorize and enqueue through the client.
+A reference contains actor type and normalized actor ID. It is cheap,
+serializable as data, and does not imply an active Ruby object. Declared
+message methods delegate to `tell`; declared query and attribute methods
+delegate to `ask`. Both paths authorize and enqueue through the client.
 
 ### Client and mailbox
 
@@ -115,19 +118,25 @@ class OrderActor < SolidObjects::Actor
 
   attribute :status, default: "draft"
 
-  message :submit do
-    state.status = "submitted"
-  end
-
-  query :status do
-    state.status
+  def submit
+    self.status = "submitted"
   end
 
   observable :status
 end
 ```
 
-`message` and `query` both execute as durable mailbox turns. A query may not mutate state. The executor detects query mutation and fails the message. An observable is a named projection of state used by server rendering and realtime updates; it is not independently persisted.
+`attribute` creates actor instance readers and writers and an ordered read query.
+Public instance methods declared on the actor are messages. Declare helpers as
+private or protected. Messages and queries are exposed as methods on a
+reference: message methods delegate to `tell`, while query and attribute
+methods delegate to `ask`. Returned state snapshots are deeply frozen. The
+explicit `message` DSL remains available for dynamic definitions.
+
+`message` and `query` both execute as durable mailbox turns. A query may not
+mutate state. The executor detects query mutation and fails the message. An
+observable is a named projection of state used by server rendering and realtime
+updates; it is not independently persisted.
 
 Lifecycle hooks are deterministic local hooks:
 
@@ -290,7 +299,7 @@ The durable row remains after timeout and can be inspected directly by message I
 ```ruby
 emit(
   :charge_payment,
-  payment_id: state.payment_id,
+  payment_id:,
   amount_cents: total_cents,
   on_success: :payment_charged,
   on_failure: :payment_failed
@@ -351,7 +360,7 @@ Large repairs use `tell(..., available_at:)` to spread work over an application-
 
 ```erb
 <%= actor_scope current_cart do |cart| %>
-  Cart items: <%= cart.value :items_count %>
+  Cart items: <%= cart.items_count %>
   <%= cart.component :summary %>
 <% end %>
 ```
@@ -467,10 +476,10 @@ Backoff and a retry limit prevent tight loops. The poison message blocks its act
 Sequential processing does not mean single execution. A handler can run, lose its lease before commit, and run again. Logical transitions must guard on durable state:
 
 ```ruby
-message :launch do
-  return if state.status == "launched"
+def launch
+  return if status == "launched"
 
-  state.status = "launched"
+  self.status = "launched"
   emit :launch_vehicle, launch_id: actor_id
 end
 ```

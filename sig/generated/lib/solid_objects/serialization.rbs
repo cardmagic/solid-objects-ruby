@@ -13,6 +13,12 @@ module SolidObjects
     # @rbs (untyped) -> untyped
     def self.deep_copy: (untyped) -> untyped
 
+    # @rbs (untyped) -> untyped
+    def self.readonly_copy: (untyped) -> untyped
+
+    # @rbs (untyped) -> untyped
+    private def self.freeze_recursively: (untyped) -> untyped
+
     # @rbs (untyped, ?depth: Integer) -> untyped
     private def self.normalize: (untyped, ?depth: Integer) -> untyped
 

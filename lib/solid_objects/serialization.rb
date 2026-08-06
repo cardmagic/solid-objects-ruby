@@ -33,7 +33,27 @@ module SolidObjects
         raise InvalidPayload, error.message
       end
 
+      # @rbs (untyped) -> untyped
+      def readonly_copy(value)
+        freeze_recursively(deep_copy(value))
+      end
+
       private
+
+      # @rbs (untyped) -> untyped
+      def freeze_recursively(value)
+        case value
+        when Array
+          value.each { |item| freeze_recursively(item) }
+        when Hash
+          value.each do |key, item|
+            freeze_recursively(key)
+            freeze_recursively(item)
+          end
+        end
+
+        value.freeze
+      end
 
       # @rbs (untyped, ?depth: Integer) -> untyped
       def normalize(value, depth: 0)

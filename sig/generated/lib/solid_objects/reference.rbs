@@ -19,7 +19,24 @@ module SolidObjects
     # @rbs (Symbol | String, ?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> untyped
     def ask: (Symbol | String, ?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> untyped
 
+    # @rbs (Symbol, *untyped, **untyped) -> untyped
+    def method_missing: (Symbol, *untyped, **untyped) -> untyped
+
+    # @rbs (Symbol, bool) -> bool
+    def respond_to_missing?: (Symbol, bool) -> bool
+
     # @rbs () -> String
     def to_s: () -> String
+
+    private
+
+    # @rbs (Symbol | String) -> bool
+    def actor_message?: (Symbol | String) -> bool
+
+    # @rbs (Symbol | String) -> bool
+    def actor_query?: (Symbol | String) -> bool
+
+    # @rbs () -> ActorDefinition
+    def actor_definition: () -> ActorDefinition
   end
 end

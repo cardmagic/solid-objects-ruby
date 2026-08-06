@@ -11,6 +11,7 @@ module SolidObjects
       def inherited(subclass)
         super
         subclass.instance_variable_set(:@definition, definition.duplicate)
+        subclass.instance_variable_set(:@generated_attribute_methods, generated_attribute_methods.dup)
       end
 
       # @rbs (?String | Symbol) -> String
@@ -25,7 +26,19 @@ module SolidObjects
 
       # @rbs (Symbol | String, ?default: untyped) -> StateDefinition::Attribute
       def attribute(name, default: nil)
-        definition.state_definition.attribute(name, default:)
+        attribute_name = name.to_sym
+        ensure_attribute_methods_available!(attribute_name)
+        attribute = definition.add_attribute(attribute_name, default:)
+        @defining_attribute_methods = true
+        begin
+          define_method(attribute_name) { state.fetch(attribute_name) }
+          define_method(:"#{attribute_name}=") { |value| state.write(attribute_name, value) }
+          generated_attribute_methods[attribute_name] = true
+          generated_attribute_methods[:"#{attribute_name}="] = true
+        ensure
+          @defining_attribute_methods = false
+        end
+        attribute
       end
 
       # @rbs (Symbol | String) { (*untyped, **untyped) -> untyped } -> ActorDefinition::Handler
@@ -74,7 +87,7 @@ module SolidObjects
 
       # @rbs () -> ActorDefinition
       def definition
-        @definition ||= ActorDefinition.new
+        (@definition ||= ActorDefinition.new).synchronize_instance_messages(self)
       end
 
       # @rbs () -> Class
@@ -83,6 +96,29 @@ module SolidObjects
       end
 
       private
+
+      # @rbs (Symbol) -> void
+      def method_added(name)
+        super
+        generated_attribute_methods.delete(name) unless @defining_attribute_methods
+      end
+
+      # @rbs () -> Hash[Symbol, bool]
+      def generated_attribute_methods
+        @generated_attribute_methods ||= {}
+      end
+
+      # @rbs (Symbol) -> void
+      def ensure_attribute_methods_available!(attribute_name)
+        conflicting_name = [ attribute_name, :"#{attribute_name}=" ].find do |method_name|
+          method_defined?(method_name) ||
+            private_method_defined?(method_name) ||
+            protected_method_defined?(method_name)
+        end
+        return unless conflicting_name
+
+        raise InvalidActor, "attribute #{attribute_name.inspect} conflicts with actor method #{conflicting_name}"
+      end
 
       # @rbs () -> String
       def default_actor_type
