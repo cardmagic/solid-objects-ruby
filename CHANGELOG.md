@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2026-08-06
 
 - Reject application-record writes from actor handlers and provide registered
   same-database commit actions for fenced atomic changes.

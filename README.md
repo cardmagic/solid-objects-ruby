@@ -65,8 +65,8 @@ This is a port of the programming model, not Cloudflare's edge runtime or
 platform. Read the conceptual overview at [solidobjects.dev](https://solidobjects.dev/)
 and the exact Rails guarantees in [Correctness and delivery semantics](docs/correctness.md).
 
-Version 0.2 is an early release. Its correctness core is implemented and tested,
-but the project does not yet claim production readiness. See
+Solid Objects is an early release. Its correctness core is implemented and
+tested, but the project does not yet claim production readiness. See
 [Status](#status) and the [roadmap](docs/roadmap.md).
 
 ## Table of contents
@@ -204,7 +204,7 @@ refresh from current actor state.
 `cart.component(:summary)` supports initial rendering of
 `actors/shopping_cart/_summary`. Durable live component replacement and
 Turbo append actions are roadmap work; observable replacement is the live path
-implemented in 0.2.
+implemented today.
 
 Reactive views require `turbo-rails` and a working Action Cable adapter in the
 host application. They are optional; the actor runtime itself does not depend
@@ -929,7 +929,7 @@ See the [development guide](docs/development.md) and
 
 ## Status
 
-Implemented and tested in 0.2:
+Implemented and tested in 0.3:
 
 - Rails engine, install generator, migrations, and `solid_objects` executable;
 - actor registry, references, JSON state, and state migrations;
