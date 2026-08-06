@@ -16,7 +16,7 @@ class Counter < SolidObjects::Actor
   end
 end
 
-# From anywhere in your app — addressed by name:
+# from anywhere in your app — addressed by name:
 Counter.ref("global").increment(amount: 5)
 ```
 
@@ -139,8 +139,8 @@ integrity, an application policy authorizes every subscription, broadcasts are
 delivered from a durable outbox, and reconnecting clients refresh from current
 actor state.
 
-`actor.component(:summary)` supports initial rendering of
-`actors/shopping_cart_actor/_summary`. Durable live component replacement and
+`cart.component(:summary)` supports initial rendering of
+`actors/shopping_cart/_summary`. Durable live component replacement and
 Turbo append actions are roadmap work; observable replacement is the live path
 implemented in 0.1.
 
@@ -355,17 +355,25 @@ Slow external I/O does not run inside an actor-state transaction. `emit`
 creates a transactional outbox entry alongside state and message completion:
 
 ```ruby
-def checkout
+def checkout(payment_id:, amount_cents:)
   return unless checkout_status == "open"
 
   self.checkout_status = "pending"
   emit(
     :charge_payment,
     payment_id:,
-    amount_cents: total_cents,
+    amount_cents:,
     on_success: :payment_succeeded,
     on_failure: :payment_failed
   )
+end
+
+def payment_succeeded(effect_id:, result:)
+  self.checkout_status = "paid"
+end
+
+def payment_failed(effect_id:, error:)
+  self.checkout_status = "failed"
 end
 ```
 
