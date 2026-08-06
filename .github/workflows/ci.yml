@@ -8,7 +8,7 @@ jobs:
   sqlite:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
@@ -34,7 +34,7 @@ jobs:
     env:
       SOLID_OBJECTS_DATABASE_URL: postgresql://solid_objects:solid_objects@127.0.0.1:5432/solid_objects_test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
@@ -61,7 +61,7 @@ jobs:
     env:
       SOLID_OBJECTS_DATABASE_URL: mysql2://solid_objects:solid_objects@127.0.0.1:3306/solid_objects_test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
@@ -71,7 +71,7 @@ jobs:
   static:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
