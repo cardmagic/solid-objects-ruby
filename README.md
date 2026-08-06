@@ -8,7 +8,27 @@ fenced activation leases, per-entity reminders, and live ERB views using the
 MySQL, PostgreSQL, or SQLite database the application already has.
 
 ```ruby
-cart = ShoppingCartActor.ref("alice")
+class ShoppingCart < SolidObjects::Actor
+  attribute :items, default: -> { [] }
+
+  def add_item(product_id:, quantity: 1)
+    item = items.find do |candidate|
+      candidate.fetch("product_id") == product_id
+    end
+
+    if item
+      item["quantity"] += quantity
+      return
+    end
+
+    items << {
+      "product_id" => product_id,
+      "quantity" => quantity
+    }
+  end
+end
+
+cart = ShoppingCart.ref("alice")
 
 cart.add_item(
   product_id: "shirt-123",
@@ -18,7 +38,7 @@ cart.add_item(
 items = cart.items
 ```
 
-`ShoppingCartActor / alice` is a logical identity. Solid Objects activates it
+`ShoppingCart / alice` is a logical identity. Solid Objects activates it
 when work arrives, processes its messages one at a time, persists its state,
 and deactivates it when idle. Different identities can run concurrently.
 
@@ -109,7 +129,7 @@ change cannot leak into the page.
 Define an observable:
 
 ```ruby
-class ShoppingCartActor < SolidObjects::Actor
+class ShoppingCart < SolidObjects::Actor
   attribute :items, default: -> { [] }
 
   observable :items_count do
@@ -186,7 +206,7 @@ See [Database support](#database-support) for a separate database configuration.
 ## Defining an actor
 
 ```ruby
-class ShoppingCartActor < SolidObjects::Actor
+class ShoppingCart < SolidObjects::Actor
   attribute :items, default: -> { [] }
   attribute :checkout_status, default: "open"
 
@@ -221,7 +241,7 @@ Attributes also become ordered read queries on a reference. Declared messages
 become asynchronous methods:
 
 ```ruby
-cart = ShoppingCartActor.ref("alice")
+cart = ShoppingCart.ref("alice")
 message = cart.add_item(product_id: "shirt-123", quantity: 2)
 items = cart.items
 ```
@@ -260,14 +280,14 @@ actor_type + actor_id
 declaration:
 
 ```ruby
-ShoppingCartActor.ref("alice")
+ShoppingCart.ref("alice")
 ```
 
 Use an explicit stable type when the persisted name should be independent of a
 future Ruby constant rename:
 
 ```ruby
-class ShoppingCartActor < SolidObjects::Actor
+class ShoppingCart < SolidObjects::Actor
   actor_type "shopping_cart"
 end
 ```
@@ -405,7 +425,7 @@ state around the lease and fencing checks.
 Actor state has an independent schema version:
 
 ```ruby
-class ShoppingCartActor < SolidObjects::Actor
+class ShoppingCart < SolidObjects::Actor
   state_version 2
 
   migrate_state from: 1, to: 2 do |state|
