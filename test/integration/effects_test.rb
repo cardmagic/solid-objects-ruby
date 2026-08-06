@@ -8,18 +8,18 @@ class EffectsTest < ActiveSupport::TestCase
 
     attribute :status, default: "open"
 
-    message :checkout do |payment_id:|
-      state.status = "pending"
+    def checkout(payment_id:)
+      self.status = "pending"
       emit :charge_payment, payment_id:, amount_cents: 1_000
     end
 
-    message :broken_checkout do
-      state.status = "pending"
+    def broken_checkout
+      self.status = "pending"
       emit :charge_payment, payment_id: "broken", amount_cents: 1_000
       raise "checkout failed"
     end
 
-    message :checkout_with_result do |payment_id:|
+    def checkout_with_result(payment_id:)
       emit(
         :charge_payment,
         payment_id:,
@@ -28,12 +28,12 @@ class EffectsTest < ActiveSupport::TestCase
       )
     end
 
-    message :payment_charged do |effect_id:, result:|
-      state.status = "#{effect_id}:#{result.fetch("provider_id")}"
+    def payment_charged(effect_id:, result:)
+      self.status = "#{effect_id}:#{result.fetch("provider_id")}"
     end
 
-    message :payment_failed do |effect_id:, error:|
-      state.status = "#{effect_id}:#{error.fetch("class")}"
+    def payment_failed(effect_id:, error:)
+      self.status = "#{effect_id}:#{error.fetch("class")}"
     end
   end
 
@@ -42,7 +42,7 @@ class EffectsTest < ActiveSupport::TestCase
   end
 
   test "commits state, message completion, and effect together" do
-    message_reference = CheckoutActor.ref("order-1").tell(:checkout, payment_id: "payment-1")
+    message_reference = CheckoutActor.ref("order-1").checkout(payment_id: "payment-1")
     worker = SolidObjects::Worker.new
 
     worker.run_until_idle
@@ -58,7 +58,7 @@ class EffectsTest < ActiveSupport::TestCase
   end
 
   test "does not persist an effect from a rolled-back actor turn" do
-    CheckoutActor.ref("order-1").tell(:broken_checkout)
+    CheckoutActor.ref("order-1").broken_checkout
     worker = SolidObjects::Worker.new
 
     worker.run_once
@@ -75,7 +75,7 @@ class EffectsTest < ActiveSupport::TestCase
       delivered << [ arguments, context.id ]
       { "provider_id" => "provider-1" }
     end
-    CheckoutActor.ref("order-1").tell(:checkout, payment_id: "payment-1")
+    CheckoutActor.ref("order-1").checkout(payment_id: "payment-1")
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     effect = SolidObjects::Effect.first
@@ -97,7 +97,7 @@ class EffectsTest < ActiveSupport::TestCase
     SolidObjects.register_effect(:charge_payment) do
       { "provider_id" => "provider-1" }
     end
-    CheckoutActor.ref("order-1").tell(:checkout_with_result, payment_id: "payment-1")
+    CheckoutActor.ref("order-1").checkout_with_result(payment_id: "payment-1")
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     effect_executor = SolidObjects::EffectExecutor.new
@@ -124,7 +124,7 @@ class EffectsTest < ActiveSupport::TestCase
   test "enqueues one failure result after effect retries are exhausted" do
     SolidObjects.configuration.max_attempts = 1
     SolidObjects.register_effect(:charge_payment) { raise "provider unavailable" }
-    CheckoutActor.ref("order-1").tell(:checkout_with_result, payment_id: "payment-1")
+    CheckoutActor.ref("order-1").checkout_with_result(payment_id: "payment-1")
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     effect_executor = SolidObjects::EffectExecutor.new

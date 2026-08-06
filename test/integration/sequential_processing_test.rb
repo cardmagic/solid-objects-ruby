@@ -13,10 +13,10 @@ class SequentialProcessingTest < ActiveSupport::TestCase
 
     attribute :values, default: -> { [] }
 
-    message :append do |value:|
+    def append(value:)
       self.class.started << actor_id
       self.class.release.pop
-      state.values << value
+      values << value
     end
   end
 
@@ -27,8 +27,8 @@ class SequentialProcessingTest < ActiveSupport::TestCase
 
   test "two workers never execute two messages for one actor together" do
     reference = BlockingActor.ref("same")
-    reference.tell(:append, value: 1)
-    reference.tell(:append, value: 2)
+    reference.append(value: 1)
+    reference.append(value: 2)
     first_worker = SolidObjects::Worker.new
     second_worker = SolidObjects::Worker.new
 
@@ -49,8 +49,8 @@ class SequentialProcessingTest < ActiveSupport::TestCase
   end
 
   test "different actor identities execute concurrently" do
-    BlockingActor.ref("alice").tell(:append, value: 1)
-    BlockingActor.ref("bob").tell(:append, value: 2)
+    BlockingActor.ref("alice").append(value: 1)
+    BlockingActor.ref("bob").append(value: 2)
     first_worker = SolidObjects::Worker.new
     second_worker = SolidObjects::Worker.new
 

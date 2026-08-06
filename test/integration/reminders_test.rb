@@ -8,21 +8,21 @@ class RemindersTest < ActiveSupport::TestCase
 
     attribute :status, default: "active"
 
-    message :schedule do
-      remind :expire, at: 1.hour.from_now, arguments: {}
+    def configure_expiration
+      schedule :expire, at: 1.hour.from_now, arguments: {}
     end
 
-    message :schedule_recurring do
-      remind :expire, at: 1.minute.ago, every: 60, arguments: {}
+    def schedule_recurring
+      schedule :expire, at: 1.minute.ago, every: 60, arguments: {}
     end
 
-    message :expire do
-      state.status = "expired"
+    def expire
+      self.status = "expired"
     end
   end
 
   test "persists a reminder in the actor commit" do
-    message_reference = ExpiringActor.ref("one").tell(:schedule)
+    message_reference = ExpiringActor.ref("one").configure_expiration
     worker = SolidObjects::Worker.new
     worker.run_until_idle
 
@@ -36,7 +36,7 @@ class RemindersTest < ActiveSupport::TestCase
   end
 
   test "converts a due reminder into an ordinary mailbox message" do
-    ExpiringActor.ref("one").tell(:schedule)
+    ExpiringActor.ref("one").configure_expiration
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     reminder = SolidObjects::Reminder.first
@@ -55,7 +55,7 @@ class RemindersTest < ActiveSupport::TestCase
   end
 
   test "advances a recurring reminder after enqueueing its callback" do
-    ExpiringActor.ref("one").tell(:schedule_recurring)
+    ExpiringActor.ref("one").schedule_recurring
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     scheduler = SolidObjects::ReminderScheduler.new
@@ -69,5 +69,13 @@ class RemindersTest < ActiveSupport::TestCase
   ensure
     scheduler&.stop
     worker&.stop
+  end
+
+  test "does not expose the old reminder DSL" do
+    actor = SolidObjects::State.new(ExpiringActor.definition.state_definition).then do |state|
+      ExpiringActor.new(actor_id: "one", state:)
+    end
+
+    assert_not actor.respond_to?(:remind, true)
   end
 end

@@ -10,7 +10,7 @@ class HotActorFairnessTest < ActiveSupport::TestCase
       attr_accessor :processed
     end
 
-    message :run do |label:|
+    def run(label:)
       self.class.processed << [ actor_id, label ]
     end
   end
@@ -23,9 +23,9 @@ class HotActorFairnessTest < ActiveSupport::TestCase
   test "releases a hot actor at the pass limit so another actor runs next" do
     hot = FairActor.ref("hot")
     cold = FairActor.ref("cold")
-    hot.tell(:run, label: 1)
-    hot.tell(:run, label: 2)
-    cold.tell(:run, label: 3)
+    hot.run(label: 1)
+    hot.run(label: 2)
+    cold.run(label: 3)
     worker = SolidObjects::Worker.new
 
     worker.run_once

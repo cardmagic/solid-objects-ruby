@@ -21,15 +21,15 @@ class VerticalSliceTest < ActiveSupport::TestCase
       attr_accessor :invoked
     end
 
-    message :run do
+    def run
       self.class.invoked = true
     end
   end
 
   test "processes one actor mailbox sequentially and persists every turn" do
     reference = CartActor.ref("alice")
-    first_message = reference.tell(:add, product_id: "shirt", quantity: 2)
-    second_message = reference.tell(:add, product_id: "pants")
+    first_message = reference.add(product_id: "shirt", quantity: 2)
+    second_message = reference.add(product_id: "pants")
 
     worker = SolidObjects::Worker.new
     processed_count = worker.run_until_idle
@@ -115,7 +115,7 @@ class VerticalSliceTest < ActiveSupport::TestCase
 
   test "refuses activation when persisted state is newer than running code" do
     OlderCodeActor.invoked = false
-    message_reference = OlderCodeActor.ref("one").tell(:run)
+    message_reference = OlderCodeActor.ref("one").run
     instance = SolidObjects::Instance.find_by!(actor_type: "older-code")
     instance.update!(state_version: 2)
     worker = SolidObjects::Worker.new

@@ -8,37 +8,19 @@ fenced activation leases, per-entity reminders, and live ERB views using the
 MySQL, PostgreSQL, or SQLite database the application already has.
 
 ```ruby
-class ShoppingCart < SolidObjects::Actor
-  attribute :items, default: -> { [] }
+class Counter < SolidObjects::Actor
+  attribute :value, default: 0
 
-  def add_item(product_id:, quantity: 1)
-    item = items.find do |candidate|
-      candidate.fetch("product_id") == product_id
-    end
-
-    if item
-      item["quantity"] += quantity
-      return
-    end
-
-    items << {
-      "product_id" => product_id,
-      "quantity" => quantity
-    }
+  def increment(amount: 1)
+    self.value += amount
   end
 end
 
-cart = ShoppingCart.ref("alice")
-
-cart.add_item(
-  product_id: "shirt-123",
-  quantity: 2
-)
-
-items = cart.items
+# From anywhere in your app — addressed by name:
+Counter.ref("global").increment(amount: 5)
 ```
 
-`ShoppingCart / alice` is a logical identity. Solid Objects activates it
+`Counter / global` is a logical identity. Solid Objects activates it
 when work arrives, processes its messages one at a time, persists its state,
 and deactivates it when idle. Different identities can run concurrently.
 
@@ -111,7 +93,7 @@ durable alarms owned by one logical identity:
 
 ```ruby
 def schedule_expiration
-  remind :expire, at: 30.minutes.from_now, arguments: {}
+  schedule :expire, at: 30.minutes.from_now, arguments: {}
 end
 ```
 
@@ -141,15 +123,15 @@ end
 Render it:
 
 ```erb
-<%= actor_scope current_cart do |cart| %>
+<%= solid_object current_cart do |cart| %>
   Cart items: <%= cart.items_count %>
 <% end %>
 ```
 
 That template provides initial server rendering, a stable opaque DOM target,
-and live Turbo replacements after committed actor turns. One actor scope makes
-one Action Cable subscription for all values inside it, and Action Cable
-multiplexes subscriptions over the browser's WebSocket.
+and live Turbo replacements after committed actor turns. One `solid_object`
+block makes one Action Cable subscription for all values inside it, and Action
+Cable multiplexes subscriptions over the browser's WebSocket.
 
 No client-side state store, custom Stimulus controller, record callback, or
 one-WebSocket-per-value setup is required. Signed stream tokens protect
@@ -408,7 +390,7 @@ One-shot and recurring reminders are actor-owned database records:
 
 ```ruby
 def schedule_evaluation
-  remind :evaluate, at: 1.hour.from_now, every: 1.hour, missed: :latest
+  schedule :evaluate, at: 1.hour.from_now, every: 1.hour, missed: :latest
 end
 ```
 

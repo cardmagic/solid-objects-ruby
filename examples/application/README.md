@@ -10,7 +10,7 @@ key. The chat actor also gives every submitted chat message a caller-generated
 message ID and checks that ID in durable actor state, because actor handlers may
 be redelivered.
 
-The views demonstrate initial actor-scope rendering and live observable
+The views demonstrate initial `solid_object` rendering and live observable
 replacement. Live cart-summary replacement and chat-message append are
 deliberately not shown as working behavior because component broadcasts and
 Turbo append intents remain roadmap items.

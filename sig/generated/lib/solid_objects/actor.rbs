@@ -134,7 +134,7 @@ module SolidObjects
     def emit: (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> EffectIntent
 
     # @rbs (Symbol | String, at: Time, ?every: Numeric?, ?missed: Symbol | String, arguments: Hash[Symbol | String, untyped]) -> ReminderIntent
-    def remind: (Symbol | String, at: Time, arguments: Hash[Symbol | String, untyped], ?every: Numeric?, ?missed: Symbol | String) -> ReminderIntent
+    def schedule: (Symbol | String, at: Time, arguments: Hash[Symbol | String, untyped], ?every: Numeric?, ?missed: Symbol | String) -> ReminderIntent
 
     # @rbs (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> OutboundMessageIntent
     def send_to: (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> OutboundMessageIntent

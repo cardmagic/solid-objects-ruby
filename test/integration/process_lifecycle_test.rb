@@ -8,13 +8,13 @@ class ProcessLifecycleTest < ActiveSupport::TestCase
 
     attribute :runs, default: 0
 
-    message :run do
-      state.runs += 1
+    def run
+      self.runs += 1
     end
   end
 
   test "recovers a claimed message after its worker heartbeat expires" do
-    message_reference = RecoveryActor.ref("one").tell(:run)
+    message_reference = RecoveryActor.ref("one").run
     message = SolidObjects::Message.find(message_reference.id)
     instance = message.instance
     dead_process = create_process(last_heartbeat_at: 2.minutes.ago)
@@ -47,7 +47,7 @@ class ProcessLifecycleTest < ActiveSupport::TestCase
   end
 
   test "stop releases cached activations and records graceful shutdown" do
-    RecoveryActor.ref("one").tell(:run)
+    RecoveryActor.ref("one").run
     worker = SolidObjects::Worker.new
 
     worker.run_until_idle

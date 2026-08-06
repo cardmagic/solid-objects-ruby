@@ -13,7 +13,7 @@ class ActorHelperTest < ActionView::TestCase
     attribute :items, default: -> { [] }
 
     observable :items_count do
-      state.items.length
+      items.length
     end
   end
 
@@ -25,7 +25,7 @@ class ActorHelperTest < ActionView::TestCase
   test "renders initial observable values with one actor subscription" do
     reference = CartActor.ref("alice")
 
-    html = actor_scope(reference) do |actor|
+    html = solid_object(reference) do |actor|
       safe_join([ actor.items_count, actor.items_count ])
     end
 
@@ -40,7 +40,11 @@ class ActorHelperTest < ActionView::TestCase
     SolidObjects.configuration.authorize_query = ->(**) { false }
 
     assert_raises(SolidObjects::Unauthorized) do
-      actor_scope(CartActor.ref("alice")) { |actor| actor.value(:items_count) }
+      solid_object(CartActor.ref("alice")) { |actor| actor.items_count }
     end
+  end
+
+  test "does not expose the old actor scope helper" do
+    assert_not respond_to?(:actor_scope, true)
   end
 end

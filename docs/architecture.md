@@ -321,7 +321,7 @@ The source actor commit never waits for the target. The outbox worker allocates 
 A reminder record contains actor identity, a reminder name, target message, JSON arguments, next run time, optional interval, status, and occurrence counter.
 
 ```ruby
-remind :expire, at: 30.minutes.from_now, arguments: {}
+schedule :expire, at: 30.minutes.from_now, arguments: {}
 ```
 
 When due, the scheduler creates a normal mailbox row with an idempotency key derived from reminder ID and occurrence. The mailbox provides sequential processing and ordinary retry behavior.
@@ -351,7 +351,7 @@ Large repairs use `tell(..., available_at:)` to spread work over an application-
 
 ## Realtime integration
 
-`actor_scope` performs an authorized state read for initial rendering and emits:
+`solid_object` performs an authorized state read for initial rendering and emits:
 
 - A stable scope DOM ID derived from actor type and a SHA-256 digest of actor ID
 - One Turbo Cable subscription element for the actor
@@ -359,7 +359,7 @@ Large repairs use `tell(..., available_at:)` to spread work over an application-
 - A signed actor token used by the channel subscription
 
 ```erb
-<%= actor_scope current_cart do |cart| %>
+<%= solid_object current_cart do |cart| %>
   Cart items: <%= cart.items_count %>
   <%= cart.component :summary %>
 <% end %>

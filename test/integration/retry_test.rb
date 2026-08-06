@@ -8,11 +8,11 @@ class RetryTest < ActiveSupport::TestCase
 
     attribute :executions, default: 0
 
-    message :run do
-      state.executions += 1
+    def run
+      self.executions += 1
       raise "first attempt" if current_message.attempt == 1
 
-      state.executions
+      executions
     end
   end
 
@@ -21,13 +21,13 @@ class RetryTest < ActiveSupport::TestCase
 
     attribute :processed, default: -> { [] }
 
-    message :fail do
-      state.processed << "failed"
+    def poison
+      processed << "failed"
       raise "poison"
     end
 
-    message :continue do
-      state.processed << "continued"
+    def continue_processing
+      processed << "continued"
     end
   end
 
@@ -36,7 +36,7 @@ class RetryTest < ActiveSupport::TestCase
   end
 
   test "redelivers a failed handler with the previously committed state" do
-    message_reference = RetryingActor.ref("one").tell(:run)
+    message_reference = RetryingActor.ref("one").run
     worker = SolidObjects::Worker.new
 
     assert_equal 2, worker.run_until_idle
@@ -53,8 +53,8 @@ class RetryTest < ActiveSupport::TestCase
   test "dead-letters a poison message before continuing the mailbox" do
     SolidObjects.configuration.max_attempts = 2
     reference = PoisonActor.ref("one")
-    failed_message = reference.tell(:fail)
-    continued_message = reference.tell(:continue)
+    failed_message = reference.poison
+    continued_message = reference.continue_processing
     worker = SolidObjects::Worker.new
 
     assert_equal 3, worker.run_until_idle

@@ -165,7 +165,7 @@ module SolidObjects
     end
 
     # @rbs (Symbol | String, at: Time, ?every: Numeric?, ?missed: Symbol | String, arguments: Hash[Symbol | String, untyped]) -> ReminderIntent
-    def remind(name, at:, every: nil, missed: :latest, arguments: {})
+    def schedule(name, at:, every: nil, missed: :latest, arguments: {})
       interval_seconds = every&.to_f
       if interval_seconds && !interval_seconds.positive?
         raise ArgumentError, "reminder interval must be positive"

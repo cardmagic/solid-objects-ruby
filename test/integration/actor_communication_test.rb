@@ -8,21 +8,21 @@ class ActorCommunicationTest < ActiveSupport::TestCase
 
     attribute :values, default: -> { [] }
 
-    message :receive do |value:|
-      state.values << value
+    def receive(value:)
+      values << value
     end
   end
 
   class SourceActor < SolidObjects::Actor
     actor_type "communication-source"
 
-    message :send_value do |target_id:, value:|
-      TargetActor.ref(target_id).tell(:receive, value:)
+    def send_value(target_id:, value:)
+      TargetActor.ref(target_id).receive(value:)
     end
   end
 
   test "stages actor-to-actor tell in the source commit" do
-    SourceActor.ref("source").tell(:send_value, target_id: "target", value: 42)
+    SourceActor.ref("source").send_value(target_id: "target", value: 42)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
 

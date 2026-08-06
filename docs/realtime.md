@@ -2,11 +2,11 @@
 
 ## Rendering
 
-`actor_scope` performs initial server rendering and emits one
+`solid_object` performs initial server rendering and emits one
 `turbo-cable-stream-source` for the actor:
 
 ```erb
-<%= actor_scope ShoppingCartActor.ref(current_user.id) do |cart| %>
+<%= solid_object ShoppingCartActor.ref(current_user.id) do |cart| %>
   Items: <%= cart.items_count %>
 <% end %>
 ```

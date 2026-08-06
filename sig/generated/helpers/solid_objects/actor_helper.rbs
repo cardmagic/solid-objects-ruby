@@ -3,6 +3,6 @@
 module SolidObjects
   module ActorHelper
     # @rbs (Reference, ?authorization_context: untyped) { (ActorView) -> untyped } -> untyped
-    def actor_scope: (Reference, ?authorization_context: untyped) { (ActorView) -> untyped } -> untyped
+    def solid_object: (Reference, ?authorization_context: untyped) { (ActorView) -> untyped } -> untyped
   end
 end

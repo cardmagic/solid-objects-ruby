@@ -11,7 +11,7 @@ Action Cable broadcasts are online-only. A transaction can roll back, a broadcas
 
 The executor evaluates declared observables before and after a successful message. Changed values create broadcast outbox records inside the message commit. A broadcast worker delivers Turbo Stream replacements after commit.
 
-One actor scope creates one signed Action Cable subscription and contains stable targets for multiple observables and components. Subscription authorization runs after token verification and before streaming. Reconnect refresh reads current actor state; the broadcast stream is an optimization, not state.
+One `solid_object` block creates one signed Action Cable subscription and contains stable targets for multiple observables and components. Subscription authorization runs after token verification and before streaming. Reconnect refresh reads current actor state; the broadcast stream is an optimization, not state.
 
 ## Consequences
 

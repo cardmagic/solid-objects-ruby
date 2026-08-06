@@ -347,7 +347,7 @@ Effects and actor messages are never delivered for a rolled-back actor turn and 
 
 ### Public API
 
-- `remind`
+- `schedule`
 - Reminder cancellation and inspection API
 
 ### Database changes
@@ -391,7 +391,7 @@ Due reminders become ordinary mailbox messages exactly once per occurrence recor
 
 ### Public API
 
-- `actor_scope`
+- `solid_object`
 - Scope `value` and `component`
 - Subscription and state-read authorization
 

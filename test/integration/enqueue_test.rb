@@ -8,12 +8,8 @@ class EnqueueTest < ActiveSupport::TestCase
 
     attribute :items, default: -> { [] }
 
-    message :add do |product_id:|
-      state.items << product_id
-    end
-
-    query :items do
-      state.items
+    def add(product_id:)
+      items << product_id
     end
   end
 
@@ -33,7 +29,7 @@ class EnqueueTest < ActiveSupport::TestCase
     reference = CartActor.ref("alice")
 
     references = 3.times.map do |index|
-      reference.tell(:add, product_id: "product-#{index}")
+      reference.add(product_id: "product-#{index}")
     end
 
     assert_equal [ 1, 2, 3 ], references.map(&:sequence)
@@ -50,7 +46,7 @@ class EnqueueTest < ActiveSupport::TestCase
       Thread.new do
         SolidObjects::Record.connection_pool.with_connection do
           start.pop
-          results << reference.tell(:add, product_id: "product-#{index}").sequence
+          results << reference.add(product_id: "product-#{index}").sequence
         rescue => error
           errors << error
         end
@@ -67,8 +63,8 @@ class EnqueueTest < ActiveSupport::TestCase
   test "deduplicates the same idempotent enqueue" do
     reference = CartActor.ref("alice")
 
-    first = reference.tell(:add, product_id: "shirt", idempotency_key: "cart-add-shirt")
-    second = reference.tell(:add, product_id: "shirt", idempotency_key: "cart-add-shirt")
+    first = reference.add(product_id: "shirt", idempotency_key: "cart-add-shirt")
+    second = reference.add(product_id: "shirt", idempotency_key: "cart-add-shirt")
 
     assert_equal first.id, second.id
     assert_equal 1, SolidObjects::Message.count
@@ -77,10 +73,10 @@ class EnqueueTest < ActiveSupport::TestCase
 
   test "rejects an idempotency key reused for another invocation" do
     reference = CartActor.ref("alice")
-    reference.tell(:add, product_id: "shirt", idempotency_key: "cart-add")
+    reference.add(product_id: "shirt", idempotency_key: "cart-add")
 
     assert_raises(SolidObjects::IdempotencyConflict) do
-      reference.tell(:add, product_id: "pants", idempotency_key: "cart-add")
+      reference.add(product_id: "pants", idempotency_key: "cart-add")
     end
   end
 
@@ -105,18 +101,17 @@ class EnqueueTest < ActiveSupport::TestCase
   test "enforces the actor mailbox limit" do
     SolidObjects.configuration.max_mailbox_length = 1
     reference = CartActor.ref("alice")
-    reference.tell(:add, product_id: "shirt")
+    reference.add(product_id: "shirt")
 
     assert_raises(SolidObjects::MailboxFull) do
-      reference.tell(:add, product_id: "pants")
+      reference.add(product_id: "pants")
     end
   end
 
   test "schedules a delayed tell without passing availability to the actor" do
     available_at = 30.minutes.from_now
 
-    message_reference = CartActor.ref("alice").tell(
-      :add,
+    message_reference = CartActor.ref("alice").add(
       product_id: "shirt",
       available_at:
     )

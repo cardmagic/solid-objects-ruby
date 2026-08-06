@@ -10,7 +10,7 @@ class DeadLettersTest < ActiveSupport::TestCase
       attr_accessor :fail
     end
 
-    message :run do
+    def run
       raise "poison message" if self.class.fail
     end
   end
@@ -58,7 +58,7 @@ class DeadLettersTest < ActiveSupport::TestCase
   private
 
   def create_dead_letter
-    PoisonActor.ref("one").tell(:run)
+    PoisonActor.ref("one").run
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     SolidObjects::DeadLetter.first

@@ -11,7 +11,7 @@ class LeaseTest < ActiveSupport::TestCase
       attr_accessor :started, :release
     end
 
-    message :run do
+    def run
       self.class.started << true
       self.class.release.pop
     end
@@ -98,7 +98,7 @@ class LeaseTest < ActiveSupport::TestCase
     subscription = ActiveSupport::Notifications.subscribe("solid_objects.activation.renewed") do
       renewed << true
     end
-    message_reference = SlowActor.ref("slow").tell(:run)
+    message_reference = SlowActor.ref("slow").run
     worker = SolidObjects::Worker.new
 
     thread = Thread.new { worker.run_once }

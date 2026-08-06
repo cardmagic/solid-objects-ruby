@@ -9,20 +9,20 @@ class ActorTest < ActiveSupport::TestCase
     attribute :items, default: -> { [] }
     attribute :status, default: "open"
 
-    message :add do |product_id:, quantity: 1|
+    def add(product_id:, quantity: 1)
       items << { "product_id" => product_id, "quantity" => quantity }
     end
 
-    message :close do
+    def close
       self.status = "closed"
     end
 
     query :count do
-      state.items.sum { |item| item.fetch("quantity") }
+      items.sum { |item| item.fetch("quantity") }
     end
 
     observable :count do
-      state.items.sum { |item| item.fetch("quantity") }
+      items.sum { |item| item.fetch("quantity") }
     end
   end
 
@@ -58,8 +58,8 @@ class ActorTest < ActiveSupport::TestCase
     actor.invoke("close", {})
 
     assert_equal 2, actor.invoke("count", {})
-    assert_equal [ { "product_id" => "shirt", "quantity" => 2 } ], actor.state.items
-    assert_equal "closed", actor.state.status
+    assert_equal [ { "product_id" => "shirt", "quantity" => 2 } ], actor.items
+    assert_equal "closed", actor.status
   end
 
   test "exposes declared attributes as queries" do
@@ -121,9 +121,9 @@ class ActorTest < ActiveSupport::TestCase
     first_actor = build_actor("first")
     second_actor = build_actor("second")
 
-    first_actor.state.items << { "product_id" => "shirt", "quantity" => 1 }
+    first_actor.items << { "product_id" => "shirt", "quantity" => 1 }
 
-    assert_empty second_actor.state.items
+    assert_empty second_actor.items
   end
 
   test "reads observable values from current state" do
@@ -133,12 +133,12 @@ class ActorTest < ActiveSupport::TestCase
     assert_equal({ "count" => 3 }, actor.observable_values)
   end
 
-  test "rejects synchronous ask from actor context" do
+  test "rejects synchronous queries from actor context" do
     reference = CartActor.ref("other")
 
     error = assert_raises(SolidObjects::ActorCallCycle) do
       SolidObjects::Context.with(actor: build_actor, message: nil) do
-        reference.ask(:count)
+        reference.count
       end
     end
 
