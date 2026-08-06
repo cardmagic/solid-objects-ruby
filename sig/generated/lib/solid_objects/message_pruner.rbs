@@ -1,0 +1,42 @@
+# Generated from lib/solid_objects/message_pruner.rb with RBS::Inline
+
+module SolidObjects
+  class MessagePruner
+    @now: Time
+
+    @batch_size: Integer
+
+    # @rbs (?now: Time, ?batch_size: Integer) -> void
+    def initialize: (?now: Time, ?batch_size: Integer) -> void
+
+    # @rbs () -> Integer
+    def preview: () -> Integer
+
+    # @rbs () -> Integer
+    def prune: () -> Integer
+
+    private
+
+    attr_reader now: untyped
+
+    attr_reader batch_size: untyped
+
+    # @rbs () -> Array[ActiveRecord::Relation[Message]]
+    def policy_relations: () -> Array[ActiveRecord::Relation[Message]]
+
+    # @rbs () -> ActiveRecord::Relation[Message]
+    def prunable: () -> ActiveRecord::Relation[Message]
+
+    # @rbs (ActiveRecord::Relation[Message]) -> Integer
+    def prune_relation: (ActiveRecord::Relation[Message]) -> Integer
+
+    # @rbs () -> Numeric
+    def default_retention: () -> Numeric
+
+    # @rbs () -> Hash[String, Numeric]
+    def retention_overrides: () -> Hash[String, Numeric]
+
+    # @rbs (Numeric) -> Time
+    def retention_cutoff: (Numeric) -> Time
+  end
+end

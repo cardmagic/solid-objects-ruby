@@ -19,6 +19,8 @@ class InstallGeneratorTest < ActiveSupport::TestCase
       assert_includes initializer, "authorization_context"
       assert_includes initializer, "docs/authorization.md"
       assert_includes initializer, "bin/rails solid_objects:doctor"
+      assert_includes initializer, "instance_retention_by_actor_type"
+      assert_includes initializer, "authorization_context[:source] == \"cli\""
       assert_equal 5, initializer.scan("= ->(**) { false }").length
     end
   end

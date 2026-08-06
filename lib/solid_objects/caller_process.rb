@@ -5,12 +5,14 @@ module SolidObjects
     # @rbs @mutex: Thread::Mutex
     # @rbs @process_id: Integer?
     # @rbs @registry: ProcessRegistry?
+    # @rbs @shutdown_hook_installed: bool
 
     # @rbs () -> void
     def initialize
       @mutex = Thread::Mutex.new
       @process_id = nil
       @registry = nil
+      @shutdown_hook_installed = false
     end
 
     # @rbs () -> ProcessRegistry
@@ -18,8 +20,19 @@ module SolidObjects
       mutex.synchronize do
         reset_after_fork
         register unless reusable_registry?
+        install_shutdown_hook
         registry.heartbeat
         registry
+      end
+    end
+
+    # @rbs () -> bool
+    def stop
+      mutex.synchronize do
+        return false unless @process_id == ::Process.pid
+        return false unless registry&.process_record
+
+        registry.stop.tap { @registry = nil }
       end
     end
 
@@ -52,6 +65,21 @@ module SolidObjects
         metadata: { execution: "synchronous" }
       )
       registry
+    end
+
+    # @rbs () -> void
+    def install_shutdown_hook
+      return if @shutdown_hook_installed
+
+      @shutdown_hook_installed = true
+      at_exit { stop_after_exit }
+    end
+
+    # @rbs () -> bool
+    def stop_after_exit
+      stop
+    rescue
+      false
     end
   end
 end

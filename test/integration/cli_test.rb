@@ -14,6 +14,9 @@ class CLITest < ActiveSupport::TestCase
     assert_includes output, "solid_objects start"
     assert_includes output, "solid_objects status"
     assert_includes output, "solid_objects cleanup"
+    assert_includes output, "solid_objects prune_messages"
+    assert_includes output, "solid_objects prune_instances"
+    assert_includes output, "solid_objects prune_processes"
     assert_includes output, "solid_objects dead_letters"
     assert_includes output, "solid_objects retry_dead_letter"
   end
@@ -30,5 +33,12 @@ class CLITest < ActiveSupport::TestCase
     command.define_singleton_method(:boot_application) { nil }
 
     assert_raises(SolidObjects::Unauthorized) { command.cleanup }
+  end
+
+  test "requires administration authorization before message pruning" do
+    command = SolidObjects::CLI.new
+    command.define_singleton_method(:boot_application) { nil }
+
+    assert_raises(SolidObjects::Unauthorized) { command.prune_messages }
   end
 end

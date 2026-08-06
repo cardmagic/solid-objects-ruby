@@ -101,6 +101,12 @@ If the actor becomes authoritative before the legacy system is retired, emit a
 transactional effect that updates the legacy store. The effect is at least once,
 so the legacy write still needs idempotency.
 
+When the legacy state is an application table in the same connection pool as
+Solid Objects, a registered `commit_action` can update it in the fenced actor
+transaction instead. Keep that action database-only and bounded. A separate
+actor database cannot make this atomic; use the outbox effect and reconciliation
+path there.
+
 ## 5. Cut over in reversible stages
 
 A typical zero-downtime sequence is:
@@ -119,7 +125,8 @@ A typical zero-downtime sequence is:
 
 Use a feature flag whose rollback restores legacy reads and writes without
 requiring actor deletion. Do not assume a timed-out synchronous actor call did
-not commit; query the durable result or use an idempotency key before retrying.
+not commit; use `error.message_reference.wait` to reauthorize and recover the
+durable result, or use an idempotency key before retrying.
 
 ## 6. Plan for dormant state and future changes
 

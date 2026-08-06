@@ -43,7 +43,7 @@ module SolidObjects
     rescue ActorDestroyed
       release_activation(activation) if activation
       0
-    rescue StateMigrationError, LostActivation => error
+    rescue StateMigrationError, ApplicationWriteForbidden, LostActivation => error
       release_activation(activation) if activation
       SolidObjects.configuration.logger.error(
         event: "solid_objects.worker.error",

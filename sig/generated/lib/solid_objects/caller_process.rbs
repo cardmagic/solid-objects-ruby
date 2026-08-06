@@ -8,11 +8,16 @@ module SolidObjects
 
     @registry: ProcessRegistry?
 
+    @shutdown_hook_installed: bool
+
     # @rbs () -> void
     def initialize: () -> void
 
     # @rbs () -> ProcessRegistry
     def process_registry: () -> ProcessRegistry
+
+    # @rbs () -> bool
+    def stop: () -> bool
 
     private
 
@@ -28,5 +33,11 @@ module SolidObjects
 
     # @rbs () -> ProcessRegistry
     def register: () -> ProcessRegistry
+
+    # @rbs () -> void
+    def install_shutdown_hook: () -> void
+
+    # @rbs () -> bool
+    def stop_after_exit: () -> bool
   end
 end

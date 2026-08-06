@@ -11,6 +11,14 @@ module SolidObjects
 
       # @rbs () -> String
       def current_time_expression: () -> String
+
+      private
+
+      # @rbs (untyped) { () -> untyped } -> untyped
+      def with_transaction_deadline: (untyped) { () -> untyped } -> untyped
+
+      # @rbs (Exception) -> bool
+      def deadline_error?: (Exception) -> bool
     end
   end
 end

@@ -4,6 +4,9 @@ module SolidObjects
   class Error < StandardError
   end
 
+  class NonRetryableError < Error
+  end
+
   class UnsupportedDatabase < Error
   end
 
@@ -40,7 +43,122 @@ module SolidObjects
   class ActorDestroyed < LostActivation
   end
 
+  class DatabaseDeadlineExceeded < Error
+  end
+
+  class SyncEnqueueTimeout < Error
+    @timeout: Numeric
+
+    @actor_type: String
+
+    @actor_id: String
+
+    @message_name: String
+
+    attr_reader timeout: untyped
+
+    attr_reader actor_type: untyped
+
+    attr_reader actor_id: untyped
+
+    attr_reader message_name: untyped
+
+    # @rbs (timeout: Numeric, actor_type: String, actor_id: String, message_name: String) -> void
+    def initialize: (timeout: Numeric, actor_type: String, actor_id: String, message_name: String) -> void
+  end
+
   class SyncTimeout < Error
+    @timeout: Numeric
+
+    @actor_type: String
+
+    @actor_id: String
+
+    @message_name: String
+
+    @message_id: Integer
+
+    @request_id: String
+
+    @sequence: Integer
+
+    @status: String
+
+    @waiting_on: String
+
+    @activation: Hash[String, untyped]
+
+    @blocker: Hash[String, untyped]?
+
+    attr_reader timeout: untyped
+
+    attr_reader actor_type: untyped
+
+    attr_reader actor_id: untyped
+
+    attr_reader message_name: untyped
+
+    attr_reader message_id: untyped
+
+    attr_reader request_id: untyped
+
+    attr_reader sequence: untyped
+
+    attr_reader status: untyped
+
+    attr_reader waiting_on: untyped
+
+    attr_reader activation: untyped
+
+    attr_reader blocker: untyped
+
+    # @rbs (timeout: Numeric, actor_type: String, actor_id: String, message_name: String, message_id: Integer, request_id: String, sequence: Integer, status: String, waiting_on: String, activation: Hash[String, untyped], blocker: Hash[String, untyped]?) -> void
+    def initialize: (timeout: Numeric, actor_type: String, actor_id: String, message_name: String, message_id: Integer, request_id: String, sequence: Integer, status: String, waiting_on: String, activation: Hash[String, untyped], blocker: Hash[String, untyped]?) -> void
+
+    # @rbs () -> MessageReference
+    def message_reference: () -> MessageReference
+  end
+
+  class SyncInsideTransaction < Error
+    @actor_type: String
+
+    @actor_id: String
+
+    @message_name: String
+
+    attr_reader actor_type: untyped
+
+    attr_reader actor_id: untyped
+
+    attr_reader message_name: untyped
+
+    # @rbs (actor_type: String, actor_id: String, message_name: String) -> void
+    def initialize: (actor_type: String, actor_id: String, message_name: String) -> void
+  end
+
+  class ApplicationWriteForbidden < NonRetryableError
+    @actor_type: String
+
+    @actor_id: String
+
+    @message_name: String
+
+    attr_reader actor_type: untyped
+
+    attr_reader actor_id: untyped
+
+    attr_reader message_name: untyped
+
+    # @rbs (actor_type: String, actor_id: String, message_name: String) -> void
+    def initialize: (actor_type: String, actor_id: String, message_name: String) -> void
+  end
+
+  class CommitActionUnavailable < NonRetryableError
+    # @rbs (actor_type: String, actor_id: String, message_name: String) -> void
+    def initialize: (actor_type: String, actor_id: String, message_name: String) -> void
+  end
+
+  class UnknownCommitAction < NonRetryableError
   end
 
   class Rejected < Error

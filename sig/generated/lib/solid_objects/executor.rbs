@@ -21,6 +21,9 @@ module SolidObjects
     # @rbs () -> Actor
     def actor: () -> Actor
 
+    # @rbs (MessageContext) -> untyped
+    def invoke_actor: (MessageContext) -> untyped
+
     # @rbs (Hash[String, untyped]) -> void
     def ensure_query_did_not_mutate_state!: (Hash[String, untyped]) -> void
 
@@ -29,6 +32,15 @@ module SolidObjects
 
     # @rbs (untyped, Hash[String, untyped]) -> void
     def complete: (untyped, Hash[String, untyped]) -> void
+
+    # @rbs (Array[Actor::CommitActionIntent]) -> void
+    def execute_commit_actions: (Array[Actor::CommitActionIntent]) -> void
+
+    # @rbs (Actor::CommitActionIntent, Proc, CommitActionContext) -> untyped
+    def execute_commit_action: (Actor::CommitActionIntent, Proc, CommitActionContext) -> untyped
+
+    # @rbs () -> void
+    def ensure_application_database_is_shared!: () -> void
 
     # @rbs (Message, Instance, Array[Actor::EffectIntent]) -> Array[Effect]
     def enqueue_effects: (Message, Instance, Array[Actor::EffectIntent]) -> Array[Effect]

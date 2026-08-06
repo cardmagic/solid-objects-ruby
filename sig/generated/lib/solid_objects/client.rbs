@@ -13,12 +13,27 @@ module SolidObjects
     # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped) -> untyped
     def sync: (Reference, Symbol | String, Hash[Symbol | String, untyped], timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped) -> untyped
 
+    # @rbs (MessageReference, timeout: Numeric, ?authorization_context: untyped) -> untyped
+    def wait: (MessageReference, timeout: Numeric, ?authorization_context: untyped) -> untyped
+
+    # @rbs (Reference, ?authorization_context: untyped) -> StateSnapshot
+    def snapshot: (Reference, ?authorization_context: untyped) -> StateSnapshot
+
     # @rbs (Reference, ?authorization_context: untyped) -> bool
     def destroy: (Reference, ?authorization_context: untyped) -> bool
 
     private
 
     attr_reader mailbox: untyped
+
+    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], idempotency_key: String?, timeout: Numeric) -> MessageReference
+    def enqueue_sync: (Reference, Symbol | String, Hash[Symbol | String, untyped], idempotency_key: String?, timeout: Numeric) -> MessageReference
+
+    # @rbs (MessageReference, Message) -> void
+    def validate_message_reference!: (MessageReference, Message) -> void
+
+    # @rbs (Reference, Symbol | String) -> void
+    def reject_sync_inside_transaction!: (Reference, Symbol | String) -> void
 
     # @rbs (Proc, Reference, Symbol | String, Hash[Symbol | String, untyped], authorization_context: untyped) -> void
     def authorize!: (Proc, Reference, Symbol | String, Hash[Symbol | String, untyped], authorization_context: untyped) -> void

@@ -22,6 +22,9 @@ module SolidObjects
     # @rbs (?authorization_context: untyped) -> bool
     def destroy: (?authorization_context: untyped) -> bool
 
+    # @rbs (?authorization_context: untyped) -> StateSnapshot
+    def snapshot: (?authorization_context: untyped) -> StateSnapshot
+
     # @rbs (Symbol, *untyped, **untyped) -> untyped
     def method_missing: (Symbol, *untyped, **untyped) -> untyped
 

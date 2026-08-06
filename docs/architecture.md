@@ -150,6 +150,12 @@ snapshots are deeply frozen. Use `async` for durable fire-and-forget delivery
 and `sync` for dynamic operation names. The explicit `message` DSL remains
 available for dynamic definitions.
 
+`reference.snapshot` is the explicit unordered read path. It invokes query
+authorization, reads the most recently committed instance state without
+creating a message or activation, applies required state migrations in memory,
+and returns deeply frozen declared attributes. It can race with an in-flight
+turn. `SolidObjects.mutable_copy` creates an independent mutable JSON value.
+
 `message` and `query` both execute as durable mailbox turns. A query may not
 mutate state. The executor detects query mutation and fails the message. An
 observable is a named projection of state used by server rendering and realtime
@@ -161,6 +167,8 @@ Lifecycle hooks are deterministic local hooks:
 - `on_deactivate` runs only on graceful local deactivation. Its state changes are not persisted and it must not be used for durable work. Explicit destruction does not run lifecycle hooks.
 
 Durable application cleanup belongs in messages, reminders, or effects.
+Handlers, observable blocks, lifecycle hooks, and state migrations all execute
+with application Active Record writes prevented.
 
 ## Enqueue and sequence allocation
 
@@ -248,6 +256,8 @@ Actor code then executes with no open database transaction and no pinned connect
 
 - Read and mutate its in-memory state for a message
 - Read state for a query
+- Read application records
+- Stage same-database commit actions
 - Stage effects
 - Stage reminders
 - Stage asynchronous actor messages
@@ -258,8 +268,16 @@ It cannot:
 - Perform a synchronous actor-to-actor wait
 - Assume execution happens once
 - Commit actor state directly
+- Write application records directly
+- Perform external I/O that must be atomic with actor state
 
-After actor code, the executor validates state and staged data as JSON and computes changed observables.
+Rails write prevention turns a direct Active Record write into
+`ApplicationWriteForbidden` before it reaches the database. Handler and
+observable failures become nonretryable message failures. Activation and
+migration failures happen before the message is claimed. A deactivation-hook
+failure is instrumented and logged, but cannot replace an already committed
+result or prevent best-effort lease release. After actor code, the executor
+validates state and staged data as JSON and computes changed observables.
 
 ## Fenced commit
 
@@ -268,14 +286,15 @@ Successful completion uses one database transaction:
 1. Lock the instance row.
 2. Verify owner, activation token, generation, and an unexpired lease using database time.
 3. Lock the durable message and verify its claimed membership belongs to that owner, activation token, and generation.
-4. Update native JSON state and state version.
-5. Store the completion timestamp and result on the durable message and delete claimed membership.
-6. Insert staged effects.
-7. Insert or update staged reminders.
-8. Insert staged actor-message outbox rows.
-9. Insert changed-observable broadcast rows.
-10. Update actor last-used time.
-11. Commit.
+4. Execute registered same-database commit actions.
+5. Update native JSON state and state version.
+6. Store the completion timestamp and result on the durable message and delete claimed membership.
+7. Insert staged effects.
+8. Insert or update staged reminders.
+9. Insert staged actor-message outbox rows.
+10. Insert changed-observable broadcast rows.
+11. Update actor last-used time.
+12. Commit.
 
 Any lease or message predicate failure raises `LostActivation` and rolls back every item. The stale worker discards its in-memory activation.
 
@@ -346,11 +365,25 @@ overhead at or below 100 milliseconds; polling fallback can pay up to
 Caller timeout:
 
 - Raises `SolidObjects::SyncTimeout`.
+- Reports durable message, blocker, and activation-owner diagnostics.
+- Exposes a `message_reference` that can reauthorize and wait again.
 - Does not cancel or delete the message.
 - Does not prevent later execution.
 - Leaves the result available until retention cleanup.
 
-The durable row remains after timeout and can be inspected directly by message ID. A public request-ID lookup and bounded retention commands are not yet implemented.
+The configured timeout begins before durable enqueue. PostgreSQL transaction
+lock and statement timeouts, MySQL execution and InnoDB lock-wait timeouts, and
+SQLite busy timeout bound database contention. MySQL rounds lock waits up to
+its one-second minimum. If enqueue cannot commit, `SyncEnqueueTimeout` is
+raised and no durable result exists. Once Ruby handler code starts, it is not
+safely preempted and may outlive the caller budget.
+
+The durable row remains after a normal wait timeout and can be recovered with
+`error.message_reference.wait`. Bounded retention commands are implemented;
+public request-ID lookup is not. A sync call made with an already-open
+transaction on the Solid Objects connection raises `SyncInsideTransaction`
+before enqueue. This avoids savepoint enlistment, lock retention until the
+outer commit, and callers timing out on work they indirectly block.
 
 `async` performs the same durable enqueue without caller assistance or result
 waiting and immediately returns a `MessageReference`. Runtime workers process
@@ -505,6 +538,7 @@ end
 ```
 
 Activation applies each step in order. Missing steps, cycles, non-JSON output, or stored versions newer than code fail activation.
+Migration code is subject to the same application-write guard as handlers.
 
 Refusing newer stored state is a runtime invariant, not an operator recommendation. The worker does not invoke lifecycle hooks or message code when `stored_state_version > actor_class.state_version`.
 
@@ -573,6 +607,19 @@ An activation becomes idle when it has no due earliest message and no turn in fl
 Graceful release conditionally clears owner and expiration only if the generation still matches. Expired leases need no explicit cleanup before another worker claims them.
 
 `on_deactivate` is best effort and nondurable. It may not run on crash and cannot be the source of a correctness requirement.
+A failing hook is logged and instrumented as
+`solid_objects.activation.deactivation_failed`; lease release is still
+attempted and a committed synchronous result is preserved.
+
+## Retention
+
+Terminal messages and stopped process rows have configurable bounded pruning.
+Actor instances never expire by default. Types listed in
+`instance_retention_by_actor_type` become eligible after their idle cutoff only
+when they are unowned, unpaused, and have no ready/claimed work, scheduled
+reminder, unfinished or dead outbox, or dead letter. The pruner locks and
+rechecks each candidate before cascading deletion. All pruning commands
+preview by default and require administration authorization.
 
 ## Advisory locks
 
@@ -612,7 +659,7 @@ The semantic guarantees are common, but their coordination implementations diffe
 | JSON state | JSONB | JSON | Rails JSON type |
 | Executable-work indexes | Ready/claimed membership tables | Ready/claimed membership tables | Ready/claimed membership tables |
 | Write isolation | Row locks and MVCC | InnoDB row/next-key locks and MVCC | One writer, serializable writes |
-| Contention retry | Database/Active Record behavior; explicit classification is roadmap | Database/Active Record behavior; explicit classification is roadmap | Busy timeout; explicit busy classification is roadmap |
+| Sync contention deadline | Transaction lock and statement timeouts | Execution timeout and one-second-granularity InnoDB lock timeout | Busy timeout |
 | Lease clock | Database current time | Database current time | Database current time |
 
 All backends use unique identity and sequence constraints, short transactions, and conditional owner/generation/expiry fencing. Passing one backend's suite is not evidence for another.
@@ -633,14 +680,14 @@ All backends use unique identity and sequence constraints, short transactions, a
 12. **How are leases renewed?** Conditional database update by instance, owner, generation, and unexpired lease.
 13. **How does graceful shutdown work?** Stop claims, finish current turn within timeout, release cached leases, stop heartbeat, mark process stopped.
 14. **How does synchronous invocation work across processes?** The caller first tries to claim and execute the actor locally. If another process owns it, a wake-up adapter prompts a durable result query and bounded polling remains the fallback.
-15. **What happens after caller timeout?** The durable message continues and its eventual result remains on the message row.
-16. **How are results cleaned up?** The schema has cleanup indexes, but bounded retention tooling is not implemented yet.
+15. **What happens after caller timeout?** A committed message continues and its eventual result can be recovered with the timeout's authorized message reference. An enqueue timeout leaves no message. Running Ruby code is not preempted.
+16. **How are results cleaned up?** `prune_messages` deletes eligible terminal history in bounded batches after global or per-actor retention. It previews by default and preserves live work, dead letters, retry links, and unfinished outboxes.
 17. **How are large mailboxes managed?** The implemented controls are the per-actor mailbox cap, payload caps, and fair activation yields; rate and global admission controls remain roadmap work.
-18. **How are completed messages pruned?** Cleanup indexes support future bounded pruning; the initial release does not automatically prune them.
+18. **How are completed messages pruned?** Operators schedule the dry-run-reviewed `prune_messages --execute` command. Solid Objects does not run deletion automatically.
 19. **How are state migrations performed?** Explicit one-step actor migrations on activation, persisted only with a successful fenced commit.
 20. **What happens during rolling deploys?** Newer state can make old workers incompatible; deploys must preserve backward readability or drain old workers.
 21. **How are subscriptions authorized?** Verify signed identity, resolve registered type, invoke host authorization, then stream.
 22. **How are lost broadcasts recovered?** Current-state refresh after reconnect; durable outbox retries server delivery.
 23. **How are actor-to-actor cycles handled?** Synchronous actor waits are rejected; asynchronous request/result messages avoid call-stack cycles.
-24. **Which operations are transactional?** The transaction map above lists every atomic boundary; actor code and I/O are outside.
+24. **Which operations are transactional?** The transaction map above lists every atomic boundary. Actor code and external I/O are outside; registered same-pool commit actions execute inside the fenced state/message transaction.
 25. **Which guarantees depend on PostgreSQL?** None of the public semantics are PostgreSQL-only. PostgreSQL and MySQL depend on row-lock claiming; SQLite depends on serialized write transactions. Each backend's guarantee depends on its adapter-specific integration tests.

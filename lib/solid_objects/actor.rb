@@ -3,6 +3,7 @@
 module SolidObjects
   class Actor
     EffectIntent = Data.define(:name, :arguments, :success_message_name, :failure_message_name)
+    CommitActionIntent = Data.define(:name, :arguments)
     ReminderIntent = Data.define(:name, :at, :arguments, :interval_seconds, :missed_policy)
     OutboundMessageIntent = Data.define(:actor_type, :actor_id, :message_name, :arguments, :available_at, :idempotency_key)
 
@@ -131,6 +132,7 @@ module SolidObjects
     # @rbs @actor_id: String
     # @rbs @state: State
     # @rbs @effect_intents: Array[EffectIntent]
+    # @rbs @commit_action_intents: Array[CommitActionIntent]
     # @rbs @reminder_intents: Array[ReminderIntent]
     # @rbs @outbound_message_intents: Array[OutboundMessageIntent]
 
@@ -141,6 +143,7 @@ module SolidObjects
       @actor_id = actor_id
       @state = state
       @effect_intents = []
+      @commit_action_intents = []
       @reminder_intents = []
       @outbound_message_intents = []
     end
@@ -171,6 +174,17 @@ module SolidObjects
         failure_message_name: on_failure&.to_s
       ).tap do |intent|
         effect_intents << intent
+      end
+      nil
+    end
+
+    # @rbs (Symbol | String, **untyped) -> nil
+    def commit_action(name, **arguments)
+      CommitActionIntent.new(
+        name: name.to_s,
+        arguments: Serialization.dump(arguments)
+      ).tap do |intent|
+        commit_action_intents << intent
       end
       nil
     end
@@ -210,24 +224,32 @@ module SolidObjects
         self.class.definition.queries[message_name.to_sym]
       raise UnknownMessage, "unknown message #{message_name.inspect} for #{self.class.actor_type}" unless handler
 
-      instance_exec(**keyword_arguments(arguments), &handler.block)
+      guard_application_writes(message_name.to_s) do
+        instance_exec(**keyword_arguments(arguments), &handler.block)
+      end
     end
 
     # @rbs () -> Hash[String, untyped]
     def observable_values
-      self.class.definition.observables.each_with_object({}) do |(name, handler), values|
-        values[name.to_s] = Serialization.dump(instance_exec(&handler.block))
+      guard_application_writes("observables") do
+        self.class.definition.observables.each_with_object({}) do |(name, handler), values|
+          values[name.to_s] = Serialization.dump(instance_exec(&handler.block))
+        end
       end
     end
 
     # @rbs () -> void
     def activate
-      self.class.definition.activation_hooks.each { |hook| instance_exec(&hook) }
+      guard_application_writes("on_activate") do
+        self.class.definition.activation_hooks.each { |hook| instance_exec(&hook) }
+      end
     end
 
     # @rbs () -> void
     def deactivate
-      self.class.definition.deactivation_hooks.each { |hook| instance_exec(&hook) }
+      guard_application_writes("on_deactivate") do
+        self.class.definition.deactivation_hooks.each { |hook| instance_exec(&hook) }
+      end
     end
 
     # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], ?available_at: Time?, idempotency_key: String?) -> OutboundMessageIntent
@@ -247,6 +269,11 @@ module SolidObjects
       effect_intents.shift(effect_intents.length)
     end
 
+    # @rbs () -> Array[CommitActionIntent]
+    def drain_commit_action_intents
+      commit_action_intents.shift(commit_action_intents.length)
+    end
+
     # @rbs () -> Array[ReminderIntent]
     def drain_reminder_intents
       reminder_intents.shift(reminder_intents.length)
@@ -260,13 +287,27 @@ module SolidObjects
     # @rbs () -> void
     def discard_intents
       effect_intents.clear
+      commit_action_intents.clear
       reminder_intents.clear
       outbound_message_intents.clear
     end
 
     private
 
-    attr_reader :effect_intents, :reminder_intents, :outbound_message_intents
+    attr_reader :effect_intents,
+      :commit_action_intents,
+      :reminder_intents,
+      :outbound_message_intents
+
+    # @rbs (String) { () -> untyped } -> untyped
+    def guard_application_writes(operation, &block)
+      ApplicationWriteGuard.call(
+        actor_type: self.class.actor_type,
+        actor_id:,
+        operation:,
+        &block
+      )
+    end
 
     # @rbs (Hash[String, untyped]) -> Hash[Symbol, untyped]
     def keyword_arguments(arguments)

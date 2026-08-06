@@ -8,6 +8,14 @@ module SolidObjects
 
       # @rbs () -> String
       def claim_lock: () -> String
+
+      private
+
+      # @rbs (untyped) -> void
+      def configure_transaction_deadline: (untyped) -> void
+
+      # @rbs (Exception) -> bool
+      def deadline_error?: (Exception) -> bool
     end
   end
 end

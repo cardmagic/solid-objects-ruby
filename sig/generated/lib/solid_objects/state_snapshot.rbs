@@ -1,0 +1,30 @@
+# Generated from lib/solid_objects/state_snapshot.rb with RBS::Inline
+
+module SolidObjects
+  class StateSnapshot
+    @actor_class: Class
+
+    @data: Hash[String, untyped]
+
+    # @rbs (Reference) -> void
+    def initialize: (Reference) -> void
+
+    # @rbs () -> Hash[String, untyped]
+    def to_h: () -> Hash[String, untyped]
+
+    # @rbs (Symbol, *untyped, **untyped) -> untyped
+    def method_missing: (Symbol, *untyped, **untyped) -> untyped
+
+    # @rbs (Symbol, bool) -> bool
+    def respond_to_missing?: (Symbol, bool) -> bool
+
+    private
+
+    attr_reader actor_class: untyped
+
+    attr_reader data: untyped
+
+    # @rbs (Symbol | String) -> bool
+    def attribute?: (Symbol | String) -> bool
+  end
+end

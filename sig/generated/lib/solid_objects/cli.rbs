@@ -12,6 +12,15 @@ module SolidObjects
     def cleanup: () -> void
 
     # @rbs () -> void
+    def prune_messages: () -> void
+
+    # @rbs () -> void
+    def prune_instances: () -> void
+
+    # @rbs () -> void
+    def prune_processes: () -> void
+
+    # @rbs () -> void
     def dead_letters: () -> void
 
     # @rbs (String) -> void
@@ -25,7 +34,7 @@ module SolidObjects
     # @rbs (Symbol, Integer) -> Integer
     def numeric_option: (Symbol, Integer) -> Integer
 
-    # @rbs (Symbol) -> void
-    def authorize_administration!: (Symbol) -> void
+    # @rbs (Symbol, resource: String) -> void
+    def authorize_administration!: (Symbol, resource: String) -> void
   end
 end

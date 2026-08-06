@@ -25,6 +25,10 @@ require_relative "../db/migrate/20260805000000_create_solid_objects_tables"
 
 CreateSolidObjectsTables.new.migrate(:up)
 
+ActiveRecord::Base.connection.create_table(:solid_objects_test_domain_records) do |table|
+  table.string :name, null: false
+end
+
 require "solid_objects/database_adapter"
 require_relative "../app/models/solid_objects/record"
 require_relative "../app/models/solid_objects/process"
@@ -37,6 +41,9 @@ require_relative "../app/models/solid_objects/effect"
 require_relative "../app/models/solid_objects/broadcast"
 require_relative "../app/models/solid_objects/dead_letter"
 
+class SolidObjectsTestDomainRecord < ActiveRecord::Base
+end
+
 class ActiveSupport::TestCase
   setup do
     SolidObjects::Record.descendants.each(&:reset_column_information)
@@ -45,6 +52,7 @@ class ActiveSupport::TestCase
   teardown do
     SolidObjects::Instance.delete_all
     SolidObjects::Process.delete_all
+    SolidObjectsTestDomainRecord.delete_all
   end
 end
 

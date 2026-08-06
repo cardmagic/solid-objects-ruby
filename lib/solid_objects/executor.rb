@@ -24,9 +24,7 @@ module SolidObjects
       )
 
       SolidObjects.instrument(:"message.started", **instrumentation_payload)
-      result = Context.with(actor:, message: message_context) do
-        actor.invoke(message.message_name, message.arguments)
-      end
+      result = invoke_actor(message_context)
       ensure_query_did_not_mutate_state!(state_before)
       observable_changes = changed_observables(observables_before, actor.observable_values)
       complete(result, observable_changes)
@@ -52,6 +50,13 @@ module SolidObjects
     # @rbs () -> Actor
     def actor
       activation.actor
+    end
+
+    # @rbs (MessageContext) -> untyped
+    def invoke_actor(message_context)
+      Context.with(actor:, message: message_context) do
+        actor.invoke(message.message_name, message.arguments)
+      end
     end
 
     # @rbs (Hash[String, untyped]) -> void
@@ -81,6 +86,7 @@ module SolidObjects
         max_bytes: SolidObjects.configuration.max_result_bytes
       )
       effect_intents = actor.drain_effect_intents
+      commit_action_intents = actor.drain_commit_action_intents
       reminder_intents = actor.drain_reminder_intents
       outbound_message_intents = actor.drain_outbound_message_intents
       enqueued_effects = []
@@ -88,6 +94,7 @@ module SolidObjects
       activation.lease.fenced_transaction do |instance|
         claimed_message = matching_claim!
         locked_message = Message.lock.find(message.id)
+        execute_commit_actions(commit_action_intents)
         instance.update!(
           state: serialized_state,
           state_version: actor.class.state_version,
@@ -126,6 +133,58 @@ module SolidObjects
       end
       SolidObjects.instrument(:"message.completed", **instrumentation_payload)
       SolidObjects.wake_up.signal
+    end
+
+    # @rbs (Array[Actor::CommitActionIntent]) -> void
+    def execute_commit_actions(intents)
+      ensure_application_database_is_shared! if intents.any?
+      context = CommitActionContext.new(
+        message_id: message.id,
+        request_id: message.request_id,
+        actor_type: message.actor_type,
+        actor_id: message.actor_id,
+        activation_generation: activation.lease.generation
+      )
+
+      intents.each do |intent|
+        handler = SolidObjects.commit_action_registry.fetch(intent.name)
+        execute_commit_action(intent, handler, context)
+      end
+    end
+
+    # @rbs (Actor::CommitActionIntent, Proc, CommitActionContext) -> untyped
+    def execute_commit_action(intent, handler, context)
+      payload = {
+        commit_action_name: intent.name,
+        message_id: message.id,
+        request_id: message.request_id,
+        actor_type: message.actor_type,
+        actor_id: message.actor_id,
+        activation_generation: activation.lease.generation
+      }
+      SolidObjects.instrument(:"commit_action.started", **payload)
+      handler.call(intent.arguments, context).tap do
+        SolidObjects.instrument(:"commit_action.completed", **payload)
+      end
+    rescue => error
+      SolidObjects.instrument(
+        :"commit_action.failed",
+        **payload,
+        error_class: error.class.name,
+        error_message: error.message
+      )
+      raise
+    end
+
+    # @rbs () -> void
+    def ensure_application_database_is_shared!
+      return if SolidObjects::Record.connection_pool.equal?(ActiveRecord::Base.connection_pool)
+
+      raise CommitActionUnavailable.new(
+        actor_type: message.actor_type,
+        actor_id: message.actor_id,
+        message_name: message.message_name
+      )
     end
 
     # @rbs (Message, Instance, Array[Actor::EffectIntent]) -> Array[Effect]
@@ -218,7 +277,8 @@ module SolidObjects
         locked_message.update!(error: error_details, last_failed_at: now)
         claimed_message.destroy!
 
-        if locked_message.attempt_count >= locked_message.max_attempts
+        if error.is_a?(NonRetryableError) ||
+            locked_message.attempt_count >= locked_message.max_attempts
           create_dead_letter(locked_message, error_details, now)
           dead = true
         else

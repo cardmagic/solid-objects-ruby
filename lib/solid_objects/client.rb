@@ -50,14 +50,55 @@ module SolidObjects
         arguments,
         authorization_context:
       )
-      message_reference = mailbox.enqueue(
-        reference,
-        message_name,
-        arguments,
-        kind: "sync",
-        idempotency_key:
+      reject_sync_inside_transaction!(reference, message_name)
+      SyncDeadline.with(timeout:) do
+        message_reference = enqueue_sync(
+          reference,
+          message_name,
+          arguments,
+          idempotency_key:,
+          timeout:
+        )
+        SynchronousInvocation.new.call(message_reference, timeout:)
+      end
+    end
+
+    # @rbs (MessageReference, timeout: Numeric, ?authorization_context: untyped) -> untyped
+    def wait(message_reference, timeout:, authorization_context: nil)
+      message = Message.find(message_reference.id)
+      validate_message_reference!(message_reference, message)
+      reference = Reference.new(
+        actor_type: message.actor_type,
+        actor_id: message.actor_id
       )
+      actor_class = SolidObjects.registry.fetch(reference.actor_type)
+      query = actor_class.definition.queries.key?(message.message_name.to_sym)
+      actor_message = actor_class.definition.messages.key?(message.message_name.to_sym)
+      unless query || actor_message
+        raise UnknownMessage, "unknown message #{message.message_name.inspect}"
+      end
+      authorize!(
+        query ? SolidObjects.configuration.authorize_query : SolidObjects.configuration.authorize_message,
+        reference,
+        message.message_name,
+        message.arguments,
+        authorization_context:
+      )
+      reject_sync_inside_transaction!(reference, message.message_name)
       SynchronousInvocation.new.call(message_reference, timeout:)
+    end
+
+    # @rbs (Reference, ?authorization_context: untyped) -> StateSnapshot
+    def snapshot(reference, authorization_context: nil)
+      SolidObjects.registry.fetch(reference.actor_type)
+      authorize!(
+        SolidObjects.configuration.authorize_query,
+        reference,
+        "__snapshot__",
+        {},
+        authorization_context:
+      )
+      StateSnapshot.new(reference)
     end
 
     # @rbs (Reference, ?authorization_context: untyped) -> bool
@@ -92,6 +133,58 @@ module SolidObjects
     private
 
     attr_reader :mailbox
+
+    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], idempotency_key: String?, timeout: Numeric) -> MessageReference
+    def enqueue_sync(reference, message_name, arguments, idempotency_key:, timeout:)
+      mailbox.enqueue(
+        reference,
+        message_name,
+        arguments,
+        kind: "sync",
+        idempotency_key:
+      )
+    rescue DatabaseDeadlineExceeded
+      SolidObjects.instrument(
+        :"sync.enqueue_timeout",
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id,
+        message_name: message_name.to_s
+      )
+      raise SyncEnqueueTimeout.new(
+        timeout:,
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id,
+        message_name: message_name.to_s
+      )
+    end
+
+    # @rbs (MessageReference, Message) -> void
+    def validate_message_reference!(message_reference, message)
+      valid = message_reference.request_id == message.request_id &&
+        message_reference.actor_type == message.actor_type &&
+        message_reference.actor_id == message.actor_id &&
+        message_reference.sequence == message.sequence
+      return if valid
+
+      raise ActorDestroyed, "message reference no longer identifies this invocation"
+    end
+
+    # @rbs (Reference, Symbol | String) -> void
+    def reject_sync_inside_transaction!(reference, message_name)
+      return unless SolidObjects::Record.connection.transaction_open?
+
+      SolidObjects.instrument(
+        :"sync.transaction_rejected",
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id,
+        message_name: message_name.to_s
+      )
+      raise SyncInsideTransaction.new(
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id,
+        message_name: message_name.to_s
+      )
+    end
 
     # @rbs (Proc, Reference, Symbol | String, Hash[Symbol | String, untyped], authorization_context: untyped) -> void
     def authorize!(hook, reference, message_name, arguments, authorization_context:)

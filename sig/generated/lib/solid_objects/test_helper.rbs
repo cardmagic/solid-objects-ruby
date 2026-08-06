@@ -1,0 +1,25 @@
+# Generated from lib/solid_objects/test_helper.rb with RBS::Inline
+
+module SolidObjects
+  module TestHelper
+    # @rbs (Class) -> void
+    def self.included: (Class) -> void
+
+    # @rbs () -> void
+    def self.reset_actors!: () -> void
+
+    # @rbs () -> void
+    def reset_actors!: () -> void
+
+    # @rbs (?roles: Array[Symbol], ?max_passes: Integer) -> Integer
+    def drain_solid_objects: (?roles: Array[Symbol], ?max_passes: Integer) -> Integer
+
+    private
+
+    # @rbs (Array[Symbol]) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
+    def build_solid_objects_runners: (Array[Symbol]) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
+
+    # @rbs (Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor) -> Integer
+    def solid_objects_runner_result: (Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor) -> Integer
+  end
+end

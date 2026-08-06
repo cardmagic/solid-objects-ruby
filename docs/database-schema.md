@@ -24,6 +24,11 @@ Indexes:
 - owner: dead-process cleanup;
 - last used/ID: retention and reconciliation.
 
+Instance expiration is disabled unless its actor type has an explicit
+retention policy. The pruner uses the last-used index for candidate discovery,
+then locks and rechecks that the actor has no owner, mailbox membership,
+scheduled reminder, unresolved outbox, or dead letter before deletion.
+
 ### `messages`
 
 Durable immutable invocation identity and arguments plus sequence, attempt

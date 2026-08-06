@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Reject application-record writes from actor handlers and provide registered
+  same-database commit actions for fenced atomic changes.
+- Reject synchronous invocation inside an open Solid Objects transaction and
+  add adapter database deadlines, durable diagnostics, and recoverable results
+  to sync timeouts.
+- Guard handlers, observables, lifecycle hooks, and state migrations from
+  direct application-record writes.
+- Add dry-run-first bounded message, process, and opt-in actor-instance
+  pruning, configurable retention, and graceful caller-process shutdown.
+- Add authorized committed state snapshots, mutable JSON copies, commit-action
+  instrumentation, and deterministic full-runtime Minitest draining.
+
 ## 0.2.1 - 2026-08-06
 
 - Add `solid_objects:doctor` for configuration, schema, policy, runtime, and

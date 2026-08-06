@@ -18,11 +18,20 @@ module SolidObjects
   # @rbs (String | Symbol) { (Hash[String, untyped], EffectContext) -> untyped } -> Proc
   def self.register_effect: (String | Symbol) { (Hash[String, untyped], EffectContext) -> untyped } -> Proc
 
+  # @rbs () -> CommitActionRegistry
+  def self.commit_action_registry: () -> CommitActionRegistry
+
+  # @rbs (String | Symbol) { (Hash[String, untyped], CommitActionContext) -> untyped } -> Proc
+  def self.register_commit_action: (String | Symbol) { (Hash[String, untyped], CommitActionContext) -> untyped } -> Proc
+
   # @rbs () -> Client
   def self.client: () -> Client
 
   # @rbs () -> CallerProcess
   def self.caller_process: () -> CallerProcess
+
+  # @rbs () -> bool
+  def self.reset_caller_process!: () -> bool
 
   # @rbs () -> DeadLetterManager
   def self.dead_letters: () -> DeadLetterManager
@@ -32,6 +41,9 @@ module SolidObjects
 
   # @rbs (String, Class) -> Class
   def self.register_actor: (String, Class) -> Class
+
+  # @rbs (untyped) -> untyped
+  def self.mutable_copy: (untyped) -> untyped
 
   # @rbs () -> void
   def self.reset!: () -> void

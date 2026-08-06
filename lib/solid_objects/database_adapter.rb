@@ -54,9 +54,22 @@ module SolidObjects
 
     # @rbs () { () -> untyped } -> untyped
     def transaction(&block)
+      raise DatabaseDeadlineExceeded, "synchronous invocation deadline expired" if SyncDeadline.expired?
+
       with_connection do |connection|
-        connection.transaction(requires_new: true, &block)
+        with_transaction_deadline(connection) do
+          connection.transaction(requires_new: true) do
+            configure_transaction_deadline(connection)
+            block.call
+          end
+        end
       end
+    rescue => error
+      raise unless deadline_error?(error)
+
+      raise DatabaseDeadlineExceeded,
+        "database lock wait exceeded the synchronous invocation deadline",
+        cause: error
     end
 
     # @rbs (ActiveRecord::Relation[untyped]) -> ActiveRecord::Relation[untyped]
@@ -67,6 +80,20 @@ module SolidObjects
     private
 
     attr_reader :connection_pool, :fixed_connection
+
+    # @rbs (untyped) { () -> untyped } -> untyped
+    def with_transaction_deadline(_connection)
+      yield
+    end
+
+    # @rbs (untyped) -> void
+    def configure_transaction_deadline(_connection)
+    end
+
+    # @rbs (Exception) -> bool
+    def deadline_error?(_error)
+      false
+    end
 
     # @rbs () { (untyped) -> untyped } -> untyped
     def with_connection

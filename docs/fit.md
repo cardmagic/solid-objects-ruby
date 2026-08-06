@@ -65,10 +65,18 @@ Each application process that performs synchronous calls registers one caller
 process row. Actor state is rewritten as a JSON value on each successful
 mutation.
 
-There is no built-in retention command in 0.2. Completed message history grows
-until the host application implements a reviewed retention policy. See
+Built-in bounded pruning is explicit and dry-run by default. Configure global
+and per-actor-type message retention, then schedule the reviewed execute
+commands. Actor instances expire only for types explicitly listed in
+`instance_retention_by_actor_type`. See
 [performance measurements](benchmarks.md) and
 [retention guidance](operations.md#retention-and-backups).
+
+Actor handlers may read application records but may not write them directly.
+Use a same-database commit action for a short atomic database change or an
+idempotent effect for external work. If the domain needs broad relational
+updates throughout arbitrary handler code, an ordinary Active Record service
+is likely a clearer fit.
 
 ## Decision checklist
 

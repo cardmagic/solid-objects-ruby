@@ -15,6 +15,8 @@ end
 
 Migration runs in memory during activation. The new version is persisted only
 with the next successful fenced message commit.
+Migration blocks may read application records but cannot write them directly;
+the same Active Record write guard used for handlers applies before activation.
 
 ## Runtime rules
 

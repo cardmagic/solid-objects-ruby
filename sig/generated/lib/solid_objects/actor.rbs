@@ -19,6 +19,19 @@ module SolidObjects
       def members: () -> [ :name, :arguments, :success_message_name, :failure_message_name ]
     end
 
+    class CommitActionIntent < Data
+      attr_reader name(): untyped
+
+      attr_reader arguments(): untyped
+
+      def self.new: (untyped name, untyped arguments) -> instance
+                  | (name: untyped, arguments: untyped) -> instance
+
+      def self.members: () -> [ :name, :arguments ]
+
+      def members: () -> [ :name, :arguments ]
+    end
+
     class ReminderIntent < Data
       attr_reader name(): untyped
 
@@ -114,6 +127,8 @@ module SolidObjects
 
     @reminder_intents: Array[ReminderIntent]
 
+    @commit_action_intents: Array[CommitActionIntent]
+
     @effect_intents: Array[EffectIntent]
 
     @state: State
@@ -135,6 +150,9 @@ module SolidObjects
 
     # @rbs (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> nil
     def emit: (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> nil
+
+    # @rbs (Symbol | String, **untyped) -> nil
+    def commit_action: (Symbol | String, **untyped) -> nil
 
     # @rbs (Symbol | String, at: Time, ?every: Numeric?, ?missed: Symbol | String, arguments: Hash[Symbol | String, untyped]) -> nil
     def schedule: (Symbol | String, at: Time, arguments: Hash[Symbol | String, untyped], ?every: Numeric?, ?missed: Symbol | String) -> nil
@@ -160,6 +178,9 @@ module SolidObjects
     # @rbs () -> Array[EffectIntent]
     def drain_effect_intents: () -> Array[EffectIntent]
 
+    # @rbs () -> Array[CommitActionIntent]
+    def drain_commit_action_intents: () -> Array[CommitActionIntent]
+
     # @rbs () -> Array[ReminderIntent]
     def drain_reminder_intents: () -> Array[ReminderIntent]
 
@@ -173,9 +194,14 @@ module SolidObjects
 
     attr_reader effect_intents: untyped
 
+    attr_reader commit_action_intents: untyped
+
     attr_reader reminder_intents: untyped
 
     attr_reader outbound_message_intents: untyped
+
+    # @rbs (String) { () -> untyped } -> untyped
+    def guard_application_writes: (String) { () -> untyped } -> untyped
 
     # @rbs (Hash[String, untyped]) -> Hash[Symbol, untyped]
     def keyword_arguments: (Hash[String, untyped]) -> Hash[Symbol, untyped]

@@ -91,9 +91,25 @@ module SolidObjects
     # @rbs () -> void
     def deactivate
       actor.deactivate
-      lease.release
-    rescue LostActivation
-      nil
+    rescue => error
+      SolidObjects.instrument(
+        :"activation.deactivation_failed",
+        instance_id: lease.instance_id,
+        actor_type: actor.class.actor_type,
+        actor_id: actor.actor_id,
+        owner_id: lease.owner_id,
+        generation: lease.generation,
+        error_class: error.class.name,
+        error_message: error.message
+      )
+      SolidObjects.configuration.logger.error(
+        "SolidObjects activation deactivation failed " \
+          "actor_type=#{actor.class.actor_type.inspect} " \
+          "actor_id=#{actor.actor_id.inspect} " \
+          "error_class=#{error.class.name}"
+      )
+    ensure
+      release_lease
     end
 
     private
@@ -129,11 +145,24 @@ module SolidObjects
 
     # @rbs (Instance) -> Actor
     def build_actor(instance)
-      state_data = actor_class.definition.migrate_state(instance.state_version, instance.state)
+      state_data = ApplicationWriteGuard.call(
+        actor_type: instance.actor_type,
+        actor_id: instance.actor_id,
+        operation: "state_migration"
+      ) do
+        actor_class.definition.migrate_state(instance.state_version, instance.state)
+      end
       actor_class.new(
         actor_id: instance.actor_id,
         state: State.new(actor_class.definition.state_definition, state_data)
       )
+    end
+
+    # @rbs () -> void
+    def release_lease
+      lease.release
+    rescue LostActivation
+      nil
     end
 
     # @rbs () -> Message?

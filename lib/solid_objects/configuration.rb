@@ -20,6 +20,11 @@ module SolidObjects
     # @rbs @process_heartbeat_interval: Float
     # @rbs @process_alive_threshold: Float
     # @rbs @shutdown_timeout: Float
+    # @rbs @message_retention: Numeric
+    # @rbs @message_retention_by_actor_type: Hash[String, Numeric]
+    # @rbs @instance_retention_by_actor_type: Hash[String, Numeric]
+    # @rbs @process_retention: Numeric
+    # @rbs @prune_batch_size: Integer
     # @rbs @worker_count: Integer
     # @rbs @effect_worker_count: Integer
     # @rbs @broadcast_worker_count: Integer
@@ -53,6 +58,11 @@ module SolidObjects
       :process_heartbeat_interval,
       :process_alive_threshold,
       :shutdown_timeout,
+      :message_retention,
+      :message_retention_by_actor_type,
+      :instance_retention_by_actor_type,
+      :process_retention,
+      :prune_batch_size,
       :worker_count,
       :effect_worker_count,
       :broadcast_worker_count,
@@ -88,6 +98,11 @@ module SolidObjects
       @process_heartbeat_interval = 15.0
       @process_alive_threshold = 60.0
       @shutdown_timeout = 15.0
+      @message_retention = 30.days
+      @message_retention_by_actor_type = {}
+      @instance_retention_by_actor_type = {}
+      @process_retention = 7.days
+      @prune_batch_size = 1_000
       @worker_count = 1
       @effect_worker_count = 1
       @broadcast_worker_count = 1
@@ -128,6 +143,14 @@ module SolidObjects
       positive_values.each do |name, value|
         raise ArgumentError, "#{name} must be positive" unless value.positive?
       end
+      message_retention_by_actor_type.each do |actor_type, retention|
+        raise ArgumentError, "actor type cannot be empty" if actor_type.to_s.empty?
+        raise ArgumentError, "message retention must be positive" unless retention.positive?
+      end
+      instance_retention_by_actor_type.each do |actor_type, retention|
+        raise ArgumentError, "actor type cannot be empty" if actor_type.to_s.empty?
+        raise ArgumentError, "instance retention must be positive" unless retention.positive?
+      end
 
       self
     end
@@ -151,7 +174,10 @@ module SolidObjects
         max_attempts:,
         process_heartbeat_interval:,
         process_alive_threshold:,
-        shutdown_timeout:
+        shutdown_timeout:,
+        message_retention:,
+        process_retention:,
+        prune_batch_size:
       }
     end
 

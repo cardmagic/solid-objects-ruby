@@ -84,6 +84,15 @@ class ProcessLifecycleTest < ActiveSupport::TestCase
     assert_equal "stopped", process_record.reload.shutdown_state
   end
 
+  test "caller process stops its registration on graceful shutdown" do
+    caller_process = SolidObjects.caller_process
+    process_record = caller_process.process_registry.process_record
+
+    assert caller_process.stop
+    assert_equal "stopped", process_record.reload.shutdown_state
+    refute caller_process.stop
+  end
+
   private
 
   def create_process(last_heartbeat_at:)

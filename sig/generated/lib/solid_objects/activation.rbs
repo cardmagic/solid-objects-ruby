@@ -59,6 +59,9 @@ module SolidObjects
     # @rbs (Instance) -> Actor
     def build_actor: (Instance) -> Actor
 
+    # @rbs () -> void
+    def release_lease: () -> void
+
     # @rbs () -> Message?
     def claim_next_message: () -> Message?
 

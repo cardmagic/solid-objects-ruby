@@ -34,7 +34,7 @@ module SolidObjects
     # @rbs () -> void
     def status
       boot_application
-      authorize_administration!(:status)
+      authorize_administration!(:status, resource: "processes")
       rows = SolidObjects::Process.order(:kind, :started_at).map do |process_record|
         {
           id: process_record.id,
@@ -54,8 +54,47 @@ module SolidObjects
     # @rbs () -> void
     def cleanup
       boot_application
-      authorize_administration!(:cleanup)
+      authorize_administration!(:cleanup, resource: "processes")
       puts JSON.generate(cleaned_processes: ProcessRegistry.cleanup_dead)
+    end
+
+    desc "prune_messages", "Preview or delete expired terminal message history"
+    option :environment, type: :string, aliases: "-e"
+    option :execute, type: :boolean, default: false
+
+    # @rbs () -> void
+    def prune_messages
+      boot_application
+      authorize_administration!(:prune, resource: "messages")
+      pruner = MessagePruner.new
+      count = options[:execute] ? pruner.prune : pruner.preview
+      puts JSON.generate(mode: options[:execute] ? "execute" : "preview", messages: count)
+    end
+
+    desc "prune_instances", "Preview or delete expired idle actor instances"
+    option :environment, type: :string, aliases: "-e"
+    option :execute, type: :boolean, default: false
+
+    # @rbs () -> void
+    def prune_instances
+      boot_application
+      authorize_administration!(:prune, resource: "instances")
+      pruner = InstancePruner.new
+      count = options[:execute] ? pruner.prune : pruner.preview
+      puts JSON.generate(mode: options[:execute] ? "execute" : "preview", instances: count)
+    end
+
+    desc "prune_processes", "Preview or delete expired stopped process records"
+    option :environment, type: :string, aliases: "-e"
+    option :execute, type: :boolean, default: false
+
+    # @rbs () -> void
+    def prune_processes
+      boot_application
+      authorize_administration!(:prune, resource: "processes")
+      pruner = ProcessPruner.new
+      count = options[:execute] ? pruner.prune : pruner.preview
+      puts JSON.generate(mode: options[:execute] ? "execute" : "preview", processes: count)
     end
 
     desc "dead_letters", "Print dead actor messages"
@@ -102,11 +141,11 @@ module SolidObjects
       value ? Integer(value) : default
     end
 
-    # @rbs (Symbol) -> void
-    def authorize_administration!(action)
+    # @rbs (Symbol, resource: String) -> void
+    def authorize_administration!(action, resource:)
       authorized = SolidObjects.configuration.authorize_administration.call(
         action:,
-        resource: "processes",
+        resource:,
         resource_id: nil,
         authorization_context: { source: "cli" }
       )

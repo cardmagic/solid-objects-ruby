@@ -7,6 +7,9 @@ module SolidObjects
 
     private
 
+    # @rbs (MessageReference, timeout: Numeric) -> untyped
+    def call_before_deadline: (MessageReference, timeout: Numeric) -> untyped
+
     # @rbs (MessageReference) -> Message
     def load_message: (MessageReference) -> Message
 

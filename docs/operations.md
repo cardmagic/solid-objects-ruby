@@ -34,6 +34,9 @@ Process inspection, cleanup, dead-letter inspection, and retry all require an
 administration policy that authorizes the CLI context:
 
 ```bash
+bundle exec solid_objects prune_messages
+bundle exec solid_objects prune_instances
+bundle exec solid_objects prune_processes
 bundle exec solid_objects dead_letters
 bundle exec solid_objects retry_dead_letter 123
 ```
@@ -56,6 +59,9 @@ Important controls include:
 - payload, state, and result byte limits
 - retry attempts and delay
 - heartbeat interval and alive threshold
+- message retention and per-actor-type overrides
+- opt-in actor-instance retention by actor type
+- stopped-process retention and prune batch size
 
 Keep lease duration comfortably above renewal interval and expected database
 pause time. A handler can exceed the pass-duration budget because Ruby code is
@@ -126,49 +132,81 @@ Alert on:
 - reconciliation drift;
 - database lock waits, deadlocks, and SQLite busy errors.
 
+## Instrumentation and logging
+
+Active Support notifications use the `solid_objects.` prefix. Core events
+include message enqueue/start/completion/failure/rejection, activation
+claim/start/renew/release/deactivation failure, sync timeout/enqueue timeout/
+transaction rejection, commit-action start/completion/failure, effect and
+broadcast enqueue/completion, reminder enqueue, actor destruction/expiration,
+retention pruning, process cleanup, and supervisor lifecycle.
+
+Payloads contain stable runtime identifiers, actor identity, sequence,
+attempts, ownership generations, and safe exception summaries where relevant.
+Arguments, actor state, results, and outbox payloads are excluded. The bundled
+log subscriber turns the same notifications into structured logger hashes.
+
 ## Retention and backups
 
-The schema has cleanup indexes, but automatic pruning commands are still
-roadmap work. Every actor call creates a durable message-history row, including
-queries and attribute reads. Choose a retention period from measured call
-volume, storage budget, audit needs, and the longest promised synchronous-result
-lookup window.
+Every actor call creates a durable message-history row, including queries and
+attribute reads. The default retention policy keeps terminal message history
+for 30 days and stopped process records for 7 days:
 
-An application-owned pruning job can start from this conservative relation:
+`reference.snapshot` is the explicit exception: it performs an authorized
+current-state read without mailbox ordering or a message row.
 
 ```ruby
-cutoff = 30.days.ago
-
-prunable_messages = SolidObjects::Message
-  .where(completed_at: ...cutoff)
-  .where.not(id: SolidObjects::ReadyMessage.select(:message_id))
-  .where.not(id: SolidObjects::ClaimedMessage.select(:message_id))
-  .where.not(id: SolidObjects::DeadLetter.select(:message_id))
-  .where.not(
-    id: SolidObjects::DeadLetter
-      .where.not(retried_message_id: nil)
-      .select(:retried_message_id)
-  )
-  .where.not(
-    id: SolidObjects::Effect
-      .where.not(status: "completed")
-      .select(:message_id)
-  )
-  .where.not(
-    id: SolidObjects::Broadcast
-      .where.not(status: "delivered")
-      .select(:message_id)
-  )
-
-prunable_messages.in_batches(of: 1_000).delete_all
+SolidObjects.configure do |configuration|
+  configuration.message_retention = 30.days
+  configuration.message_retention_by_actor_type = {
+    "AuditActor" => 365.days,
+    "EphemeralCounter" => 1.day
+  }
+  configuration.instance_retention_by_actor_type = {
+    "EphemeralCounter" => 30.days
+  }
+  configuration.process_retention = 7.days
+  configuration.prune_batch_size = 1_000
+end
 ```
 
-Deleting a message cascades to its completed effects, delivered broadcasts, and
-other message-owned records. Test the exact relation against a restored
-production snapshot before scheduling it. Keep source and retried messages for
-dead letters under investigation, and never prune pending, processing, ready, or
-claimed work. Choose a cutoff longer than every `sync` timeout because a caller
-whose result row disappears can no longer observe that result.
+Both pruning commands are dry-run previews by default:
+
+```bash
+bundle exec solid_objects prune_messages
+bundle exec solid_objects prune_instances
+bundle exec solid_objects prune_processes
+```
+
+After reviewing the counts, execute bounded deletion:
+
+```bash
+bundle exec solid_objects prune_messages --execute
+bundle exec solid_objects prune_instances --execute
+bundle exec solid_objects prune_processes --execute
+```
+
+Message pruning keeps ready and claimed work, dead letters and their retry
+links, messages with unfinished effects, and messages with undelivered
+broadcasts. Deleting eligible history cascades to completed effects, delivered
+broadcasts, and other message-owned rows. Choose a cutoff longer than every
+`sync` timeout because a caller whose result row disappears can no longer
+observe it.
+
+Actor expiration is disabled by default. `prune_instances` considers only
+actor types listed in `instance_retention_by_actor_type`, excludes active or
+paused actors, and preserves ready/claimed mailbox work, scheduled reminders,
+unfinished or dead outboxes, and dead letters. It locks and rechecks every
+candidate before cascading deletion. Preview counts first, then schedule
+`--execute` only after the application has accepted the loss of dormant state
+and completed history.
+
+Use authorized `reference.destroy` when deletion is an explicit application
+operation rather than a retention policy.
+
+Run stale-process `cleanup` before `prune_processes`. Normal caller processes
+mark their registrations stopped at exit; hard kills remain recoverable through
+heartbeat cleanup.
 
 Back up actor tables with the same consistency guarantees as application data.
 Restoring only instances without their mailboxes/outboxes, or vice versa, can

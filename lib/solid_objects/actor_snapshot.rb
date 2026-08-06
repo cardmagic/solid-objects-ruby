@@ -29,10 +29,16 @@ module SolidObjects
         actor_id: reference.actor_id
       )
       state_version = instance&.state_version || actor_class.state_version
-      state_data = actor_class.definition.migrate_state(
-        state_version,
-        instance&.state || {}
-      )
+      state_data = ApplicationWriteGuard.call(
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id,
+        operation: "state_migration"
+      ) do
+        actor_class.definition.migrate_state(
+          state_version,
+          instance&.state || {}
+        )
+      end
       actor_class.new(
         actor_id: reference.actor_id,
         state: State.new(actor_class.definition.state_definition, state_data)

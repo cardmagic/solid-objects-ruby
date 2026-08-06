@@ -13,9 +13,11 @@ risk for every hook and includes a tenant-aware policy example.
 Method-style reference calls do not bypass these hooks. Public instance methods
 declared on an actor are part of its remotely addressable message surface and
 delegate to the authorized synchronous invocation path. Keep implementation
-helpers private or protected. Query and attribute methods use the separate
-query authorization policy. Explicit `async` message delivery uses the same
-message authorization policy as direct calls.
+helpers private or protected. Query, attribute, observable, and committed
+`snapshot` reads use the separate query authorization policy. Explicit `async`
+message delivery uses the same message authorization policy as direct calls.
+Recovering a timed-out result through `MessageReference#wait` reauthorizes the
+stored operation.
 `reference.destroy` delegates to `authorize_destroy` before checking whether
 the actor exists, so denial does not reveal actor existence.
 
@@ -54,9 +56,29 @@ host authentication and audit their use.
 Instrumentation excludes arguments, state, results, and effect payloads by
 default. Review custom logging and effect handlers for accidental disclosure.
 
+## Handler database access
+
+Handlers, observables, lifecycle hooks, and state migrations run with Active
+Record writes prevented. They may query application records, but a direct
+write becomes
+`SolidObjects::ApplicationWriteForbidden` and dead-letters without retry.
+This prevents application data from escaping a later actor failure or stale
+fence.
+
+Registered commit actions are privileged application code. They execute inside
+the fenced actor transaction and receive stored JSON arguments, so register
+only fixed names, validate record ownership again, and keep the block to
+bounded database work. Never perform network I/O or authorize solely from a
+record ID in commit-action arguments.
+
 Actor destruction is not an administrative shortcut. Authorize tenancy and
 ownership explicitly in `authorize_destroy`; knowledge of an actor ID is never
 permission to delete its state or queued work.
+
+Instance pruning is likewise destructive and requires administration
+authorization. Only opt-in actor types are eligible, and live work is
+preserved, but the host application must decide whether dormant state and
+completed history may expire.
 
 ## Denial of service
 

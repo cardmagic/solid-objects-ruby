@@ -1,0 +1,43 @@
+# Generated from lib/solid_objects/commit_action_registry.rb with RBS::Inline
+
+module SolidObjects
+  class CommitActionContext < Data
+    attr_reader message_id(): untyped
+
+    attr_reader request_id(): untyped
+
+    attr_reader actor_type(): untyped
+
+    attr_reader actor_id(): untyped
+
+    attr_reader activation_generation(): untyped
+
+    def self.new: (untyped message_id, untyped request_id, untyped actor_type, untyped actor_id, untyped activation_generation) -> instance
+                | (message_id: untyped, request_id: untyped, actor_type: untyped, actor_id: untyped, activation_generation: untyped) -> instance
+
+    def self.members: () -> [ :message_id, :request_id, :actor_type, :actor_id, :activation_generation ]
+
+    def members: () -> [ :message_id, :request_id, :actor_type, :actor_id, :activation_generation ]
+  end
+
+  class CommitActionRegistry
+    @handlers: Hash[String, Proc]
+
+    @mutex: Mutex
+
+    # @rbs () -> void
+    def initialize: () -> void
+
+    # @rbs (String | Symbol, Proc) -> Proc
+    def register: (String | Symbol, Proc) -> Proc
+
+    # @rbs (String | Symbol) -> Proc
+    def fetch: (String | Symbol) -> Proc
+
+    private
+
+    attr_reader handlers: untyped
+
+    attr_reader mutex: untyped
+  end
+end

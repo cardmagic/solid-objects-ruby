@@ -2,15 +2,21 @@
 
 module SolidObjects
   class Configuration
-    @max_attempts: Integer
-
-    @retry_delay: Proc
-
-    @process_heartbeat_interval: Float
+    @table_name_prefix: String
 
     @process_alive_threshold: Float
 
     @shutdown_timeout: Float
+
+    @message_retention: Numeric
+
+    @message_retention_by_actor_type: Hash[String, Numeric]
+
+    @instance_retention_by_actor_type: Hash[String, Numeric]
+
+    @process_retention: Numeric
+
+    @prune_batch_size: Integer
 
     @worker_count: Integer
 
@@ -40,8 +46,6 @@ module SolidObjects
 
     @authorize_administration: Proc
 
-    @table_name_prefix: String
-
     @polling_interval: Float
 
     @sync_polling_interval: Float
@@ -65,6 +69,12 @@ module SolidObjects
     @max_state_bytes: Integer
 
     @max_result_bytes: Integer
+
+    @max_attempts: Integer
+
+    @retry_delay: Proc
+
+    @process_heartbeat_interval: Float
 
     attr_accessor table_name_prefix: untyped
 
@@ -101,6 +111,16 @@ module SolidObjects
     attr_accessor process_alive_threshold: untyped
 
     attr_accessor shutdown_timeout: untyped
+
+    attr_accessor message_retention: untyped
+
+    attr_accessor message_retention_by_actor_type: untyped
+
+    attr_accessor instance_retention_by_actor_type: untyped
+
+    attr_accessor process_retention: untyped
+
+    attr_accessor prune_batch_size: untyped
 
     attr_accessor worker_count: untyped
 

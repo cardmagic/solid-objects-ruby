@@ -19,6 +19,12 @@
 - Reconciliation read APIs
 - Installation doctor, authorization reference, fit guide, and legacy-state
   migration cookbook
+- Handler Active Record write isolation, same-database commit actions, ambient
+  transaction rejection, adapter lock/query deadlines, structured sync timeout
+  diagnostics, and result recovery
+- Bounded message/process pruning, actor-type opt-in instance expiration,
+  graceful caller shutdown, committed state snapshots, and an opt-in Minitest
+  helper
 - SQLite, PostgreSQL, and MySQL integration suites
 - Inline RBS generation/validation, Steep, Standard Ruby, Solid Queue's exact
   RuboCop policy, and a warning-free Brakeman scan
@@ -43,8 +49,8 @@
 1. Add automatic supervisor role replacement and periodic dead-process cleanup.
 2. Add PostgreSQL notification and optional Redis wake-up adapters with latency
    benchmarks and polling-race tests.
-3. Add bounded retention/pruning commands and result lookup by request ID.
-4. Add deadlock, lock-timeout, and SQLite-busy retry classification.
+3. Add result lookup by request ID and broader deadlock retry classification.
+4. Add scheduled retention and stale-process maintenance.
 5. Add database/server-version checks and MySQL InnoDB verification at boot.
 6. Add component broadcast rendering, Turbo append intents, and reconnect tests
    in a full browser.

@@ -28,6 +28,46 @@ SOLID_OBJECTS_DATABASE_URL=mysql2://... bundle exec rake test
 Each database run must start from an empty dedicated test database because the
 test helper applies the engine migration.
 
+## Host application tests
+
+Rails transactional tests keep the application connection inside an outer
+transaction. Synchronous actor invocation deliberately rejects that condition
+because nested savepoints retain actor locks until the test transaction ends
+and make durable behavior unlike production.
+
+Use an actor-specific base class:
+
+```ruby
+require "solid_objects/test_helper"
+
+class SolidObjectsTestCase < ActiveSupport::TestCase
+  include SolidObjects::TestHelper
+end
+```
+
+The helper disables transactional tests for that class and removes Solid
+Objects instances and process registrations before and after each test. It
+preserves application configuration, actor registration, and effect/commit
+action registration. If actor commit actions create application records, clean
+those records with fixtures or explicit teardown because they are no longer
+covered by Rails' transaction rollback.
+
+Use `drain_solid_objects` to process actor, reminder, effect, callback, and
+broadcast work to a deterministic fixed point without arbitrary sleeps:
+
+```ruby
+message = Counter.ref("test").async(:increment)
+
+assert_equal 1, drain_solid_objects
+assert_equal "completed", message.status
+```
+
+Pass `roles: [:actors]` when a test intentionally wants to leave outboxes or
+reminders pending.
+
+`SolidObjects::TestHelper.reset_actors!` is also available for explicit suite
+boundaries.
+
 ## Inline RBS
 
 Ruby source starts with:

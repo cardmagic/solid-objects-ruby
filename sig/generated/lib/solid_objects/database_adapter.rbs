@@ -36,6 +36,15 @@ module SolidObjects
 
     attr_reader fixed_connection: untyped
 
+    # @rbs (untyped) { () -> untyped } -> untyped
+    def with_transaction_deadline: (untyped) { () -> untyped } -> untyped
+
+    # @rbs (untyped) -> void
+    def configure_transaction_deadline: (untyped) -> void
+
+    # @rbs (Exception) -> bool
+    def deadline_error?: (Exception) -> bool
+
     # @rbs () { (untyped) -> untyped } -> untyped
     def with_connection: () { (untyped) -> untyped } -> untyped
   end

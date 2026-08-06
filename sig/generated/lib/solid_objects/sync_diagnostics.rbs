@@ -1,0 +1,34 @@
+# Generated from lib/solid_objects/sync_diagnostics.rb with RBS::Inline
+
+module SolidObjects
+  class SyncDiagnostics
+    # @rbs (Message, timeout: Numeric) -> SyncTimeout
+    def call: (Message, timeout: Numeric) -> SyncTimeout
+
+    private
+
+    # @rbs (Message) -> String
+    def message_status: (Message) -> String
+
+    # @rbs (Message, Instance, Message?) -> String
+    def waiting_reason: (Message, Instance, Message?) -> String
+
+    # @rbs (ReadyMessage?) -> bool
+    def future?: (ReadyMessage?) -> bool
+
+    # @rbs (Instance) -> bool
+    def live_activation?: (Instance) -> bool
+
+    # @rbs (Message) -> Message?
+    def earlier_blocker: (Message) -> Message?
+
+    # @rbs (Instance) -> Hash[String, untyped]
+    def activation_details: (Instance) -> Hash[String, untyped]
+
+    # @rbs (Process?) -> Hash[String, untyped]?
+    def process_details: (Process?) -> Hash[String, untyped]?
+
+    # @rbs (Message?) -> Hash[String, untyped]?
+    def blocker_details: (Message?) -> Hash[String, untyped]?
+  end
+end

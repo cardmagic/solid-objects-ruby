@@ -2,12 +2,26 @@
 
 require "solid_objects/activation_manager"
 require "solid_objects/lease_renewer"
+require "solid_objects/sync_diagnostics"
 
 module SolidObjects
   class SynchronousInvocation
     # @rbs (MessageReference, timeout: Numeric) -> untyped
     def call(message_reference, timeout:)
-      deadline = monotonic_now + timeout.to_f
+      return call_before_deadline(message_reference, timeout:) if SyncDeadline.active?
+
+      SyncDeadline.with(timeout:) do
+        call_before_deadline(message_reference, timeout:)
+      end
+    rescue ActiveRecord::RecordNotFound
+      raise ActorDestroyed, "actor was destroyed while waiting for its result"
+    end
+
+    private
+
+    # @rbs (MessageReference, timeout: Numeric) -> untyped
+    def call_before_deadline(message_reference, timeout:)
+      deadline = monotonic_now + SyncDeadline.remaining
 
       loop do
         message = load_message(message_reference)
@@ -15,17 +29,22 @@ module SolidObjects
 
         remaining = deadline - monotonic_now
         unless remaining.positive?
-          raise SyncTimeout, "actor invocation timed out after #{timeout} seconds"
+          message = load_message(message_reference)
+          return completed_result(message) if message.completed? || message.dead?
+
+          raise SyncDiagnostics.new.call(message, timeout:)
         end
 
         processed = assist(message, deadline:)
-        wait(remaining) if processed.zero?
+        remaining = deadline - monotonic_now
+        wait(remaining) if processed.zero? && remaining.positive?
       end
-    rescue ActiveRecord::RecordNotFound
-      raise ActorDestroyed, "actor was destroyed while waiting for its result"
-    end
+    rescue DatabaseDeadlineExceeded
+      message = load_message(message_reference)
+      return completed_result(message) if message.completed? || message.dead?
 
-    private
+      raise SyncDiagnostics.new.call(message, timeout:)
+    end
 
     # @rbs (MessageReference) -> Message
     def load_message(message_reference)

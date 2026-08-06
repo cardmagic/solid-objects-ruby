@@ -136,6 +136,8 @@ module SolidObjects
       migrated
     rescue StateMigrationError
       raise
+    rescue ActiveRecord::ReadOnlyError
+      raise
     rescue => error
       raise StateMigrationError, "state migration failed: #{error.message}"
     end

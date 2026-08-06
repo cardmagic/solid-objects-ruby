@@ -49,5 +49,14 @@ module SolidObjects
     def result
       Message.find(id).result
     end
+
+    # @rbs (?timeout: Numeric, ?authorization_context: untyped) -> untyped
+    def wait(timeout: 5.seconds, authorization_context: nil)
+      SolidObjects.client.wait(
+        self,
+        timeout:,
+        authorization_context:
+      )
+    end
   end
 end

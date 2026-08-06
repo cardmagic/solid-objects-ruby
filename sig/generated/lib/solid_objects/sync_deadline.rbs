@@ -1,0 +1,31 @@
+# Generated from lib/solid_objects/sync_deadline.rb with RBS::Inline
+
+module SolidObjects
+  class SyncDeadline
+    KEY: ::Symbol
+
+    # @rbs (timeout: Numeric) { () -> untyped } -> untyped
+    def self.with: (timeout: Numeric) { () -> untyped } -> untyped
+
+    # @rbs () -> bool
+    def self.active?: () -> bool
+
+    # @rbs () -> bool
+    def self.expired?: () -> bool
+
+    # @rbs () -> Float
+    def self.remaining: () -> Float
+
+    # @rbs () -> Integer
+    def self.remaining_milliseconds: () -> Integer
+
+    # @rbs () -> Integer
+    def self.remaining_seconds: () -> Integer
+
+    # @rbs () -> Float?
+    private def self.deadline: () -> Float?
+
+    # @rbs () -> Float
+    private def self.monotonic_now: () -> Float
+  end
+end

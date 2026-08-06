@@ -24,6 +24,7 @@ end
 counter = Counter.ref("global")
 count = counter.increment(amount: 5)
 current_count = counter.value
+current_snapshot = counter.snapshot.value
 
 # Durable fire-and-forget delivery. A worker processes it later.
 message = counter.async(:increment, amount: 5)
@@ -41,12 +42,20 @@ The invocation model is the first adoption decision:
 | --- | --- | --- |
 | `counter.increment(amount: 5)` | Committed handler result | No |
 | `counter.sync(:increment, amount: 5)` | Committed handler result | No |
-| `counter.value` | Deeply frozen state snapshot | No |
+| `counter.value` | Ordered, committed query result | No |
+| `counter.snapshot.value` | Current committed state without a mailbox message | No |
 | `counter.async(:increment, amount: 5)` | `MessageReference` immediately | Yes |
 
 Direct methods and `sync` durably enqueue the call, then the Rails caller helps
 execute the actor through the same mailbox, lease, and fencing path as a
 worker. `async` only enqueues; a runtime process handles it later.
+
+Synchronous calls fail before enqueue when the Solid Objects database
+connection is already inside a transaction. Actor handlers may read application
+records, but direct Active Record writes are rejected so they cannot escape a
+later actor failure. Use a same-database
+[`commit_action`](#application-database-writes) for atomic database changes and
+[`emit`](#effects) for external I/O.
 
 Before adopting a latency-sensitive or high-volume surface, read
 [Is Solid Objects a good fit?](docs/fit.md) and the
@@ -69,6 +78,7 @@ but the project does not yet claim production readiness. See
 - [Defining an actor](#defining-an-actor)
 - [Actor identity](#actor-identity)
 - [Invoking an object](#invoking-an-object)
+- [Application database writes](#application-database-writes)
 - [Effects](#effects)
 - [Reminders](#reminders)
 - [Destroying an object](#destroying-an-object)
@@ -273,6 +283,7 @@ the runtime when the feature introduces asynchronous delivery or outboxes:
 | --- | --- |
 | Direct actor method or explicit `sync` | None; the caller executes it |
 | Attribute or declared query read | None; the caller executes it |
+| Committed `snapshot` read | None; reads the instance row directly |
 | `destroy` | None |
 | `async` including delayed delivery | Actor worker |
 | One-shot or recurring `schedule` | Reminder scheduler and actor worker |
@@ -345,6 +356,20 @@ mailbox. State changes must go through public actor methods or explicit
 
 State, arguments, results, effects, and reminder arguments accept
 JSON-compatible values. Solid Objects never deserializes Ruby `Marshal` data.
+
+Attribute readers are ordered mailbox queries and retain message history. For
+a read that does not need mailbox ordering, use an authorized committed
+snapshot:
+
+```ruby
+snapshot = cart.snapshot
+items = snapshot.items
+```
+
+Snapshots and synchronous results are deeply frozen. Use
+`SolidObjects.mutable_copy(items)` before changing a returned collection.
+Snapshot reads can race with an in-flight turn; they return the most recently
+committed state and do not create or activate a missing actor.
 
 Lifecycle hooks are also available:
 
@@ -451,6 +476,37 @@ and MCP request/response boundaries when the handler itself fits the
 application's latency budget. If another process owns the activation, the
 caller waits for the durable result using wake-up hints with bounded database
 polling as the fallback. A timeout never cancels the durable invocation.
+`SolidObjects::SyncTimeout` includes actor identity, message ID, sequence,
+durable status, mailbox blocker, and activation-owner diagnostics without
+including message arguments. The configured timeout also bounds adapter
+database lock waits from the enqueue attempt through result observation.
+PostgreSQL uses transaction lock and statement timeouts, SQLite uses its busy
+timeout, and MySQL uses its execution timeout plus InnoDB's one-second minimum
+lock-wait granularity.
+
+The durable call can finish after its original caller gives up. Reauthorize and
+recover its eventual result through the durable message identity:
+
+```ruby
+begin
+  order.submit(timeout: 250.milliseconds)
+rescue SolidObjects::SyncTimeout => error
+  result = error.message_reference.wait(
+    timeout: 5.seconds,
+    authorization_context: Current.user
+  )
+end
+```
+
+If the enqueue transaction itself cannot finish within the budget, Solid
+Objects raises `SyncEnqueueTimeout`; no durable message exists to recover.
+Timeouts do not preempt Ruby handler code that has already started.
+
+Do not wrap a synchronous actor call in `ApplicationRecord.transaction`.
+Solid Objects raises `SolidObjects::SyncInsideTransaction` before enqueue when
+its connection already has an open transaction. Move the actor call before the
+transaction, use `async`, or let the actor own the coordinated change through a
+commit action.
 
 Actor code cannot use direct calls or `sync` on another actor; synchronous
 actor-to-actor waits can deadlock in cycles. Use `async` or `send_to` and a
@@ -491,6 +547,50 @@ end
 ```
 
 External systems must also deduplicate effects using the stable effect ID.
+
+## Application database writes
+
+Actor handlers execute outside the fenced commit. They may query application
+records, but Solid Objects rejects direct Active Record writes from all
+user-supplied actor code: handlers, observables, activation/deactivation hooks,
+and state migrations. Otherwise an application row could commit before the
+actor later raises or loses its activation fence.
+
+For a short database-only change that must commit atomically with actor state,
+stage a named action:
+
+```ruby
+class Assessment < SolidObjects::Actor
+  attribute :status, default: "open"
+
+  def finish(attempt_id:, score:)
+    self.status = "complete"
+    commit_action :complete_attempt, attempt_id:, score:
+  end
+end
+```
+
+Register its implementation during application boot:
+
+```ruby
+SolidObjects.register_commit_action(:complete_attempt) do |arguments, context|
+  AssessmentAttempt.find(arguments.fetch("attempt_id")).update!(
+    score: arguments.fetch("score"),
+    actor_message_id: context.message_id
+  )
+end
+```
+
+The registered block runs inside the short fenced transaction. Its database
+writes, actor state, message completion, and outboxes all commit or roll back
+together. Commit actions require Solid Objects and `ActiveRecord::Base` to
+share one connection pool. They may be invoked again after a database rollback,
+so keep them deterministic, bounded, and database-only. Never perform network
+I/O, wait for another actor, or enqueue nontransactional work from a commit
+action.
+
+When Solid Objects uses a separate actor database, use `emit` and an idempotent
+effect consumer instead; the two databases cannot share one transaction.
 
 ## Effects
 
@@ -554,6 +654,10 @@ Self-scheduling actors should also have a low-frequency application reconciler.
 It may read `SolidObjects::Instance.states_for`, `.without_pending_work`, and
 `.orphaned`, but every repair must go through `async`. Never bulk-update actor
 state around the lease and fencing checks.
+
+Suspended actors should be reported rather than silently resumed. Spread large
+repair batches with `available_at:` so reconciliation cannot stampede one
+mailbox or the worker fleet.
 
 ## Destroying an object
 
@@ -631,6 +735,11 @@ Important defaults:
 | `max_attempts` | 5 |
 | `process_heartbeat_interval` | 15 seconds |
 | `process_alive_threshold` | 60 seconds |
+| `message_retention` | 30 days |
+| `message_retention_by_actor_type` | `{}` |
+| `instance_retention_by_actor_type` | `{}`; instances never expire unless listed |
+| `process_retention` | 7 days |
+| `prune_batch_size` | 1,000 |
 | `worker_count` | 1 |
 | `effect_worker_count` | 1 |
 | `broadcast_worker_count` | 1 |
@@ -664,9 +773,15 @@ Administration commands require the administration policy:
 ```bash
 bundle exec solid_objects status
 bundle exec solid_objects cleanup
+bundle exec solid_objects prune_messages
+bundle exec solid_objects prune_instances
+bundle exec solid_objects prune_processes
 bundle exec solid_objects dead_letters
 bundle exec solid_objects retry_dead_letter 123
 ```
+
+The prune commands preview counts by default. Add `--execute` only after
+reviewing the configured retention policy.
 
 The supervisor stops new claims, drains active loops, releases cached leases,
 and marks process rows stopped on graceful shutdown. A hard-killed worker's
@@ -819,6 +934,8 @@ Implemented and tested in 0.2:
 - Rails engine, install generator, migrations, and `solid_objects` executable;
 - actor registry, references, JSON state, and state migrations;
 - direct synchronous actor RPC, explicit `sync`, and durable `async`;
+- guarded transaction boundaries, same-database commit actions, adapter lock
+  deadlines, structured synchronous timeout diagnostics, and result recovery;
 - durable message history plus ready and claimed membership tables;
 - concurrent sequence allocation and actor creation;
 - activation leases, per-activation tokens, fencing generations, and
@@ -831,7 +948,11 @@ Implemented and tested in 0.2:
 - authorized actor destruction with fenced stale-write rejection and cascading
   durable-work cleanup;
 - durable observable broadcasts and authorized Action Cable refresh;
-- process registration, heartbeats, cleanup, and graceful shutdown; and
+- process registration, heartbeats, caller shutdown, cleanup, and bounded
+  message/process retention plus opt-in actor-instance expiration;
+- an opt-in Minitest helper for actor-state isolation and deterministic async
+  actor/reminder/effect/broadcast draining;
+- authorized mailbox-free state snapshots and mutable JSON copies; and
 - SQLite, PostgreSQL, and MySQL integration tests.
 
 Partially implemented:
@@ -844,8 +965,8 @@ Partially implemented:
   Turbo append actions remain future work;
 - local admission limits exist, but distributed rate limits and global
   admission control do not; and
-- administration views exist, but retention automation and richer audit tools
-  do not.
+- administration views and pruning commands exist, but scheduled maintenance
+  and richer audit tools do not.
 
 Production readiness requires hardening and operational soak evidence. The
 [roadmap](docs/roadmap.md) tracks that work.

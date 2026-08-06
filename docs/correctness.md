@@ -101,13 +101,20 @@ The following are atomic:
 - activation owner, expiration, and generation acquisition;
 - ready-to-claimed membership move and attempt increment;
 - state, state version, message result/completion, claimed deletion, effects,
-  reminders, outbound actor messages, and observable broadcasts;
+  same-database commit actions, reminders, outbound actor messages, and
+  observable broadcasts;
 - failed-attempt record plus ready reinsertion or dead letter;
 - effect completion plus its optional actor outcome message;
 - reminder occurrence enqueue plus reminder advancement; and
 - actor destruction plus cascading removal of all actor-owned rows.
 
 Actor Ruby code and external I/O are never inside the actor-state transaction.
+Rails write prevention rejects direct Active Record writes while handlers,
+observables, lifecycle hooks, or state migrations run. A registered commit
+action is the only application-record write path inside the fenced commit, and
+it is available only when Solid Objects and `ActiveRecord::Base` share one
+connection pool. Commit actions must contain only bounded database work.
+External I/O belongs in the effect outbox.
 
 ## Synchronous invocation
 
@@ -119,6 +126,17 @@ result. A worker may win the activation instead; the caller then observes the
 durable result through wake-up hints with bounded polling as fallback.
 
 Timeout raises `SolidObjects::SyncTimeout` but does not cancel the message.
+The exception reports actor identity, message ID and sequence, durable status,
+an earlier mailbox blocker, and activation-owner metadata without exposing
+arguments. Its `message_reference` can reauthorize and wait for the eventual
+result. Adapter lock/query deadlines cover the durable enqueue and coordination
+transactions. If enqueue cannot commit, `SyncEnqueueTimeout` is raised and no
+message reference exists. MySQL lock waits have one-second InnoDB granularity.
+Ruby handlers that already started are not preempted.
+
+A synchronous call made while the Solid Objects connection already has an open
+transaction raises `SolidObjects::SyncInsideTransaction` before the message is
+enqueued.
 Destroying the actor while a synchronous caller waits removes its message,
 wakes the caller, and raises `SolidObjects::ActorDestroyed`.
 

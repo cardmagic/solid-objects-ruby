@@ -10,12 +10,14 @@ intentionally inert until the host application defines its trust boundary.
 | Policy | Gates | Caller context | Risk if opened globally |
 | --- | --- | --- | --- |
 | `authorize_message` | Direct actor methods, explicit `sync` messages, and public `async` enqueue | Value passed as `authorization_context:`; often a user, service principal, or trusted internal marker | Anyone reaching the call site can mutate any known actor identity |
-| `authorize_query` | Attribute reads, declared queries, observable reads, and component reads | Explicit call context or the Rails view context supplied by `solid_object` | Actor state can leak across users or tenants |
+| `authorize_query` | Attribute reads, declared queries, committed snapshots, observable reads, and component reads | Explicit call context or the Rails view context supplied by `solid_object` | Actor state can leak across users or tenants |
 | `authorize_destroy` | `reference.destroy` | Value passed as `authorization_context:` | Complete actor state, mailbox, reminders, and pending outboxes can be deleted |
 | `authorize_subscription` | Action Cable subscription to one actor stream | The `ActionCable::Connection` object | Clients can receive future observable updates for other actors |
-| `authorize_administration` | Engine administration controllers, process inspection/cleanup, and dead-letter inspection/retry | Rails controller or `{ source: "cli" }` | Operational metadata, arguments, errors, and retries become exposed or mutable |
+| `authorize_administration` | Engine administration controllers, process inspection/cleanup/pruning, message pruning, and dead-letter inspection/retry | Rails controller or `{ source: "cli" }` | Operational metadata, arguments, errors, deletion, and retries become exposed or mutable |
 
-Internal reminder, effect-callback, and actor-to-actor deliveries come from
+Waiting again through `MessageReference#wait` reauthorizes the stored
+invocation as a message or query. Internal reminder, effect-callback, and
+actor-to-actor deliveries come from
 already committed runtime rows and do not re-enter the public client policy.
 
 ## A tenant-aware policy
@@ -79,6 +81,17 @@ Keep `authorize_destroy`, `authorize_subscription`, and
 `authorize_administration` denied until each feature has an explicit policy.
 Replace unconditional policies before exposing actor IDs to controllers, API
 clients, MCP tools, jobs carrying user input, or browser subscriptions.
+
+For commands executed only on hosts where shell access is already the
+authenticated administration boundary, the generated initializer shows an
+optional CLI-scoped policy:
+
+```ruby
+configuration.authorize_administration = lambda do |authorization_context:, **|
+  authorization_context.is_a?(Hash) &&
+    authorization_context[:source] == "cli"
+end
+```
 
 Run `bin/rails solid_objects:doctor` after configuration. Its neutral policy
 probe is deliberately conservative: a context-aware policy may correctly warn

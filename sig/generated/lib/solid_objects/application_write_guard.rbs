@@ -1,0 +1,8 @@
+# Generated from lib/solid_objects/application_write_guard.rb with RBS::Inline
+
+module SolidObjects
+  class ApplicationWriteGuard
+    # @rbs (actor_type: String, actor_id: String, operation: String) { () -> untyped } -> untyped
+    def self.call: (actor_type: String, actor_id: String, operation: String) { () -> untyped } -> untyped
+  end
+end

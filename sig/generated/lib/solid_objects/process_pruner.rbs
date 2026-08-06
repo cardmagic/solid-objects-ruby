@@ -1,0 +1,27 @@
+# Generated from lib/solid_objects/process_pruner.rb with RBS::Inline
+
+module SolidObjects
+  class ProcessPruner
+    @now: Time
+
+    @batch_size: Integer
+
+    # @rbs (?now: Time, ?batch_size: Integer) -> void
+    def initialize: (?now: Time, ?batch_size: Integer) -> void
+
+    # @rbs () -> Integer
+    def preview: () -> Integer
+
+    # @rbs () -> Integer
+    def prune: () -> Integer
+
+    private
+
+    attr_reader now: untyped
+
+    attr_reader batch_size: untyped
+
+    # @rbs () -> ActiveRecord::Relation[Process]
+    def prunable: () -> ActiveRecord::Relation[Process]
+  end
+end

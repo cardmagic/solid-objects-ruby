@@ -58,6 +58,11 @@ module SolidObjects
       SolidObjects.client.destroy(self, authorization_context:)
     end
 
+    # @rbs (?authorization_context: untyped) -> StateSnapshot
+    def snapshot(authorization_context: nil)
+      SolidObjects.client.snapshot(self, authorization_context:)
+    end
+
     # @rbs (Symbol, *untyped, **untyped) -> untyped
     def method_missing(name, *arguments, **keywords)
       return super if arguments.any? || block_given?

@@ -66,8 +66,8 @@ Attribute reads are therefore not free snapshots from the instance row. They
 are ordered durable query messages and grow message history exactly like
 writes.
 
-Version 0.2 has cleanup indexes but no built-in pruning command. Budget message
-growth as:
+Built-in pruning previews by default and must be scheduled explicitly. Budget
+message growth before retention as:
 
 ```text
 daily durable messages = daily actor writes + daily actor reads + daily callbacks
@@ -75,6 +75,10 @@ daily durable messages = daily actor writes + daily actor reads + daily callback
 
 Review the [retention requirements](operations.md#retention-and-backups) before
 adopting a high-volume surface.
+
+Use `reference.snapshot` for an authorized current-state read when mailbox
+ordering is unnecessary. It avoids a message row but can observe state before
+an in-flight turn commits.
 
 ## Measure the host application
 

@@ -12,6 +12,7 @@ require "securerandom"
 
 require "solid_objects/version"
 require "solid_objects/errors"
+require "solid_objects/sync_deadline"
 require "solid_objects/configuration"
 require "solid_objects/instrumentation"
 require "solid_objects/log_subscriber"
@@ -20,19 +21,25 @@ require "solid_objects/context"
 require "solid_objects/actor_registry"
 require "solid_objects/state"
 require "solid_objects/actor_definition"
+require "solid_objects/application_write_guard"
 require "solid_objects/actor"
 require "solid_objects/reference"
 require "solid_objects/message_reference"
 require "solid_objects/dead_letter_manager"
+require "solid_objects/message_pruner"
+require "solid_objects/instance_pruner"
+require "solid_objects/process_pruner"
 require "solid_objects/stream_name"
 require "solid_objects/dom_identity"
 require "solid_objects/stream_token"
 require "solid_objects/turbo_stream_renderer"
 require "solid_objects/actor_snapshot"
+require "solid_objects/state_snapshot"
 require "solid_objects/actor_view"
 require "solid_objects/action_cable_broadcast_adapter"
 require "solid_objects/wake_up"
 require "solid_objects/effect_registry"
+require "solid_objects/commit_action_registry"
 require "solid_objects/lease"
 require "solid_objects/lease_renewer"
 require "solid_objects/worker"
@@ -72,6 +79,16 @@ module SolidObjects
       effect_registry.register(name, handler)
     end
 
+    # @rbs () -> CommitActionRegistry
+    def commit_action_registry
+      @commit_action_registry ||= CommitActionRegistry.new
+    end
+
+    # @rbs (String | Symbol) { (Hash[String, untyped], CommitActionContext) -> untyped } -> Proc
+    def register_commit_action(name, &handler)
+      commit_action_registry.register(name, handler)
+    end
+
     # @rbs () -> Client
     def client
       require "solid_objects/client"
@@ -82,6 +99,17 @@ module SolidObjects
     def caller_process
       require "solid_objects/caller_process"
       @caller_process ||= CallerProcess.new
+    end
+
+    # @rbs () -> bool
+    def reset_caller_process!
+      caller_process = @caller_process
+      @caller_process = nil
+      return false unless caller_process
+
+      caller_process.stop
+    rescue ActiveRecord::ActiveRecordError
+      false
     end
 
     # @rbs () -> DeadLetterManager
@@ -99,6 +127,11 @@ module SolidObjects
       registry.register(type, actor_class)
     end
 
+    # @rbs (untyped) -> untyped
+    def mutable_copy(value)
+      Serialization.deep_copy(value)
+    end
+
     # @rbs () -> void
     def reset!
       @configuration = Configuration.new
@@ -108,6 +141,7 @@ module SolidObjects
       @wake_up = nil
       @caller_process = nil
       @effect_registry = EffectRegistry.new
+      @commit_action_registry = CommitActionRegistry.new
       @dead_letters = nil
     end
 

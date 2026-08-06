@@ -1,0 +1,36 @@
+# Generated from lib/solid_objects/instance_pruner.rb with RBS::Inline
+
+module SolidObjects
+  class InstancePruner
+    @now: Time
+
+    @batch_size: Integer
+
+    # @rbs (?now: Time, ?batch_size: Integer) -> void
+    def initialize: (?now: Time, ?batch_size: Integer) -> void
+
+    # @rbs () -> Integer
+    def preview: () -> Integer
+
+    # @rbs () -> Integer
+    def prune: () -> Integer
+
+    private
+
+    attr_reader now: untyped
+
+    attr_reader batch_size: untyped
+
+    # @rbs () -> Array[ActiveRecord::Relation[Instance]]
+    def policy_relations: () -> Array[ActiveRecord::Relation[Instance]]
+
+    # @rbs () -> ActiveRecord::Relation[Instance]
+    def prunable: () -> ActiveRecord::Relation[Instance]
+
+    # @rbs (ActiveRecord::Relation[Instance]) -> Integer
+    def prune_relation: (ActiveRecord::Relation[Instance]) -> Integer
+
+    # @rbs (Integer, ActiveRecord::Relation[Instance]) -> Integer
+    def prune_instance: (Integer, ActiveRecord::Relation[Instance]) -> Integer
+  end
+end
