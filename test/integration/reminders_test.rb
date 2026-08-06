@@ -22,7 +22,7 @@ class RemindersTest < ActiveSupport::TestCase
   end
 
   test "persists a reminder in the actor commit" do
-    message_reference = ExpiringActor.ref("one").configure_expiration
+    message_reference = ExpiringActor.ref("one").async(:configure_expiration)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
 
@@ -36,7 +36,7 @@ class RemindersTest < ActiveSupport::TestCase
   end
 
   test "converts a due reminder into an ordinary mailbox message" do
-    ExpiringActor.ref("one").configure_expiration
+    ExpiringActor.ref("one").async(:configure_expiration)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     reminder = SolidObjects::Reminder.first
@@ -55,7 +55,7 @@ class RemindersTest < ActiveSupport::TestCase
   end
 
   test "advances a recurring reminder after enqueueing its callback" do
-    ExpiringActor.ref("one").schedule_recurring
+    ExpiringActor.ref("one").async(:schedule_recurring)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     scheduler = SolidObjects::ReminderScheduler.new

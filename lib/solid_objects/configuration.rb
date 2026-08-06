@@ -4,7 +4,7 @@ module SolidObjects
   class Configuration
     # @rbs @table_name_prefix: String
     # @rbs @polling_interval: Float
-    # @rbs @ask_polling_interval: Float
+    # @rbs @sync_polling_interval: Float
     # @rbs @lease_duration: Float
     # @rbs @lease_renewal_interval: Float
     # @rbs @idle_deactivation_timeout: Float
@@ -37,7 +37,7 @@ module SolidObjects
 
     attr_accessor :table_name_prefix,
       :polling_interval,
-      :ask_polling_interval,
+      :sync_polling_interval,
       :lease_duration,
       :lease_renewal_interval,
       :idle_deactivation_timeout,
@@ -72,7 +72,7 @@ module SolidObjects
     def initialize
       @table_name_prefix = "solid_objects_"
       @polling_interval = 0.1
-      @ask_polling_interval = 0.05
+      @sync_polling_interval = 0.05
       @lease_duration = 30.0
       @lease_renewal_interval = 10.0
       @idle_deactivation_timeout = 30.0
@@ -138,7 +138,7 @@ module SolidObjects
     def positive_values
       {
         polling_interval:,
-        ask_polling_interval:,
+        sync_polling_interval:,
         lease_duration:,
         lease_renewal_interval:,
         max_messages_per_activation_pass:,

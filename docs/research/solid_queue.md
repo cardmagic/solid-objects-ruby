@@ -82,7 +82,8 @@ The equivalent thin public surface is:
 
 - `SolidObjects::Actor` for definitions.
 - `ActorClass.ref(actor_id)` for logical addressing.
-- `SolidObjects::Reference#tell` and `#ask` for invocation.
+- Direct methods and `SolidObjects::Reference#sync` for request/response
+  invocation, plus `#async` for durable enqueue.
 - Explicit helpers for reminders, effects, observables, and lifecycle hooks.
 
 Mailbox rows, leases, worker records, and outboxes remain internal. Public message and dead-letter references should expose identifiers and safe inspection methods without leaking Active Record mutation APIs.

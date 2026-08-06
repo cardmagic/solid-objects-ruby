@@ -20,11 +20,14 @@ messages until success or dead-lettering.
 
 ## Ownership and fencing
 
-Claiming an actor writes a process UUID, database-time expiration, and a
-monotonically increasing generation. Every successful or failed message
-finalization locks the instance and checks:
+Claiming an actor writes a process UUID, a unique activation token,
+database-time expiration, and a monotonically increasing generation. The token
+separates concurrent activations in one process; the generation fences every
+older activation. Every successful or failed message finalization locks the
+instance and checks:
 
 - owner UUID matches;
+- activation token matches;
 - generation matches;
 - expiration is still in the future according to database time; and
 - claimed-message membership names the same owner and generation.
@@ -106,13 +109,29 @@ The following are atomic:
 
 Actor Ruby code and external I/O are never inside the actor-state transaction.
 
-## Ask
+## Synchronous invocation
 
-`ask` is a durable message followed by result polling and wake-up hints. Timeout
-does not cancel the message. The current cross-process fallback is polling;
-therefore polling-only ask is not recommended in latency-sensitive HTTP paths.
-Destroying the actor while an `ask` is waiting removes its message, wakes the
-caller, and raises `SolidObjects::ActorDestroyed`.
+A direct reference method or explicit `sync` call durably enqueues an ordinary
+mailbox message. The caller then attempts to claim that actor and execute
+through the same activation, lease renewal, fencing, and executor code used by
+a worker. It drains earlier messages first and returns only the committed
+result. A worker may win the activation instead; the caller then observes the
+durable result through wake-up hints with bounded polling as fallback.
+
+Timeout raises `SolidObjects::SyncTimeout` but does not cancel the message.
+Destroying the actor while a synchronous caller waits removes its message,
+wakes the caller, and raises `SolidObjects::ActorDestroyed`.
+
+`async` performs only the durable enqueue and immediately returns a
+`MessageReference`.
+
+## Domain rejection
+
+`reject` is a terminal domain outcome, not an infrastructure failure. It rolls
+back in-memory state and staged intents, stores a structured rejection on the
+message, removes claimed membership, and lets the next sequence run. It is
+never retried or dead-lettered. The synchronous caller receives
+`SolidObjects::Rejected`; asynchronous callers can inspect the message status.
 
 ## Database dependencies
 

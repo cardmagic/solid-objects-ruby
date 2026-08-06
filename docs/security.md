@@ -9,8 +9,10 @@ application supplies the authenticated request or connection as
 
 Method-style reference calls do not bypass these hooks. Public instance methods
 declared on an actor are part of its remotely addressable message surface and
-delegate to the authorized `tell` path. Keep implementation helpers private or
-protected. Query and attribute methods delegate to the authorized `ask` path.
+delegate to the authorized synchronous invocation path. Keep implementation
+helpers private or protected. Query and attribute methods use the separate
+query authorization policy. Explicit `async` message delivery uses the same
+message authorization policy as direct calls.
 `reference.destroy` delegates to `authorize_destroy` before checking whether
 the actor exists, so denial does not reveal actor existence.
 

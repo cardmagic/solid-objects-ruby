@@ -67,8 +67,8 @@ correct change, rerun the focused test, then the complete database matrix.
 ## Benchmarks
 
 Scripts in `benchmark/` cover enqueue, claim, processing, cold actors, a hot
-actor, concurrent actors, ask latency, cache reuse, and query counts. Results
-describe one machine and database configuration; they are not universal
+actor, concurrent actors, synchronous latency, cache reuse, and query counts.
+Results describe one machine and database configuration; they are not universal
 capacity guarantees.
 
 ```bash
@@ -78,7 +78,7 @@ COUNT=500 bundle exec ruby -Ilib benchmark/processing.rb
 COUNT=500 bundle exec ruby -Ilib benchmark/cold_actors.rb
 COUNT=500 bundle exec ruby -Ilib benchmark/hot_actor.rb
 COUNT=500 CONCURRENCY=4 bundle exec ruby -Ilib benchmark/concurrent_actors.rb
-COUNT=100 bundle exec ruby -Ilib benchmark/ask_latency.rb
+COUNT=100 bundle exec ruby -Ilib benchmark/sync_latency.rb
 COUNT=500 bundle exec ruby -Ilib benchmark/activation_cache.rb
 bundle exec ruby -Ilib benchmark/query_count.rb
 ```

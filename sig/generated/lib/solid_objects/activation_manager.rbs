@@ -12,11 +12,17 @@ module SolidObjects
     # @rbs () -> Activation?
     def claim_next: () -> Activation?
 
+    # @rbs (instance_id: Integer) -> Activation?
+    def claim: (instance_id: Integer) -> Activation?
+
     private
 
     attr_reader owner_id: untyped
 
     attr_reader database_adapter: untyped
+
+    # @rbs (Array[Integer]) -> Activation?
+    def claim_from: (Array[Integer]) -> Activation?
 
     # @rbs (Time) -> Array[Integer]
     def candidate_instance_ids: (Time) -> Array[Integer]

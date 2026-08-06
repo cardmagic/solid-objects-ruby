@@ -133,16 +133,22 @@ class ActorTest < ActiveSupport::TestCase
     assert_equal({ "count" => 3 }, actor.observable_values)
   end
 
-  test "rejects synchronous queries from actor context" do
+  test "rejects synchronous invocations from actor context" do
     reference = CartActor.ref("other")
 
-    error = assert_raises(SolidObjects::ActorCallCycle) do
+    query_error = assert_raises(SolidObjects::ActorCallCycle) do
       SolidObjects::Context.with(actor: build_actor, message: nil) do
         reference.count
       end
     end
+    message_error = assert_raises(SolidObjects::ActorCallCycle) do
+      SolidObjects::Context.with(actor: build_actor, message: nil) do
+        reference.add(product_id: "shirt")
+      end
+    end
 
-    assert_match(/cannot synchronously wait/, error.message)
+    assert_match(/cannot synchronously wait/, query_error.message)
+    assert_match(/cannot synchronously wait/, message_error.message)
   end
 
   private

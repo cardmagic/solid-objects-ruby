@@ -25,7 +25,7 @@ class BroadcastsTest < ActiveSupport::TestCase
   end
 
   test "enqueues changed observables in the state commit" do
-    message_reference = CounterActor.ref("one").increment
+    message_reference = CounterActor.ref("one").async(:increment)
     worker = SolidObjects::Worker.new
 
     worker.run_until_idle
@@ -41,7 +41,7 @@ class BroadcastsTest < ActiveSupport::TestCase
   end
 
   test "does not enqueue a broadcast when the actor turn rolls back" do
-    CounterActor.ref("one").broken_increment
+    CounterActor.ref("one").async(:broken_increment)
     worker = SolidObjects::Worker.new
 
     worker.run_once
@@ -54,7 +54,7 @@ class BroadcastsTest < ActiveSupport::TestCase
   test "delivers the durable broadcast after commit" do
     delivered = Queue.new
     SolidObjects.configuration.broadcast_adapter = ->(broadcast) { delivered << broadcast.value }
-    CounterActor.ref("one").increment
+    CounterActor.ref("one").async(:increment)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcast_executor = SolidObjects::BroadcastExecutor.new
@@ -76,7 +76,7 @@ class BroadcastsTest < ActiveSupport::TestCase
       attempts += 1
       raise "cable unavailable" if attempts == 1
     end
-    CounterActor.ref("one").increment
+    CounterActor.ref("one").async(:increment)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcast_executor = SolidObjects::BroadcastExecutor.new

@@ -44,7 +44,7 @@ module SolidObjects
 
     @polling_interval: Float
 
-    @ask_polling_interval: Float
+    @sync_polling_interval: Float
 
     @lease_duration: Float
 
@@ -70,7 +70,7 @@ module SolidObjects
 
     attr_accessor polling_interval: untyped
 
-    attr_accessor ask_polling_interval: untyped
+    attr_accessor sync_polling_interval: untyped
 
     attr_accessor lease_duration: untyped
 

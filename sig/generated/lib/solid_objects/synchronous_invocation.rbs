@@ -1,0 +1,28 @@
+# Generated from lib/solid_objects/synchronous_invocation.rb with RBS::Inline
+
+module SolidObjects
+  class SynchronousInvocation
+    # @rbs (MessageReference, timeout: Numeric) -> untyped
+    def call: (MessageReference, timeout: Numeric) -> untyped
+
+    private
+
+    # @rbs (MessageReference) -> Message
+    def load_message: (MessageReference) -> Message
+
+    # @rbs (Message) -> untyped
+    def completed_result: (Message) -> untyped
+
+    # @rbs (Message) -> bot
+    def raise_rejection: (Message) -> bot
+
+    # @rbs (Message, deadline: Float) -> Integer
+    def assist: (Message, deadline: Float) -> Integer
+
+    # @rbs (Numeric) -> void
+    def wait: (Numeric) -> void
+
+    # @rbs () -> Float
+    def monotonic_now: () -> Float
+  end
+end

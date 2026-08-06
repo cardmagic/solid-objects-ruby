@@ -40,7 +40,24 @@ module SolidObjects
   class ActorDestroyed < LostActivation
   end
 
-  class AskTimeout < Error
+  class SyncTimeout < Error
+  end
+
+  class Rejected < Error
+    @code: String
+
+    @details: Hash[String, untyped]
+
+    @message_id: Integer?
+
+    attr_reader code: untyped
+
+    attr_reader details: untyped
+
+    attr_reader message_id: untyped
+
+    # @rbs (code: String | Symbol, message: String, ?details: Hash[String | Symbol, untyped], ?message_id: Integer?) -> void
+    def initialize: (code: String | Symbol, message: String, ?details: Hash[String | Symbol, untyped], ?message_id: Integer?) -> void
   end
 
   class MessageFailed < Error

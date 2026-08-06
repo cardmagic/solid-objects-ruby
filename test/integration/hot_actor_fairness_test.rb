@@ -23,9 +23,9 @@ class HotActorFairnessTest < ActiveSupport::TestCase
   test "releases a hot actor at the pass limit so another actor runs next" do
     hot = FairActor.ref("hot")
     cold = FairActor.ref("cold")
-    hot.run(label: 1)
-    hot.run(label: 2)
-    cold.run(label: 3)
+    hot.async(:run, label: 1)
+    hot.async(:run, label: 2)
+    cold.async(:run, label: 3)
     worker = SolidObjects::Worker.new
 
     worker.run_once

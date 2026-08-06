@@ -31,26 +31,12 @@ module SolidObjects
 
     # @rbs () -> Integer
     def drain
-      processed_count = 0
-      started_at = monotonic_now
-      @pass_exhausted = false
+      drain_messages
+    end
 
-      loop do
-        if processed_count >= SolidObjects.configuration.max_messages_per_activation_pass ||
-            monotonic_now - started_at >= SolidObjects.configuration.max_activation_duration
-          @pass_exhausted = true
-          break
-        end
-
-        message = claim_next_message
-        break unless message
-
-        Executor.new(activation: self, message:).call
-        processed_count += 1
-        @last_used_at = monotonic_now
-      end
-
-      processed_count
+    # @rbs (message_id: Integer, deadline: Float) -> Integer
+    def drain_until(message_id:, deadline:)
+      drain_messages(message_id:, deadline:)
     end
 
     # @rbs () -> bool
@@ -60,6 +46,7 @@ module SolidObjects
         ClaimedMessage.where(
           instance_id: lease.instance_id,
           process_id: lease.owner_id,
+          activation_token: lease.activation_token,
           activation_generation: lease.generation
         ).exists?
     end
@@ -113,6 +100,33 @@ module SolidObjects
 
     attr_reader :actor_class
 
+    # @rbs (?message_id: Integer?, ?deadline: Float?) -> Integer
+    def drain_messages(message_id: nil, deadline: nil)
+      processed_count = 0
+      started_at = monotonic_now
+      @pass_exhausted = false
+
+      loop do
+        break if deadline && monotonic_now >= deadline
+
+        if processed_count >= SolidObjects.configuration.max_messages_per_activation_pass ||
+            monotonic_now - started_at >= SolidObjects.configuration.max_activation_duration
+          @pass_exhausted = true
+          break
+        end
+
+        message = claim_next_message
+        break unless message
+
+        Executor.new(activation: self, message:).call
+        processed_count += 1
+        @last_used_at = monotonic_now
+        break if message.id == message_id
+      end
+
+      processed_count
+    end
+
     # @rbs (Instance) -> Actor
     def build_actor(instance)
       state_data = actor_class.definition.migrate_state(instance.state_version, instance.state)
@@ -145,6 +159,7 @@ module SolidObjects
           message:,
           instance:,
           process_id: lease.owner_id,
+          activation_token: lease.activation_token,
           activation_generation: lease.generation,
           claimed_at: now
         )
@@ -161,6 +176,7 @@ module SolidObjects
         .first
       return unless claimed_message
       return if claimed_message.process_id == lease.owner_id &&
+        claimed_message.activation_token == lease.activation_token &&
         claimed_message.activation_generation == lease.generation
 
       message = claimed_message.message

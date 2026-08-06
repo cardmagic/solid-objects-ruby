@@ -16,19 +16,20 @@ module SolidObjects
       freeze
     end
 
-    # @rbs (Symbol | String, ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> (MessageReference | Actor::OutboundMessageIntent)
-    def tell(message_name, available_at: nil, idempotency_key: nil, authorization_context: nil, **arguments)
+    # @rbs (Symbol | String, ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> MessageReference?
+    def async(message_name, available_at: nil, idempotency_key: nil, authorization_context: nil, **arguments)
       if (actor = Context.current_actor)
-        return actor.stage_outbound_message(
+        actor.stage_outbound_message(
           self,
           message_name,
           arguments,
           available_at:,
           idempotency_key:
         )
+        return
       end
 
-      SolidObjects.client.tell(
+      SolidObjects.client.async(
         self,
         message_name,
         arguments,
@@ -39,10 +40,10 @@ module SolidObjects
     end
 
     # @rbs (Symbol | String, ?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> untyped
-    def ask(message_name, timeout: 5.seconds, idempotency_key: nil, authorization_context: nil, **arguments)
+    def sync(message_name, timeout: 5.seconds, idempotency_key: nil, authorization_context: nil, **arguments)
       raise ActorCallCycle, "actors cannot synchronously wait for another actor" if Context.current_actor
 
-      SolidObjects.client.ask(
+      SolidObjects.client.sync(
         self,
         message_name,
         arguments,
@@ -60,8 +61,7 @@ module SolidObjects
     # @rbs (Symbol, *untyped, **untyped) -> untyped
     def method_missing(name, *arguments, **keywords)
       return super if arguments.any? || block_given?
-      return tell(name, **keywords) if actor_message?(name)
-      return Serialization.readonly_copy(ask(name, **keywords)) if actor_query?(name)
+      return sync(name, **keywords) if actor_message?(name) || actor_query?(name)
 
       super
     end

@@ -21,4 +21,4 @@ Message handlers themselves can run more than once. Sequential execution means o
 - Pure state transitions are safe because failed transactions roll back.
 - Application handlers need durable state guards for non-repeatable logical transitions.
 - External systems require idempotency keys or deduplication.
-- `ask` timing out does not cancel its durable message.
+- A synchronous invocation timing out does not cancel its durable message.

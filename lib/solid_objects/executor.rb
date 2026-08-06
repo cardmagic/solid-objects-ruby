@@ -33,6 +33,11 @@ module SolidObjects
       true
     rescue LostActivation
       raise
+    rescue Rejected => rejection
+      activation.restore_state(state_before) if state_before
+      actor.discard_intents
+      reject_message(rejection)
+      false
     rescue => error
       activation.restore_state(state_before) if state_before
       actor.discard_intents
@@ -51,7 +56,7 @@ module SolidObjects
 
     # @rbs (Hash[String, untyped]) -> void
     def ensure_query_did_not_mutate_state!(state_before)
-      return unless message.message_kind == "ask"
+      return unless message.message_kind == "sync"
       return unless actor.class.definition.queries.key?(message.message_name.to_sym)
       return if actor.state.to_h == state_before
 
@@ -72,7 +77,7 @@ module SolidObjects
         max_bytes: SolidObjects.configuration.max_state_bytes
       )
       serialized_result = Serialization.dump(
-        (message.message_kind == "ask") ? result : nil,
+        (message.message_kind == "sync") ? result : nil,
         max_bytes: SolidObjects.configuration.max_result_bytes
       )
       effect_intents = actor.drain_effect_intents
@@ -235,11 +240,46 @@ module SolidObjects
       SolidObjects.wake_up.signal
     end
 
+    # @rbs (Rejected) -> void
+    def reject_message(rejection)
+      rejection_data = Serialization.dump(
+        {
+          "code" => rejection.code,
+          "message" => rejection.message.to_s.byteslice(0, 8_192),
+          "details" => rejection.details
+        },
+        max_bytes: SolidObjects.configuration.max_result_bytes
+      )
+
+      activation.lease.fenced_transaction do |instance|
+        claimed_message = matching_claim!
+        locked_message = Message.lock.find(message.id)
+        now = SolidObjects.database_adapter.database_now
+        instance.update!(last_used_at: now)
+        locked_message.update!(
+          result: nil,
+          rejection: rejection_data,
+          error: nil,
+          rejected_at: now,
+          completed_at: now
+        )
+        claimed_message.destroy!
+      end
+
+      SolidObjects.instrument(
+        :"message.rejected",
+        **instrumentation_payload,
+        code: rejection.code
+      )
+      SolidObjects.wake_up.signal
+    end
+
     # @rbs () -> ClaimedMessage
     def matching_claim!
       ClaimedMessage.lock.find_by!(
         message_id: message.id,
         process_id: activation.lease.owner_id,
+        activation_token: activation.lease.activation_token,
         activation_generation: activation.lease.generation
       )
     rescue ActiveRecord::RecordNotFound

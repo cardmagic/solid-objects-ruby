@@ -36,6 +36,7 @@ module SolidObjects
     # @rbs () -> String
     def status
       message = Message.find(id)
+      return "rejected" if message.rejected?
       return "completed" if message.completed?
       return "dead" if message.dead?
       return "claimed" if message.claimed?

@@ -60,6 +60,7 @@ class CreateSolidObjectsTables < ActiveRecord::Migration[8.0]
       definition.integer :state_version, null: false, default: 1
       definition.bigint :next_message_sequence, null: false, default: 1
       definition.string :activation_owner_id, limit: 36
+      definition.string :activation_token, limit: 36
       definition.datetime :activation_expires_at, precision: 6
       definition.bigint :activation_generation, null: false, default: 0
       definition.datetime :activated_at, precision: 6
@@ -75,12 +76,17 @@ class CreateSolidObjectsTables < ActiveRecord::Migration[8.0]
       definition.check_constraint "state_version > 0", name: "chk_so_instances_state_version"
       definition.check_constraint "next_message_sequence > 0", name: "chk_so_instances_sequence"
       definition.check_constraint "activation_generation >= 0", name: "chk_so_instances_generation"
+      definition.check_constraint(
+        "(activation_owner_id IS NULL AND activation_token IS NULL) OR " \
+          "(activation_owner_id IS NOT NULL AND activation_token IS NOT NULL)",
+        name: "chk_so_instances_activation_owner"
+      )
     end
 
     add_foreign_key table(:instances),
       table(:processes),
       column: :activation_owner_id,
-      on_delete: :nullify,
+      on_delete: :restrict,
       name: "fk_so_instances_owner"
   end
 
@@ -102,10 +108,12 @@ class CreateSolidObjectsTables < ActiveRecord::Migration[8.0]
       definition.string :idempotency_key, limit: 191
       json_column definition, :result
       json_column definition, :error
+      json_column definition, :rejection
       definition.datetime :enqueued_at, null: false, precision: 6
       definition.datetime :available_at, null: false, precision: 6
       definition.datetime :started_at, precision: 6
       definition.datetime :completed_at, precision: 6
+      definition.datetime :rejected_at, precision: 6
       definition.datetime :last_failed_at, precision: 6
       definition.timestamps precision: 6, null: false
 
@@ -114,10 +122,11 @@ class CreateSolidObjectsTables < ActiveRecord::Migration[8.0]
       definition.index :request_id, unique: true, name: "idx_so_messages_request"
       definition.index [ :instance_id, :idempotency_key ], unique: true, name: "idx_so_messages_idempotency"
       definition.index [ :completed_at, :id ], name: "idx_so_messages_cleanup"
+      definition.index [ :rejected_at, :id ], name: "idx_so_messages_rejected"
       definition.check_constraint "sequence > 0", name: "chk_so_messages_sequence"
       definition.check_constraint "attempt_count >= 0", name: "chk_so_messages_attempt"
       definition.check_constraint "max_attempts > 0", name: "chk_so_messages_max_attempts"
-      definition.check_constraint "message_kind IN ('tell', 'ask', 'internal')", name: "chk_so_messages_kind"
+      definition.check_constraint "message_kind IN ('async', 'sync', 'internal')", name: "chk_so_messages_kind"
     end
   end
 
@@ -148,6 +157,7 @@ class CreateSolidObjectsTables < ActiveRecord::Migration[8.0]
         null: false,
         foreign_key: { to_table: table(:instances), on_delete: :cascade, name: "fk_so_claimed_instance" }
       definition.string :process_id, limit: 36
+      definition.string :activation_token, limit: 36
       definition.bigint :activation_generation, null: false
       definition.datetime :claimed_at, null: false, precision: 6
 
@@ -155,12 +165,14 @@ class CreateSolidObjectsTables < ActiveRecord::Migration[8.0]
       definition.index :instance_id, unique: true, name: "idx_so_claimed_instance"
       definition.index [ :process_id, :claimed_at ], name: "idx_so_claimed_process"
       definition.check_constraint "activation_generation > 0", name: "chk_so_claimed_generation"
+      definition.check_constraint "process_id IS NULL OR activation_token IS NOT NULL",
+        name: "chk_so_claimed_activation_owner"
     end
 
     add_foreign_key table(:claimed_messages),
       table(:processes),
       column: :process_id,
-      on_delete: :nullify,
+      on_delete: :restrict,
       name: "fk_so_claimed_process"
   end
 

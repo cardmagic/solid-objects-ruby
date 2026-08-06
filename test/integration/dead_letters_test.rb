@@ -58,7 +58,7 @@ class DeadLettersTest < ActiveSupport::TestCase
   private
 
   def create_dead_letter
-    PoisonActor.ref("one").run
+    PoisonActor.ref("one").async(:run)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     SolidObjects::DeadLetter.first

@@ -12,6 +12,9 @@ module SolidObjects
     def completed?: () -> bool
 
     # @rbs () -> bool
+    def rejected?: () -> bool
+
+    # @rbs () -> bool
     def dead?: () -> bool
 
     private

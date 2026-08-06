@@ -21,6 +21,9 @@ module SolidObjects
   # @rbs () -> Client
   def self.client: () -> Client
 
+  # @rbs () -> CallerProcess
+  def self.caller_process: () -> CallerProcess
+
   # @rbs () -> DeadLetterManager
   def self.dead_letters: () -> DeadLetterManager
 

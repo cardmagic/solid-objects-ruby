@@ -2,4 +2,4 @@
 
 require_relative "support"
 
-SolidObjectsBenchmark.ask_latency
+SolidObjectsBenchmark.sync_latency

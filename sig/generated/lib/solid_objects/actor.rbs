@@ -130,14 +130,17 @@ module SolidObjects
     # @rbs () -> MessageContext?
     def current_message: () -> MessageContext?
 
-    # @rbs (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> EffectIntent
-    def emit: (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> EffectIntent
+    # @rbs (Symbol | String, String, ?details: Hash[String | Symbol, untyped]) -> bot
+    def reject: (Symbol | String, String, ?details: Hash[String | Symbol, untyped]) -> bot
 
-    # @rbs (Symbol | String, at: Time, ?every: Numeric?, ?missed: Symbol | String, arguments: Hash[Symbol | String, untyped]) -> ReminderIntent
-    def schedule: (Symbol | String, at: Time, arguments: Hash[Symbol | String, untyped], ?every: Numeric?, ?missed: Symbol | String) -> ReminderIntent
+    # @rbs (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> nil
+    def emit: (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> nil
 
-    # @rbs (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> OutboundMessageIntent
-    def send_to: (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> OutboundMessageIntent
+    # @rbs (Symbol | String, at: Time, ?every: Numeric?, ?missed: Symbol | String, arguments: Hash[Symbol | String, untyped]) -> nil
+    def schedule: (Symbol | String, at: Time, arguments: Hash[Symbol | String, untyped], ?every: Numeric?, ?missed: Symbol | String) -> nil
+
+    # @rbs (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> nil
+    def send_to: (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> nil
 
     # @rbs (Symbol | String, Hash[String, untyped]) -> untyped
     def invoke: (Symbol | String, Hash[String, untyped]) -> untyped

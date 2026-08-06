@@ -58,9 +58,11 @@ The registry maps a stable persisted actor type string to a Ruby actor class. Re
 
 A reference contains actor type and normalized actor ID. It is cheap,
 serializable as data, and does not imply an active Ruby object. Declared
-message methods delegate to `tell`; declared query and attribute methods
-delegate to `ask`. `destroy` is a reserved synchronous reference operation.
-All three paths authorize through the client.
+message, query, and attribute methods use synchronous caller-assisted
+invocation. `sync` provides the same behavior for a dynamic operation name,
+while `async` only durably enqueues a message and returns its reference.
+`destroy` is a reserved synchronous reference operation. Every path authorizes
+through the client.
 
 ### Client and mailbox
 
@@ -73,10 +75,13 @@ Message execution state is table membership, not a status column. The durable me
 An activation lease is stored on the actor instance:
 
 - Owner process UUID
+- Unique activation token
 - Database-time expiration
 - Monotonic generation
 
-Acquisition and renewal are short database writes. Generation is the fencing token used by every state commit.
+Acquisition and renewal are short database writes. A fresh activation token
+distinguishes concurrent activations owned by the same process. Generation is
+the monotonic fencing token used by every state commit.
 
 ### Activation
 
@@ -140,9 +145,10 @@ end
 `attribute` creates actor instance readers and writers and an ordered read query.
 Public instance methods declared on the actor are messages. Declare helpers as
 private or protected. Messages and queries are exposed as methods on a
-reference: message methods delegate to `tell`, while query and attribute
-methods delegate to `ask`. Returned state snapshots are deeply frozen. The
-explicit `message` DSL remains available for dynamic definitions.
+reference through the same synchronous caller-assisted path. Returned state
+snapshots are deeply frozen. Use `async` for durable fire-and-forget delivery
+and `sync` for dynamic operation names. The explicit `message` DSL remains
+available for dynamic definitions.
 
 `message` and `query` both execute as durable mailbox turns. A query may not
 mutate state. The executor detects query mutation and fails the message. An
@@ -234,7 +240,7 @@ Before actor code:
 
 1. Renew if the lease would expire before the next renewal window.
 2. Load the earliest nonterminal mailbox sequence.
-3. Atomically move its ready membership to claimed membership for the current owner and generation and increment the durable attempt counter.
+3. Atomically move its ready membership to claimed membership for the current owner, activation token, and generation and increment the durable attempt counter.
 4. Set the actor's current message context.
 5. Snapshot state and observable values.
 
@@ -248,7 +254,7 @@ Actor code then executes with no open database transaction and no pinned connect
 
 It cannot:
 
-- Call `ask` from actor context
+- Call another actor directly or with `sync` from actor context
 - Perform a synchronous actor-to-actor wait
 - Assume execution happens once
 - Commit actor state directly
@@ -260,8 +266,8 @@ After actor code, the executor validates state and staged data as JSON and compu
 Successful completion uses one database transaction:
 
 1. Lock the instance row.
-2. Verify owner, generation, and an unexpired lease using database time.
-3. Lock the durable message and verify its claimed membership belongs to that owner and generation.
+2. Verify owner, activation token, generation, and an unexpired lease using database time.
+3. Lock the durable message and verify its claimed membership belongs to that owner, activation token, and generation.
 4. Update native JSON state and state version.
 5. Store the completion timestamp and result on the durable message and delete claimed membership.
 6. Insert staged effects.
@@ -319,20 +325,45 @@ The replacement has a higher generation. When the paused worker resumes, its con
 
 The effect can be delivered again. The stable effect ID is the idempotency key. This is why effect handlers must be idempotent.
 
-## Ask
+## Synchronous invocation
 
-`ask` durably enqueues a normal message with a request ID, then waits for the row to become completed, dead-lettered, or timed out. Every waiter re-queries durable rows. The implemented wake-up interface provides same-process signaling, bounded polling, and dependency injection. PostgreSQL `LISTEN/NOTIFY` and optional Redis Pub/Sub are planned adapters.
+A direct actor method or explicit `sync` call durably enqueues a normal mailbox
+message, then tries to claim that actor for the caller process. If successful,
+it drains earlier messages and the target through the same activation and
+executor used by workers. If another process owns the actor, the caller waits
+for the row to become completed, rejected, dead-lettered, destroyed, or timed
+out. Every wait re-queries durable rows. The implemented wake-up interface
+provides same-process signaling, bounded polling, and dependency injection.
+PostgreSQL `LISTEN/NOTIFY` and optional Redis Pub/Sub are planned adapters.
 
-With a healthy cross-process wake-up adapter, the coordination-overhead target from enqueue or completion commit to the confirming query is p99 at or below 100 milliseconds. End-to-end latency also includes mailbox queueing and handler execution. Polling-only deployments can pay the configured interval on both the worker and result legs, so polling-only `ask` is for background callers, scripts, and control paths rather than latency-sensitive Rails request handlers.
+The normal path does not wait for a worker polling interval because the caller
+assists execution immediately. End-to-end latency still includes earlier
+mailbox work, handler execution, and database commits. When another process
+owns the actor, a healthy cross-process wake-up adapter targets p99 coordination
+overhead at or below 100 milliseconds; polling fallback can pay up to
+`sync_polling_interval` between observations.
 
 Caller timeout:
 
-- Raises `SolidObjects::AskTimeout`.
+- Raises `SolidObjects::SyncTimeout`.
 - Does not cancel or delete the message.
 - Does not prevent later execution.
 - Leaves the result available until retention cleanup.
 
 The durable row remains after timeout and can be inspected directly by message ID. A public request-ID lookup and bounded retention commands are not yet implemented.
+
+`async` performs the same durable enqueue without caller assistance or result
+waiting and immediately returns a `MessageReference`. Runtime workers process
+it normally.
+
+## Domain rejection
+
+Actor code can call `reject` for a validation or business-rule outcome that
+must not retry. The executor restores pre-turn state, discards staged intents,
+stores the structured rejection, completes the claimed membership, and
+continues with the next sequence in one fenced transaction. Synchronous callers
+receive `SolidObjects::Rejected`. A rejection is neither an exception retry nor
+a dead letter.
 
 ## Effects and actor-to-actor delivery
 
@@ -380,7 +411,7 @@ Solid Objects persists each occurrence by its mailbox row. Unlike Orleans remind
 
 Durable reminders are alarms, and an alarm can be lost at the application level even while the database and actor state remain healthy. A reminder callback may dead-letter, a handler may fail to schedule its successor, or a signup/configuration path may never enqueue the first message. Unlike a periodic full sweep, a self-scheduling actor can then remain silently inert forever.
 
-Applications with self-scheduling actors should run a lower-frequency reconciliation job. The reconciler may read actor state and report drift, but it never writes actor state directly. Every repair is a normal authorized `tell`, so the actor decides whether the transition is still necessary and all ordering, lease, fencing, and audit rules remain intact.
+Applications with self-scheduling actors should run a lower-frequency reconciliation job. The reconciler may read actor state and report drift, but it never writes actor state directly. Every repair is a normal authorized `async` invocation, so the actor decides whether the transition is still necessary and all ordering, lease, fencing, and audit rules remain intact.
 
 `SolidObjects::Instance` exposes batchable read relations:
 
@@ -392,7 +423,7 @@ The expected drift categories are actors with a lost alarm, missing actors for l
 
 Bulk repair updates to `solid_objects_instances` are forbidden. They bypass activation ownership and fencing and can overwrite a concurrently committed actor state. Direct reads are observational; writes go through actor messages.
 
-Large repairs use `tell(..., available_at:)` to spread work over an application-defined dispatch window. The durable message records the requested availability and ready membership drives the hot polling query. This prevents reconciliation from flooding mailboxes and starving normal traffic.
+Large repairs use `async(..., available_at:)` to spread work over an application-defined dispatch window. The durable message records the requested availability and ready membership drives the hot polling query. This prevents reconciliation from flooding mailboxes and starving normal traffic.
 
 ## Realtime integration
 
@@ -589,8 +620,8 @@ All backends use unique identity and sequence constraints, short transactions, a
 ## Answers to required correctness questions
 
 1. **How is a per-actor sequence allocated safely?** The instance row is created uniquely, locked in the enqueue transaction, incremented, and the message inserted under a unique actor/sequence index.
-2. **How is one valid activation guaranteed?** Claim atomically changes owner and increments generation on one locked instance row. Only the matching unexpired owner/generation can commit.
-3. **How are stale writes rejected?** Every commit verifies owner, generation, and database-time expiration.
+2. **How is one valid activation guaranteed?** Claim atomically changes owner, creates a unique activation token, and increments generation on one locked instance row. Only the matching unexpired owner/token/generation can commit.
+3. **How are stale writes rejected?** Every commit verifies owner, activation token, generation, and database-time expiration.
 4. **What if a worker dies during execution?** No actor transaction remains open. After lease expiry, a new generation retries the uncommitted message.
 5. **What if it dies after commit but before acknowledgement?** Completion and state are already durable, so the new activation skips that message.
 6. **How are external effects retry-safe?** Effects are inserted atomically into an outbox and use a stable effect ID for handler idempotency.
@@ -601,7 +632,7 @@ All backends use unique identity and sequence constraints, short transactions, a
 11. **How are actors deactivated?** Idle cache timeout or eviction, best-effort hook, conditional lease release.
 12. **How are leases renewed?** Conditional database update by instance, owner, generation, and unexpired lease.
 13. **How does graceful shutdown work?** Stop claims, finish current turn within timeout, release cached leases, stop heartbeat, mark process stopped.
-14. **How does ask work across processes?** A wake-up adapter prompts a durable result query; periodic polling remains the fallback. Polling-only use is scoped to non-latency-sensitive callers.
+14. **How does synchronous invocation work across processes?** The caller first tries to claim and execute the actor locally. If another process owns it, a wake-up adapter prompts a durable result query and bounded polling remains the fallback.
 15. **What happens after caller timeout?** The durable message continues and its eventual result remains on the message row.
 16. **How are results cleaned up?** The schema has cleanup indexes, but bounded retention tooling is not implemented yet.
 17. **How are large mailboxes managed?** The implemented controls are the per-actor mailbox cap, payload caps, and fair activation yields; rate and global admission controls remain roadmap work.

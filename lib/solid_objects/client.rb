@@ -1,6 +1,7 @@
 # rbs_inline: enabled
 
 require "solid_objects/mailbox"
+require "solid_objects/synchronous_invocation"
 
 module SolidObjects
   class Client
@@ -12,7 +13,7 @@ module SolidObjects
     end
 
     # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference
-    def tell(reference, message_name, arguments, available_at: nil, idempotency_key: nil, authorization_context: nil)
+    def async(reference, message_name, arguments, available_at: nil, idempotency_key: nil, authorization_context: nil)
       actor_class = SolidObjects.registry.fetch(reference.actor_type)
       message_symbol = message_name.to_sym
       raise UnknownMessage, "unknown message #{message_name.inspect}" unless actor_class.definition.messages.key?(message_symbol)
@@ -28,14 +29,14 @@ module SolidObjects
         reference,
         message_name,
         arguments,
-        kind: "tell",
+        kind: "async",
         available_at:,
         idempotency_key:
       )
     end
 
     # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped) -> untyped
-    def ask(reference, message_name, arguments, timeout:, idempotency_key: nil, authorization_context: nil)
+    def sync(reference, message_name, arguments, timeout:, idempotency_key: nil, authorization_context: nil)
       actor_class = SolidObjects.registry.fetch(reference.actor_type)
       message_symbol = message_name.to_sym
       query = actor_class.definition.queries.key?(message_symbol)
@@ -53,10 +54,10 @@ module SolidObjects
         reference,
         message_name,
         arguments,
-        kind: "ask",
+        kind: "sync",
         idempotency_key:
       )
-      wait_for_result(message_reference, timeout:)
+      SynchronousInvocation.new.call(message_reference, timeout:)
     end
 
     # @rbs (Reference, ?authorization_context: untyped) -> bool
@@ -116,38 +117,6 @@ module SolidObjects
       return if authorized
 
       raise Unauthorized, "actor destruction is not authorized"
-    end
-
-    # @rbs (MessageReference, timeout: Numeric) -> untyped
-    def wait_for_result(message_reference, timeout:)
-      deadline = monotonic_now + timeout.to_f
-
-      loop do
-        message = Message.uncached { Message.find(message_reference.id) }
-        return message.result if message.completed?
-
-        if message.dead?
-          raise MessageFailed.new(
-            "actor message failed permanently",
-            message_id: message.id,
-            details: message.error || {}
-          )
-        end
-
-        remaining = deadline - monotonic_now
-        raise AskTimeout, "actor request timed out after #{timeout} seconds" unless remaining.positive?
-
-        SolidObjects.wake_up.wait(
-          timeout: [ remaining, SolidObjects.configuration.ask_polling_interval ].min
-        )
-      end
-    rescue ActiveRecord::RecordNotFound
-      raise ActorDestroyed, "actor was destroyed while waiting for its result"
-    end
-
-    # @rbs () -> Float
-    def monotonic_now
-      ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
     end
   end
 end

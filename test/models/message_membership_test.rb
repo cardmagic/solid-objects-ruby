@@ -22,6 +22,7 @@ class MessageMembershipTest < ActiveSupport::TestCase
         message:,
         instance: message.instance,
         process_id: create_process.id,
+        activation_token: SecureRandom.uuid,
         activation_generation: 3,
         claimed_at: Time.current
       )
@@ -37,6 +38,7 @@ class MessageMembershipTest < ActiveSupport::TestCase
       message:,
       instance: message.instance,
       process_id: create_process.id,
+      activation_token: SecureRandom.uuid,
       activation_generation: 1,
       claimed_at: Time.current
     )
@@ -73,7 +75,7 @@ class MessageMembershipTest < ActiveSupport::TestCase
       actor_type: instance.actor_type,
       actor_id: instance.actor_id,
       message_name: "add",
-      message_kind: "tell",
+      message_kind: "async",
       arguments: {},
       sequence: 1,
       request_id: SecureRandom.uuid,

@@ -78,6 +78,12 @@ module SolidObjects
       @client ||= Client.new
     end
 
+    # @rbs () -> CallerProcess
+    def caller_process
+      require "solid_objects/caller_process"
+      @caller_process ||= CallerProcess.new
+    end
+
     # @rbs () -> DeadLetterManager
     def dead_letters
       @dead_letters ||= DeadLetterManager.new
@@ -100,6 +106,7 @@ module SolidObjects
       @client = nil
       @database_adapter = nil
       @wake_up = nil
+      @caller_process = nil
       @effect_registry = EffectRegistry.new
       @dead_letters = nil
     end

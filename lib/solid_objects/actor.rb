@@ -150,7 +150,17 @@ module SolidObjects
       Context.current_message
     end
 
-    # @rbs (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> EffectIntent
+    # @rbs (Symbol | String, String, ?details: Hash[String | Symbol, untyped]) -> bot
+    def reject(code, message, details: {})
+      rejection_code = code.to_s
+      unless rejection_code.match?(/\A[a-z][a-z0-9_]*\z/)
+        raise ArgumentError, "rejection code must contain lowercase letters, digits, and underscores"
+      end
+
+      raise Rejected.new(code: rejection_code, message:, details:)
+    end
+
+    # @rbs (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> nil
     def emit(name, on_success: nil, on_failure: nil, **arguments)
       validate_effect_callback!(on_success)
       validate_effect_callback!(on_failure)
@@ -162,9 +172,10 @@ module SolidObjects
       ).tap do |intent|
         effect_intents << intent
       end
+      nil
     end
 
-    # @rbs (Symbol | String, at: Time, ?every: Numeric?, ?missed: Symbol | String, arguments: Hash[Symbol | String, untyped]) -> ReminderIntent
+    # @rbs (Symbol | String, at: Time, ?every: Numeric?, ?missed: Symbol | String, arguments: Hash[Symbol | String, untyped]) -> nil
     def schedule(name, at:, every: nil, missed: :latest, arguments: {})
       interval_seconds = every&.to_f
       if interval_seconds && !interval_seconds.positive?
@@ -184,11 +195,13 @@ module SolidObjects
       ).tap do |intent|
         reminder_intents << intent
       end
+      nil
     end
 
-    # @rbs (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> OutboundMessageIntent
+    # @rbs (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> nil
     def send_to(reference, message_name, available_at: nil, idempotency_key: nil, **arguments)
       stage_outbound_message(reference, message_name, arguments, available_at:, idempotency_key:)
+      nil
     end
 
     # @rbs (Symbol | String, Hash[String, untyped]) -> untyped

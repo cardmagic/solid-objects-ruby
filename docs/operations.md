@@ -61,7 +61,7 @@ operational task until that roadmap item lands.
 
 Self-scheduling actors need a daily or similarly low-frequency reconciliation
 job because an application-level alarm can be lost. The reconciler reads state
-but sends every repair through `tell`.
+but sends every repair through `async`.
 
 Use:
 
@@ -115,8 +115,8 @@ Alert on:
 
 The schema has cleanup indexes, but automatic pruning commands are still
 roadmap work. Until implemented, define application-owned bounded deletes that
-preserve unfinished messages, dead letters under investigation, and ask results
-for the promised lookup period.
+preserve unfinished messages, dead letters under investigation, and synchronous
+results for the promised lookup period.
 
 Back up actor tables with the same consistency guarantees as application data.
 Restoring only instances without their mailboxes/outboxes, or vice versa, can

@@ -10,5 +10,7 @@ module SolidObjects
       class_name: "SolidObjects::Process",
       foreign_key: :process_id,
       optional: true
+
+    validates :activation_token, presence: true, if: :process_id?
   end
 end

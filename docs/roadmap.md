@@ -4,11 +4,14 @@
 
 - Rails engine, install generator, migration, and CLI
 - Explicit actor registry, references, JSON state, and state migrations
+- Direct synchronous RPC, explicit `sync`, and durable `async`
 - Durable message history plus ready/claimed membership tables
 - Concurrent sequence allocation and actor creation
-- Activation leases, renewal, generations, and fenced commits
+- Activation leases, renewal, unique activation tokens, generations, and
+  fenced commits
 - Bounded activation passes, idle cache, hot-actor yield, and process records
-- At-least-once retries, strict poison ordering, dead letters, and tail retry
+- At-least-once retries, terminal domain rejection, strict poison ordering,
+  dead letters, and tail retry
 - Transactional effects with success/failure actor messages
 - Actor-to-actor asynchronous outbox delivery
 - One-shot and recurring reminders with `:latest` or `:all` catch-up

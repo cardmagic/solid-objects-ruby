@@ -36,7 +36,7 @@ class RetryTest < ActiveSupport::TestCase
   end
 
   test "redelivers a failed handler with the previously committed state" do
-    message_reference = RetryingActor.ref("one").run
+    message_reference = RetryingActor.ref("one").async(:run)
     worker = SolidObjects::Worker.new
 
     assert_equal 2, worker.run_until_idle
@@ -53,8 +53,8 @@ class RetryTest < ActiveSupport::TestCase
   test "dead-letters a poison message before continuing the mailbox" do
     SolidObjects.configuration.max_attempts = 2
     reference = PoisonActor.ref("one")
-    failed_message = reference.poison
-    continued_message = reference.continue_processing
+    failed_message = reference.async(:poison)
+    continued_message = reference.async(:continue_processing)
     worker = SolidObjects::Worker.new
 
     assert_equal 3, worker.run_until_idle

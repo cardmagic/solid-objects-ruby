@@ -8,10 +8,10 @@ module SolidObjects
     def initialize: (?mailbox: Mailbox) -> void
 
     # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference
-    def tell: (Reference, Symbol | String, Hash[Symbol | String, untyped], ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference
+    def async: (Reference, Symbol | String, Hash[Symbol | String, untyped], ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference
 
     # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped) -> untyped
-    def ask: (Reference, Symbol | String, Hash[Symbol | String, untyped], timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped) -> untyped
+    def sync: (Reference, Symbol | String, Hash[Symbol | String, untyped], timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped) -> untyped
 
     # @rbs (Reference, ?authorization_context: untyped) -> bool
     def destroy: (Reference, ?authorization_context: untyped) -> bool
@@ -25,11 +25,5 @@ module SolidObjects
 
     # @rbs (Reference, authorization_context: untyped) -> void
     def authorize_destroy!: (Reference, authorization_context: untyped) -> void
-
-    # @rbs (MessageReference, timeout: Numeric) -> untyped
-    def wait_for_result: (MessageReference, timeout: Numeric) -> untyped
-
-    # @rbs () -> Float
-    def monotonic_now: () -> Float
   end
 end

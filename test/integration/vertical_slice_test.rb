@@ -28,8 +28,8 @@ class VerticalSliceTest < ActiveSupport::TestCase
 
   test "processes one actor mailbox sequentially and persists every turn" do
     reference = CartActor.ref("alice")
-    first_message = reference.add(product_id: "shirt", quantity: 2)
-    second_message = reference.add(product_id: "pants")
+    first_message = reference.async(:add, product_id: "shirt", quantity: 2)
+    second_message = reference.async(:add, product_id: "pants")
 
     worker = SolidObjects::Worker.new
     processed_count = worker.run_until_idle
@@ -52,49 +52,18 @@ class VerticalSliceTest < ActiveSupport::TestCase
     worker&.stop
   end
 
-  test "ask returns the durable result produced by another worker" do
-    enqueued = Queue.new
-    subscription = ActiveSupport::Notifications.subscribe("solid_objects.message.enqueued") do
-      enqueued << true
-    end
-    result = Queue.new
+  test "sync returns a durable result without another worker" do
+    result = CartActor.ref("alice").sync(:items, timeout: 2)
 
-    caller = Thread.new do
-      result << CartActor.ref("alice").ask(:items, timeout: 2)
-    rescue => error
-      result << error
-    end
-
-    Timeout.timeout(2) { enqueued.pop }
-    worker = SolidObjects::Worker.new
-    worker.run_until_idle
-
-    assert_equal [], Timeout.timeout(2) { result.pop }
-    caller.join
-  ensure
-    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
-    worker&.stop
+    assert_equal [], result
+    assert_equal "sync", SolidObjects::Message.last.message_kind
   end
 
   test "reads declared attributes through ordered query methods" do
     reference = CartActor.ref("alice")
-    message_reference = reference.add(product_id: "shirt", quantity: 2)
-    enqueued = Queue.new
-    subscription = ActiveSupport::Notifications.subscribe("solid_objects.message.enqueued") do |event|
-      enqueued << true if event.payload[:sequence] == 2
-    end
-    result = Queue.new
+    message_reference = reference.async(:add, product_id: "shirt", quantity: 2)
 
-    caller = Thread.new do
-      result << reference.items
-    rescue => error
-      result << error
-    end
-
-    Timeout.timeout(2) { enqueued.pop }
-    worker = SolidObjects::Worker.new
-    worker.run_until_idle
-    items = Timeout.timeout(2) { result.pop }
+    items = reference.items
 
     assert_equal(
       [ { "product_id" => "shirt", "quantity" => 2 } ],
@@ -106,16 +75,12 @@ class VerticalSliceTest < ActiveSupport::TestCase
     assert_equal "completed", message_reference.status
     query = SolidObjects::Message.order(:sequence).last
     assert_equal "items", query.message_name
-    assert_equal "ask", query.message_kind
-    caller.join
-  ensure
-    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
-    worker&.stop
+    assert_equal "sync", query.message_kind
   end
 
   test "refuses activation when persisted state is newer than running code" do
     OlderCodeActor.invoked = false
-    message_reference = OlderCodeActor.ref("one").run
+    message_reference = OlderCodeActor.ref("one").async(:run)
     instance = SolidObjects::Instance.find_by!(actor_type: "older-code")
     instance.update!(state_version: 2)
     worker = SolidObjects::Worker.new

@@ -61,13 +61,13 @@ module SolidObjectsBenchmark
     def enqueue
       reference = CounterActor.ref("enqueue")
       measure("enqueue #{count} messages") do
-        count.times { reference.tell(:increment) }
+        count.times { reference.async(:increment) }
       end
     end
 
     # @rbs () -> void
     def claim
-      count.times { |index| CounterActor.ref("claim-#{index}").tell(:increment) }
+      count.times { |index| CounterActor.ref("claim-#{index}").async(:increment) }
       process_registry = SolidObjects::ProcessRegistry.new
       owner_id = process_registry.register.id
       activation_manager = SolidObjects::ActivationManager.new(owner_id:)
@@ -100,7 +100,7 @@ module SolidObjectsBenchmark
 
     # @rbs () -> void
     def cold_actors
-      count.times { |index| CounterActor.ref("cold-#{index}").tell(:increment) }
+      count.times { |index| CounterActor.ref("cold-#{index}").async(:increment) }
       worker = SolidObjects::Worker.new
       measure("process #{count} cold actors") { drain(worker) }
     ensure
@@ -110,7 +110,7 @@ module SolidObjectsBenchmark
     # @rbs () -> void
     def hot_actor
       reference = CounterActor.ref("hot")
-      count.times { reference.tell(:increment) }
+      count.times { reference.async(:increment) }
       worker = SolidObjects::Worker.new
       measure("process #{count} messages for one hot actor") { drain(worker) }
     ensure
@@ -130,30 +130,25 @@ module SolidObjectsBenchmark
     end
 
     # @rbs () -> void
-    def ask_latency
-      worker = SolidObjects::Worker.new
-      worker_thread = Thread.new { worker.run }
+    def sync_latency
       samples = []
 
       count.times do |index|
         started_at = monotonic_now
-        CounterActor.ref("ask-#{index}").ask(:count, timeout: 5)
+        CounterActor.ref("sync-#{index}").sync(:count, timeout: 5)
         samples << monotonic_now - started_at
       end
 
       sorted = samples.sort
-      puts "ask #{count} calls: p50=#{milliseconds(percentile(sorted, 0.50))}ms " \
+      puts "sync #{count} calls: p50=#{milliseconds(percentile(sorted, 0.50))}ms " \
         "p95=#{milliseconds(percentile(sorted, 0.95))}ms " \
         "p99=#{milliseconds(percentile(sorted, 0.99))}ms"
-    ensure
-      worker&.request_shutdown
-      worker_thread&.join
     end
 
     # @rbs () -> void
     def activation_cache
       reference = CounterActor.ref("cache")
-      count.times { reference.tell(:increment) }
+      count.times { reference.async(:increment) }
       activations = 0
       subscriber = ActiveSupport::Notifications.subscribe("solid_objects.activation.started") do
         activations += 1
@@ -170,7 +165,7 @@ module SolidObjectsBenchmark
 
     # @rbs () -> void
     def query_count
-      CounterActor.ref("queries").tell(:increment)
+      CounterActor.ref("queries").async(:increment)
       worker = SolidObjects::Worker.new
       queries = 0
       subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |event|
@@ -232,7 +227,7 @@ module SolidObjectsBenchmark
     def enqueue_round_robin
       actor_count = [ concurrency * 10, count ].min
       references = Array.new(actor_count) { |index| CounterActor.ref("actor-#{index}") }
-      count.times { |index| references[index % actor_count].tell(:increment) }
+      count.times { |index| references[index % actor_count].async(:increment) }
     end
 
     # @rbs (SolidObjects::Worker) -> Integer

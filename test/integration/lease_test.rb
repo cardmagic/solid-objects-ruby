@@ -49,6 +49,24 @@ class LeaseTest < ActiveSupport::TestCase
     assert_nil lease
   end
 
+  test "does not reacquire an actor from the same process with another activation token" do
+    first_lease = SolidObjects::Lease.acquire(
+      instance_id: @instance.id,
+      owner_id: @first_process.id,
+      activation_token: "first-activation"
+    )
+
+    second_lease = SolidObjects::Lease.acquire(
+      instance_id: @instance.id,
+      owner_id: @first_process.id,
+      activation_token: "second-activation"
+    )
+
+    assert first_lease
+    assert_nil second_lease
+    assert_equal "first-activation", @instance.reload.activation_token
+  end
+
   test "increments the fencing generation after expiration" do
     first_lease = SolidObjects::Lease.acquire(
       instance_id: @instance.id,
@@ -86,6 +104,7 @@ class LeaseTest < ActiveSupport::TestCase
 
     assert lease.release
     assert_nil @instance.reload.activation_owner_id
+    assert_nil @instance.activation_token
     assert_equal lease.generation, @instance.activation_generation
   end
 
@@ -98,7 +117,7 @@ class LeaseTest < ActiveSupport::TestCase
     subscription = ActiveSupport::Notifications.subscribe("solid_objects.activation.renewed") do
       renewed << true
     end
-    message_reference = SlowActor.ref("slow").run
+    message_reference = SlowActor.ref("slow").async(:run)
     worker = SolidObjects::Worker.new
 
     thread = Thread.new { worker.run_once }

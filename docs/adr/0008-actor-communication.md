@@ -9,7 +9,10 @@ If actor A synchronously waits for actor B while B waits for A, sequential actor
 
 ## Decision
 
-Actor references support durable asynchronous `tell`. `ask` is a caller-facing request/response operation and must not be called from actor code. Actor code uses staged actor messages or request/result message pairs.
+Actor references support durable asynchronous delivery through `async`.
+Direct methods and `sync` are caller-facing request/response operations and
+must not be called from actor code. Actor code uses staged actor messages or
+request/result message pairs.
 
 Messages staged during actor execution are delivered through a transactional outbox so they exist if and only if the source message commits.
 

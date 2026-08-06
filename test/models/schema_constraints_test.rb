@@ -25,6 +25,8 @@ class SchemaConstraintsTest < ActiveSupport::TestCase
     assert_not_includes columns, "status"
     assert_includes columns, "completed_at"
     assert_includes columns, "attempt_count"
+    assert_includes columns, "rejection"
+    assert_includes columns, "rejected_at"
   end
 
   test "uses only ordinary indexes for execution membership" do
@@ -66,7 +68,7 @@ class SchemaConstraintsTest < ActiveSupport::TestCase
       actor_type: "cart",
       actor_id: "alice",
       message_name: "add",
-      message_kind: "tell",
+      message_kind: "async",
       arguments: {},
       sequence: 1,
       request_id: SecureRandom.uuid,
@@ -97,6 +99,7 @@ class SchemaConstraintsTest < ActiveSupport::TestCase
       message: first_message,
       instance:,
       process_id: process_record.id,
+      activation_token: SecureRandom.uuid,
       activation_generation: 1,
       claimed_at: Time.current
     )
@@ -106,6 +109,7 @@ class SchemaConstraintsTest < ActiveSupport::TestCase
         message: second_message,
         instance:,
         process_id: process_record.id,
+        activation_token: SecureRandom.uuid,
         activation_generation: 1,
         claimed_at: Time.current
       )
@@ -139,7 +143,7 @@ class SchemaConstraintsTest < ActiveSupport::TestCase
       actor_type: instance.actor_type,
       actor_id: instance.actor_id,
       message_name: "add",
-      message_kind: "tell",
+      message_kind: "async",
       arguments: {},
       sequence:,
       request_id: SecureRandom.uuid,

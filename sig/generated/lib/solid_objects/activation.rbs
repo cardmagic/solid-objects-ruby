@@ -22,6 +22,9 @@ module SolidObjects
     # @rbs () -> Integer
     def drain: () -> Integer
 
+    # @rbs (message_id: Integer, deadline: Float) -> Integer
+    def drain_until: (message_id: Integer, deadline: Float) -> Integer
+
     # @rbs () -> bool
     def ready?: () -> bool
 
@@ -49,6 +52,9 @@ module SolidObjects
     private
 
     attr_reader actor_class: untyped
+
+    # @rbs (?message_id: Integer?, ?deadline: Float?) -> Integer
+    def drain_messages: (?message_id: Integer?, ?deadline: Float?) -> Integer
 
     # @rbs (Instance) -> Actor
     def build_actor: (Instance) -> Actor

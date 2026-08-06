@@ -27,8 +27,8 @@ class SequentialProcessingTest < ActiveSupport::TestCase
 
   test "two workers never execute two messages for one actor together" do
     reference = BlockingActor.ref("same")
-    reference.append(value: 1)
-    reference.append(value: 2)
+    reference.async(:append, value: 1)
+    reference.async(:append, value: 2)
     first_worker = SolidObjects::Worker.new
     second_worker = SolidObjects::Worker.new
 
@@ -49,8 +49,8 @@ class SequentialProcessingTest < ActiveSupport::TestCase
   end
 
   test "different actor identities execute concurrently" do
-    BlockingActor.ref("alice").append(value: 1)
-    BlockingActor.ref("bob").append(value: 2)
+    BlockingActor.ref("alice").async(:append, value: 1)
+    BlockingActor.ref("bob").async(:append, value: 2)
     first_worker = SolidObjects::Worker.new
     second_worker = SolidObjects::Worker.new
 

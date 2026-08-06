@@ -22,9 +22,13 @@ module SolidObjects
         SolidObjects.database_adapter.transaction do
           Instance.where(activation_owner_id: process_record.id).update_all(
             activation_owner_id: nil,
+            activation_token: nil,
             activation_expires_at: nil
           )
-          ClaimedMessage.where(process_id: process_record.id).update_all(process_id: nil)
+          ClaimedMessage.where(process_id: process_record.id).update_all(
+            process_id: nil,
+            activation_token: nil
+          )
           Effect.where(claimed_by: process_record.id).update_all(
             status: "pending",
             claimed_by: nil,

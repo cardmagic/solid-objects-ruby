@@ -3,19 +3,21 @@
 module SolidObjects
   class Lease
     class << self
-      # @rbs (instance: Instance, owner_id: String, now: Time, ?duration: Numeric, database_adapter: DatabaseAdapter) -> Lease?
+      # @rbs (instance: Instance, owner_id: String, activation_token: String, now: Time, ?duration: Numeric, database_adapter: DatabaseAdapter) -> Lease?
       def claim(
         instance:,
         owner_id:,
+        activation_token:,
         now:,
         database_adapter:, duration: SolidObjects.configuration.lease_duration
       )
-        return if held_by_another_live_owner?(instance, owner_id, now)
+        return if held_by_another_live_owner?(instance, activation_token, now)
 
         generation = instance.activation_generation + 1
         expires_at = now + duration
         instance.update!(
           activation_owner_id: owner_id,
+          activation_token:,
           activation_expires_at: expires_at,
           activation_generation: generation,
           activated_at: now,
@@ -24,23 +26,25 @@ module SolidObjects
         new(
           instance_id: instance.id,
           owner_id:,
+          activation_token:,
           generation:,
           expires_at:,
           database_adapter:
         )
       end
 
-      # @rbs (instance_id: Integer, owner_id: String, ?duration: Numeric, ?database_adapter: DatabaseAdapter) -> Lease?
+      # @rbs (instance_id: Integer, owner_id: String, ?activation_token: String, ?duration: Numeric, ?database_adapter: DatabaseAdapter) -> Lease?
       def acquire(
         instance_id:,
         owner_id:,
+        activation_token: SecureRandom.uuid,
         duration: SolidObjects.configuration.lease_duration,
         database_adapter: SolidObjects.database_adapter
       )
         lease = database_adapter.transaction do
           instance = Instance.lock.find(instance_id)
           now = database_adapter.database_now
-          claim(instance:, owner_id:, now:, duration:, database_adapter:)
+          claim(instance:, owner_id:, activation_token:, now:, duration:, database_adapter:)
         end
 
         if lease
@@ -58,9 +62,9 @@ module SolidObjects
       private
 
       # @rbs (Instance, String, Time) -> bool
-      def held_by_another_live_owner?(instance, owner_id, now)
+      def held_by_another_live_owner?(instance, activation_token, now)
         instance.activation_owner_id.present? &&
-          instance.activation_owner_id != owner_id &&
+          instance.activation_token != activation_token &&
           instance.activation_expires_at.present? &&
           instance.activation_expires_at > now
       end
@@ -68,16 +72,18 @@ module SolidObjects
 
     # @rbs @instance_id: Integer
     # @rbs @owner_id: String
+    # @rbs @activation_token: String
     # @rbs @generation: Integer
     # @rbs @expires_at: Time
     # @rbs @database_adapter: DatabaseAdapter
 
-    attr_reader :instance_id, :owner_id, :generation, :expires_at
+    attr_reader :instance_id, :owner_id, :activation_token, :generation, :expires_at
 
-    # @rbs (instance_id: Integer, owner_id: String, generation: Integer, expires_at: Time, database_adapter: DatabaseAdapter) -> void
-    def initialize(instance_id:, owner_id:, generation:, expires_at:, database_adapter:)
+    # @rbs (instance_id: Integer, owner_id: String, activation_token: String, generation: Integer, expires_at: Time, database_adapter: DatabaseAdapter) -> void
+    def initialize(instance_id:, owner_id:, activation_token:, generation:, expires_at:, database_adapter:)
       @instance_id = instance_id
       @owner_id = owner_id
+      @activation_token = activation_token
       @generation = generation
       @expires_at = expires_at
       @database_adapter = database_adapter
@@ -95,6 +101,7 @@ module SolidObjects
         self.class.new(
           instance_id:,
           owner_id:,
+          activation_token:,
           generation:,
           expires_at: renewed_expiration,
           database_adapter:
@@ -117,7 +124,11 @@ module SolidObjects
         next false unless instance
         next false unless owned_generation?(instance)
 
-        instance.update!(activation_owner_id: nil, activation_expires_at: nil)
+        instance.update!(
+          activation_owner_id: nil,
+          activation_token: nil,
+          activation_expires_at: nil
+        )
         true
       end
 
@@ -159,6 +170,7 @@ module SolidObjects
     # @rbs (Instance) -> bool
     def owned_generation?(instance)
       instance.activation_owner_id == owner_id &&
+        instance.activation_token == activation_token &&
         instance.activation_generation == generation
     end
 

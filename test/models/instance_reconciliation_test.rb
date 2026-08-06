@@ -91,6 +91,7 @@ class InstanceReconciliationTest < ActiveSupport::TestCase
       message:,
       instance:,
       process_id: process_record.id,
+      activation_token: SecureRandom.uuid,
       activation_generation: 1,
       claimed_at: Time.current
     )
@@ -102,7 +103,7 @@ class InstanceReconciliationTest < ActiveSupport::TestCase
       actor_type: instance.actor_type,
       actor_id: instance.actor_id,
       message_name: "evaluate",
-      message_kind: "tell",
+      message_kind: "async",
       arguments: {},
       sequence: 1,
       request_id: SecureRandom.uuid,

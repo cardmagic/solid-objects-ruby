@@ -161,7 +161,7 @@ Create the seven domain tables plus ready- and claimed-message membership tables
 
 The schema installs in PostgreSQL, MySQL, and SQLite dummy databases and database constraints reject invalid states independently of Rails validations.
 
-## Milestone 3: Durable enqueue, references, tell, and ask
+## Milestone 3: Durable enqueue and invocation modes
 
 ### Files
 
@@ -171,14 +171,15 @@ The schema installs in PostgreSQL, MySQL, and SQLite dummy databases and databas
 - `lib/solid_objects/message_reference.rb`
 - `lib/solid_objects/wake_up.rb`
 - `test/integration/enqueue_test.rb`
-- `test/integration/tell_test.rb`
-- `test/integration/ask_test.rb`
+- `test/integration/enqueue_test.rb`
+- `test/integration/sync_test.rb`
+- `test/integration/synchronous_invocation_test.rb`
 
 ### Public API
 
-- `Reference#tell`
-- `Reference#ask`
-- Method-style message, query, and read-only attribute dispatch
+- `Reference#async`
+- `Reference#sync`
+- Synchronous method-style message, query, and read-only attribute dispatch
 - `MessageReference#id`, `#status`, `#result`
 - Authorization context and hooks
 
@@ -191,8 +192,10 @@ No new tables. Use instance sequence and message request/idempotency columns.
 - Per-actor sequence allocation under concurrent connections
 - Independent sequences for different actors
 - Idempotency key deduplication
-- Tell return value
-- Ask success, failure, and timeout
+- Async return value
+- Synchronous success, rejection, failure, and timeout
+- Caller-assisted processing behind earlier asynchronous work
+- Same-actor serialization and different-actor concurrency
 - Mailbox and payload limits
 - Message/query authorization failure
 
@@ -201,12 +204,15 @@ No new tables. Use instance sequence and message request/idempotency columns.
 - Concurrent first enqueue
 - Lock timeout or deadlock
 - Duplicate idempotency key with different payload
-- Ask caller timeout
+- Synchronous caller timeout
 - Oversized payload or mailbox
 
 ### Completion criteria
 
-Messages and ready membership enqueue durably in strict per-actor sequence and `ask` can observe a manually completed result. Polling-only `ask` is documented as unsuitable for latency-sensitive request handlers.
+Messages and ready membership enqueue durably in strict per-actor sequence.
+Direct methods and `sync` claim and execute the actor locally when possible,
+while `async` returns immediately for worker execution. Every path uses the
+same mailbox, lease, fencing, and durable result.
 
 ## Milestone 4: Fenced, runnable vertical slice
 
@@ -236,7 +242,7 @@ No new tables.
 
 ### Tests
 
-- Shopping cart tell and ask
+- Shopping cart synchronous and asynchronous invocation
 - One actor processes messages sequentially
 - Different actors can execute concurrently
 - Lease acquire, renew, expire, and release
@@ -246,7 +252,7 @@ No new tables.
 - State and completion are atomic
 - Basic retry and strict head-of-mailbox blocking
 - Handler-level duplicate-delivery guards
-- Actor-to-actor tell outside actor context
+- Actor-to-actor asynchronous delivery
 
 ### Failure modes
 
@@ -325,7 +331,7 @@ Use the effects table. Add delivery-token or outcome columns only through a migr
 - Stable idempotency context
 - Success/failure outcome messages
 - Transactional actor-to-actor delivery
-- `ask` rejected in actor context
+- Direct and `sync` actor-to-actor calls rejected in actor context
 
 ### Failure modes
 
@@ -464,13 +470,13 @@ No expected changes.
 - Sensitive data in logs
 - Unbounded admin queries
 - Retrying wrong dead letter
-- Cleanup racing with ask waiter
-- Reconciliation code mutating actor state outside `tell`
+- Cleanup racing with a synchronous waiter
+- Reconciliation code mutating actor state outside `async`
 - Reconciliation stampedes without delayed `available_at`
 
 ### Completion criteria
 
-Operators can inspect health and failures without direct SQL, locate lost alarms and orphaned actors, and observe every required transition without raw arguments. Documentation requires reconciliation repairs to use delayed `tell` rather than direct instance updates.
+Operators can inspect health and failures without direct SQL, locate lost alarms and orphaned actors, and observe every required transition without raw arguments. Documentation requires reconciliation repairs to use delayed `async` delivery rather than direct instance updates.
 
 ## Milestone 10: Examples, benchmarks, documentation, and release hardening
 

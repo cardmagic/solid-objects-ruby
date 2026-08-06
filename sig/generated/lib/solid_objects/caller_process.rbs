@@ -1,0 +1,32 @@
+# Generated from lib/solid_objects/caller_process.rb with RBS::Inline
+
+module SolidObjects
+  class CallerProcess
+    @mutex: Thread::Mutex
+
+    @process_id: Integer?
+
+    @registry: ProcessRegistry?
+
+    # @rbs () -> void
+    def initialize: () -> void
+
+    # @rbs () -> ProcessRegistry
+    def process_registry: () -> ProcessRegistry
+
+    private
+
+    attr_reader mutex: untyped
+
+    attr_reader registry: untyped
+
+    # @rbs () -> void
+    def reset_after_fork: () -> void
+
+    # @rbs () -> bool
+    def reusable_registry?: () -> bool
+
+    # @rbs () -> ProcessRegistry
+    def register: () -> ProcessRegistry
+  end
+end

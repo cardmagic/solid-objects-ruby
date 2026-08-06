@@ -9,7 +9,8 @@ Polling adds latency and database queries. PostgreSQL notifications are transact
 
 ## Decision
 
-Database rows remain the only durable source of work and results. Wake-up adapters only tell workers and `ask` waiters to re-query those rows.
+Database rows remain the only durable source of work and results. Wake-up
+adapters only prompt workers and synchronous waiters to re-query those rows.
 
 The interface supports:
 
@@ -20,9 +21,17 @@ The interface supports:
 
 MySQL uses polling or optional Redis. SQLite uses polling plus the in-process signal; multi-host SQLite is outside its supported operating model.
 
-The coordination-overhead latency budget, measured from durable enqueue or completion commit until a waiting worker or caller begins its confirming query, is p99 at or below 100 milliseconds when a healthy cross-process wake-up adapter is enabled. Polling-only deployments accept up to the configured polling interval on each wait leg. End-to-end `ask` latency additionally includes queueing and actor execution and cannot have a library-wide bound.
+The synchronous caller first attempts to claim and execute the actor locally,
+so the normal path has no worker polling leg. When another process owns the
+activation, coordination overhead from completion commit until the caller's
+confirming query targets p99 at or below 100 milliseconds with a healthy
+cross-process wake-up adapter. Polling fallback accepts up to
+`sync_polling_interval` between observations. End-to-end latency still includes
+earlier mailbox work and actor execution and cannot have a library-wide bound.
 
-Polling-only `ask` is intended for background callers, scripts, and control paths. It is not recommended in latency-sensitive Rails request handlers. A request handler may use it only with an explicit timeout and an operationally verified wake-up adapter and actor latency budget.
+Direct methods and `sync` are intended for HTTP, MCP, scripts, and control
+paths whose handler and mailbox latency fit an explicit application budget.
+Timeout does not cancel durable work.
 
 ## Consequences
 

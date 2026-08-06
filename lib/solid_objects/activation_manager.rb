@@ -13,17 +13,37 @@ module SolidObjects
 
     # @rbs () -> Activation?
     def claim_next
+      claim_from(candidate_instance_ids(database_adapter.database_now))
+    end
+
+    # @rbs (instance_id: Integer) -> Activation?
+    def claim(instance_id:)
+      claim_from([ instance_id ])
+    end
+
+    private
+
+    attr_reader :owner_id, :database_adapter
+
+    # @rbs (Array[Integer]) -> Activation?
+    def claim_from(instance_ids)
       lease = database_adapter.transaction do
         now = database_adapter.database_now
         claimed_lease = nil
-        candidate_instance_ids(now).each do |instance_id|
+        instance_ids.each do |instance_id|
           instance = database_adapter.lock_candidates(
             Instance.where(id: instance_id)
           ).first
           next unless instance
           next unless claimable?(instance, now)
 
-          claimed_lease = Lease.claim(instance:, owner_id:, now:, database_adapter:)
+          claimed_lease = Lease.claim(
+            instance:,
+            owner_id:,
+            activation_token: SecureRandom.uuid,
+            now:,
+            database_adapter:
+          )
           break if claimed_lease
         end
         claimed_lease
@@ -41,10 +61,6 @@ module SolidObjects
       lease&.release
       raise
     end
-
-    private
-
-    attr_reader :owner_id, :database_adapter
 
     # @rbs (Time) -> Array[Integer]
     def candidate_instance_ids(now)

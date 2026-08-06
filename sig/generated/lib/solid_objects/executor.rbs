@@ -45,6 +45,9 @@ module SolidObjects
     # @rbs (Exception) -> void
     def fail_message: (Exception) -> void
 
+    # @rbs (Rejected) -> void
+    def reject_message: (Rejected) -> void
+
     # @rbs () -> ClaimedMessage
     def matching_claim!: () -> ClaimedMessage
 

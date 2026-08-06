@@ -42,7 +42,7 @@ class EffectsTest < ActiveSupport::TestCase
   end
 
   test "commits state, message completion, and effect together" do
-    message_reference = CheckoutActor.ref("order-1").checkout(payment_id: "payment-1")
+    message_reference = CheckoutActor.ref("order-1").async(:checkout, payment_id: "payment-1")
     worker = SolidObjects::Worker.new
 
     worker.run_until_idle
@@ -58,7 +58,7 @@ class EffectsTest < ActiveSupport::TestCase
   end
 
   test "does not persist an effect from a rolled-back actor turn" do
-    CheckoutActor.ref("order-1").broken_checkout
+    CheckoutActor.ref("order-1").async(:broken_checkout)
     worker = SolidObjects::Worker.new
 
     worker.run_once
@@ -75,7 +75,7 @@ class EffectsTest < ActiveSupport::TestCase
       delivered << [ arguments, context.id ]
       { "provider_id" => "provider-1" }
     end
-    CheckoutActor.ref("order-1").checkout(payment_id: "payment-1")
+    CheckoutActor.ref("order-1").async(:checkout, payment_id: "payment-1")
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     effect = SolidObjects::Effect.first
@@ -97,7 +97,7 @@ class EffectsTest < ActiveSupport::TestCase
     SolidObjects.register_effect(:charge_payment) do
       { "provider_id" => "provider-1" }
     end
-    CheckoutActor.ref("order-1").checkout_with_result(payment_id: "payment-1")
+    CheckoutActor.ref("order-1").async(:checkout_with_result, payment_id: "payment-1")
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     effect_executor = SolidObjects::EffectExecutor.new
@@ -124,7 +124,7 @@ class EffectsTest < ActiveSupport::TestCase
   test "enqueues one failure result after effect retries are exhausted" do
     SolidObjects.configuration.max_attempts = 1
     SolidObjects.register_effect(:charge_payment) { raise "provider unavailable" }
-    CheckoutActor.ref("order-1").checkout_with_result(payment_id: "payment-1")
+    CheckoutActor.ref("order-1").async(:checkout_with_result, payment_id: "payment-1")
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     effect_executor = SolidObjects::EffectExecutor.new

@@ -14,7 +14,7 @@ class ProcessLifecycleTest < ActiveSupport::TestCase
   end
 
   test "recovers a claimed message after its worker heartbeat expires" do
-    message_reference = RecoveryActor.ref("one").run
+    message_reference = RecoveryActor.ref("one").async(:run)
     message = SolidObjects::Message.find(message_reference.id)
     instance = message.instance
     dead_process = create_process(last_heartbeat_at: 2.minutes.ago)
@@ -29,6 +29,7 @@ class ProcessLifecycleTest < ActiveSupport::TestCase
       message:,
       instance:,
       process_id: dead_process.id,
+      activation_token: lease.activation_token,
       activation_generation: lease.generation,
       claimed_at: Time.current
     )
@@ -47,7 +48,7 @@ class ProcessLifecycleTest < ActiveSupport::TestCase
   end
 
   test "stop releases cached activations and records graceful shutdown" do
-    RecoveryActor.ref("one").run
+    RecoveryActor.ref("one").async(:run)
     worker = SolidObjects::Worker.new
 
     worker.run_until_idle
@@ -58,6 +59,7 @@ class ProcessLifecycleTest < ActiveSupport::TestCase
     worker.stop
 
     assert_nil instance.reload.activation_owner_id
+    assert_nil instance.activation_token
     assert_equal "stopped", process_record.reload.shutdown_state
     assert process_record.shutdown_requested_at
     assert process_record.stopped_at
@@ -78,6 +80,7 @@ class ProcessLifecycleTest < ActiveSupport::TestCase
     process_registry.stop
 
     assert_nil instance.reload.activation_owner_id
+    assert_nil instance.activation_token
     assert_equal "stopped", process_record.reload.shutdown_state
   end
 

@@ -2,35 +2,39 @@
 
 module SolidObjects
   class Lease
-    # @rbs (instance: Instance, owner_id: String, now: Time, ?duration: Numeric, database_adapter: DatabaseAdapter) -> Lease?
-    def self.claim: (instance: Instance, owner_id: String, now: Time, database_adapter: DatabaseAdapter, ?duration: Numeric) -> Lease?
+    # @rbs (instance: Instance, owner_id: String, activation_token: String, now: Time, ?duration: Numeric, database_adapter: DatabaseAdapter) -> Lease?
+    def self.claim: (instance: Instance, owner_id: String, activation_token: String, now: Time, database_adapter: DatabaseAdapter, ?duration: Numeric) -> Lease?
 
-    # @rbs (instance_id: Integer, owner_id: String, ?duration: Numeric, ?database_adapter: DatabaseAdapter) -> Lease?
-    def self.acquire: (instance_id: Integer, owner_id: String, ?duration: Numeric, ?database_adapter: DatabaseAdapter) -> Lease?
+    # @rbs (instance_id: Integer, owner_id: String, ?activation_token: String, ?duration: Numeric, ?database_adapter: DatabaseAdapter) -> Lease?
+    def self.acquire: (instance_id: Integer, owner_id: String, ?activation_token: String, ?duration: Numeric, ?database_adapter: DatabaseAdapter) -> Lease?
 
     # @rbs (Instance, String, Time) -> bool
     private def self.held_by_another_live_owner?: (Instance, String, Time) -> bool
 
-    @instance_id: Integer
-
-    @owner_id: String
-
-    @generation: Integer
+    @database_adapter: DatabaseAdapter
 
     @expires_at: Time
 
-    @database_adapter: DatabaseAdapter
+    @generation: Integer
+
+    @activation_token: String
+
+    @owner_id: String
+
+    @instance_id: Integer
 
     attr_reader instance_id: untyped
 
     attr_reader owner_id: untyped
 
+    attr_reader activation_token: untyped
+
     attr_reader generation: untyped
 
     attr_reader expires_at: untyped
 
-    # @rbs (instance_id: Integer, owner_id: String, generation: Integer, expires_at: Time, database_adapter: DatabaseAdapter) -> void
-    def initialize: (instance_id: Integer, owner_id: String, generation: Integer, expires_at: Time, database_adapter: DatabaseAdapter) -> void
+    # @rbs (instance_id: Integer, owner_id: String, activation_token: String, generation: Integer, expires_at: Time, database_adapter: DatabaseAdapter) -> void
+    def initialize: (instance_id: Integer, owner_id: String, activation_token: String, generation: Integer, expires_at: Time, database_adapter: DatabaseAdapter) -> void
 
     # @rbs (?duration: Numeric) -> Lease
     def renew: (?duration: Numeric) -> Lease

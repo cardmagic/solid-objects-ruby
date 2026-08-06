@@ -20,7 +20,7 @@ module SolidObjects
 
     before_validation :supply_defaults
 
-    validates :message_kind, inclusion: { in: %w[tell ask internal] }
+    validates :message_kind, inclusion: { in: %w[async sync internal] }
 
     # @rbs () -> bool
     def ready?
@@ -35,6 +35,11 @@ module SolidObjects
     # @rbs () -> bool
     def completed?
       completed_at.present?
+    end
+
+    # @rbs () -> bool
+    def rejected?
+      rejected_at.present?
     end
 
     # @rbs () -> bool

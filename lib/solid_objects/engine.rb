@@ -21,6 +21,7 @@ module SolidObjects
 
     initializer "solid_objects.helpers" do
       ActiveSupport.on_load(:action_view) do
+        require_relative "../../app/helpers/solid_objects/actor_helper"
         include SolidObjects::ActorHelper
       end
     end

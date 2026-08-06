@@ -34,7 +34,7 @@ This is a port of the programming model, not Cloudflare's edge runtime or
 platform. Read the conceptual overview at [solidobjects.dev](https://solidobjects.dev/)
 and the exact Rails guarantees in [Correctness and delivery semantics](docs/correctness.md).
 
-Version 0.1 is an early release. Its correctness core is implemented and tested,
+Version 0.2 is an early release. Its correctness core is implemented and tested,
 but the project does not yet claim production readiness. See
 [Status](#status) and the [roadmap](docs/roadmap.md).
 
@@ -45,7 +45,7 @@ but the project does not yet claim production readiness. See
 - [Installation](#installation)
 - [Defining an actor](#defining-an-actor)
 - [Actor identity](#actor-identity)
-- [Messages and queries](#messages-and-queries)
+- [Invoking an object](#invoking-an-object)
 - [Effects](#effects)
 - [Reminders](#reminders)
 - [Destroying an object](#destroying-an-object)
@@ -171,7 +171,7 @@ refresh from current actor state.
 `cart.component(:summary)` supports initial rendering of
 `actors/shopping_cart/_summary`. Durable live component replacement and
 Turbo append actions are roadmap work; observable replacement is the live path
-implemented in 0.1.
+implemented in 0.2.
 
 Reactive views require `turbo-rails` and a working Action Cable adapter in the
 host application. They are optional; the actor runtime itself does not depend
@@ -206,7 +206,8 @@ end
 
 Knowledge of an actor ID or signed stream token is never authorization.
 
-Start the runtime:
+Start the runtime for asynchronous messages, effects, reminders, and
+broadcasts:
 
 ```bash
 bundle exec solid_objects start
@@ -251,18 +252,20 @@ declared on the actor are durable message handlers. They can use `items`,
 `self.checkout_status = "pending"`, or the lower-level `state` object. Declare
 helper methods as private or protected so they are not exposed as messages.
 
-Attributes also become ordered read queries on a reference. Declared messages
-become asynchronous methods:
+Attributes also become ordered read queries on a reference. Public actor
+methods and attribute readers are synchronous caller-assisted invocations:
 
 ```ruby
 cart = ShoppingCart.ref("alice")
-message = cart.add_item(product_id: "shirt-123", quantity: 2)
+cart.add_item(product_id: "shirt-123", quantity: 2)
 items = cart.items
 ```
 
-`message` is a `SolidObjects::MessageReference`. `items` is a deeply frozen
-JSON snapshot; mutating it cannot bypass the actor mailbox. State changes must
-go through public actor message methods.
+Use `cart.async(:add_item, product_id: "shirt-123", quantity: 2)` to enqueue
+without waiting; that call returns a `SolidObjects::MessageReference`. `items`
+is a deeply frozen JSON snapshot, so mutating it cannot bypass the actor
+mailbox. State changes must go through public actor methods or explicit
+`async`.
 
 State, arguments, results, effects, and reminder arguments accept
 JSON-compatible values. Solid Objects never deserializes Ruby `Marshal` data.
@@ -310,7 +313,7 @@ end
 Actor types resolve only through the explicit registry. Solid Objects never
 constantizes a type supplied by a client.
 
-## Messages and queries
+## Invoking an object
 
 As with a Durable Object stub, declared actor operations are available directly
 on a reference:
@@ -325,24 +328,27 @@ class Counter < SolidObjects::Actor
 end
 
 counter = Counter.ref("global")
-message = counter.increment(amount: 5)
+value = counter.increment(amount: 5)
 value = counter.value
 ```
 
-Public actor methods are messages and become asynchronous syntax over `tell`,
-returning a durable `MessageReference`. Declared queries and attribute readers
-are synchronous syntax over `ask`. Unlike Cloudflare RPC, the initial `ask`
-implementation waits by polling the durable database row.
-The `message(:name) { ... }` DSL remains available for dynamic definitions.
-The explicit `tell` and `ask` forms remain available for dynamic operation
-names or names that collide with Ruby or reference methods.
+Like RPC on a Durable Object stub, a direct call is synchronous from the
+caller's perspective. Solid Objects first durably enqueues the invocation, then
+executes that actor locally when its fenced activation is available. It returns
+the committed, deeply frozen result. Earlier mailbox entries still run first,
+and a remote worker may win the activation without changing the result
+semantics.
 
-### `tell`
+The `message(:name) { ... }` and `query(:name) { ... }` DSLs remain available
+for dynamic definitions.
 
-`tell` durably enqueues work and immediately returns a message reference:
+### `async`
+
+Use `async` for durable fire-and-forget work. It returns a
+`MessageReference` immediately and leaves execution to the worker fleet:
 
 ```ruby
-message = order.tell(
+message = order.async(
   :submit,
   idempotency_key: "submit-order-123"
 )
@@ -351,23 +357,44 @@ message = order.tell(
 Use `available_at:` to spread bulk work or delay one message:
 
 ```ruby
-order.tell(:evaluate, available_at: 10.minutes.from_now)
+order.async(:evaluate, available_at: 10.minutes.from_now)
 ```
 
-### `ask`
+### `sync`
 
-`ask` durably enqueues a query or message and waits for its result:
+Use explicit `sync` when the operation name is dynamic or collides with a
+reference method:
 
 ```ruby
-status = order.ask(:status, timeout: 5.seconds)
+status = order.sync(:status, timeout: 5.seconds)
 ```
 
-The initial cross-process implementation polls the durable message row. It is
-intended for background callers and control paths, not latency-sensitive HTTP
-request handling. A timeout does not cancel the actor message.
+Direct calls and `sync` use the same caller-assisted execution path. A healthy
+actor normally needs no worker round trip, making this path suitable for HTTP
+and MCP request/response boundaries when the handler itself fits the
+application's latency budget. If another process owns the activation, the
+caller waits for the durable result using wake-up hints with bounded database
+polling as the fallback. A timeout never cancels the durable invocation.
 
-Actor code cannot call `ask`; synchronous actor-to-actor waits can deadlock in
-cycles. Use `tell` or `send_to` and a result message.
+Actor code cannot use direct calls or `sync` on another actor; synchronous
+actor-to-actor waits can deadlock in cycles. Use `async` or `send_to` and a
+result message.
+
+### Domain rejection
+
+Reject invalid input without retrying or creating a dead letter:
+
+```ruby
+def submit(response:)
+  reject :validation_failed, "Response is not valid" unless valid?(response)
+
+  self.response = response
+end
+```
+
+The caller receives `SolidObjects::Rejected` with a stable code, message, and
+JSON-compatible details. The rejected message remains durable for audit, actor
+state is rolled back, and no later mailbox turn is blocked.
 
 ### Redelivery
 
@@ -445,7 +472,7 @@ enqueue each one.
 
 Self-scheduling actors should also have a low-frequency application reconciler.
 It may read `SolidObjects::Instance.states_for`, `.without_pending_work`, and
-`.orphaned`, but every repair must go through `tell`. Never bulk-update actor
+`.orphaned`, but every repair must go through `async`. Never bulk-update actor
 state around the lease and fencing checks.
 
 ## Destroying an object
@@ -514,7 +541,7 @@ Important defaults:
 | Setting | Default |
 | --- | ---: |
 | `polling_interval` | 0.1 seconds |
-| `ask_polling_interval` | 0.05 seconds |
+| `sync_polling_interval` | 0.05 seconds |
 | `lease_duration` | 30 seconds |
 | `lease_renewal_interval` | 10 seconds |
 | `idle_deactivation_timeout` | 30 seconds |
@@ -633,7 +660,7 @@ Solid Objects does not promise:
 - global order across actors;
 - distributed transactions;
 - bounded end-to-end latency;
-- cancellation when an `ask` caller times out; or
+- cancellation when a synchronous caller times out; or
 - that a lease prevents stale Ruby code from continuing to run.
 
 The fencing generation prevents stale code from committing.
@@ -700,15 +727,18 @@ See the [development guide](docs/development.md) and
 
 ## Status
 
-Implemented and tested in 0.1:
+Implemented and tested in 0.2:
 
 - Rails engine, install generator, migrations, and `solid_objects` executable;
 - actor registry, references, JSON state, and state migrations;
+- direct synchronous actor RPC, explicit `sync`, and durable `async`;
 - durable message history plus ready and claimed membership tables;
 - concurrent sequence allocation and actor creation;
-- activation leases, renewal, fencing generations, and stale-write rejection;
+- activation leases, per-activation tokens, fencing generations, and
+  stale-write rejection;
 - bounded activation passes, idle activation cache, and hot-actor fairness;
-- retries, strict poison ordering, dead letters, and retry tooling;
+- retries, terminal domain rejection, strict poison ordering, dead letters,
+  and retry tooling;
 - transactional effects and asynchronous actor-to-actor messages;
 - one-shot and recurring per-actor reminders;
 - authorized actor destruction with fenced stale-write rejection and cascading

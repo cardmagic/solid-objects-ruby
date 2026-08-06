@@ -8,8 +8,9 @@ migrations load. No partial indexes are used.
 ### `instances`
 
 One row per `(actor_type, actor_id)`. Stores JSON state, state version,
-next-message sequence, activation owner/expiration/generation, pause state, and
-lifecycle timestamps.
+next-message sequence, activation owner/token/expiration/generation, pause
+state, and lifecycle timestamps. The owner/token pairing is constrained so one
+process row cannot make two concurrent activations appear identical.
 
 Deleting an instance is the actor-incarnation boundary. Foreign keys cascade
 the delete through messages, ready and claimed memberships, reminders, effects,
@@ -27,14 +28,17 @@ Indexes:
 
 Durable immutable invocation identity and arguments plus sequence, attempt
 count, request/idempotency IDs, result/error, requested availability, and
-execution timestamps. It intentionally has no status column.
+execution timestamps. A terminal domain rejection stores a structured
+code/message/details document and rejection time. The table intentionally has
+no status column.
 
 Indexes:
 
 - unique instance/sequence and actor identity/sequence: mailbox order;
-- unique request ID: ask lookup;
+- unique request ID: synchronous result lookup;
 - unique instance/idempotency key: deduplicated enqueue;
-- completion/ID: bounded retention cleanup.
+- completion/ID: bounded retention cleanup;
+- rejection/ID: bounded rejection inspection and cleanup.
 
 ### `ready_messages`
 
@@ -50,7 +54,8 @@ Indexes:
 ### `claimed_messages`
 
 Small hot membership table for one message currently owned by an activation.
-It records process UUID, activation generation, and claim time.
+It records process UUID, unique activation token, activation generation, and
+claim time.
 
 Indexes:
 
@@ -108,4 +113,7 @@ The public `reference.destroy` operation locks the instance row before deleting
 it. Every actor-owned table has a cascading foreign key either directly to the
 instance or through its message row. No application-side bulk delete can leave
 an executable orphan. Process registry rows are not actor-owned and remain
-available for worker lifecycle accounting.
+available for worker lifecycle accounting. Activation-owner foreign keys use
+restrictive deletion so the owner/token check remains enforceable on MySQL;
+runtime deregistration clears leases and claims before a process row can be
+pruned.
