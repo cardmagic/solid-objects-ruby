@@ -3,21 +3,23 @@
 require_relative "lib/solid_objects/version"
 
 Gem::Specification.new do |spec|
+  repository_url = "https://github.com/cardmagic/solid_objects"
+
   spec.name = "solid_objects"
   spec.version = SolidObjects::VERSION
   spec.authors = [ "Lucas Carlson" ]
-  spec.summary = "Database-backed virtual actors for Rails"
-  spec.description = "A Rails-native virtual actor runtime with durable state, ordered mailboxes, fenced activation leases, reminders, transactional effects, and reactive views. It runs on MySQL, PostgreSQL, and SQLite without requiring Redis."
-  spec.homepage = "https://github.com/cardmagic/solid_objects"
+  spec.summary = "Cloudflare Durable Objects, ported to Rails"
+  spec.description = "The Cloudflare Durable Objects programming model for Rails: addressable objects with durable state, ordered mailboxes, fenced activation, per-object alarms, transactional effects, and reactive ERB. It runs on MySQL, PostgreSQL, and SQLite without requiring Redis."
+  spec.homepage = "https://solidobjects.dev"
   spec.license = "MIT"
   spec.metadata = {
     "allowed_push_host" => "https://rubygems.org",
-    "bug_tracker_uri" => "#{spec.homepage}/issues",
-    "changelog_uri" => "#{spec.homepage}/blob/main/CHANGELOG.md",
-    "documentation_uri" => "#{spec.homepage}#readme",
+    "bug_tracker_uri" => "#{repository_url}/issues",
+    "changelog_uri" => "#{repository_url}/blob/main/CHANGELOG.md",
+    "documentation_uri" => "#{repository_url}#readme",
     "homepage_uri" => spec.homepage,
     "rubygems_mfa_required" => "true",
-    "source_code_uri" => spec.homepage
+    "source_code_uri" => repository_url
   }
 
   spec.required_ruby_version = ">= 3.3"

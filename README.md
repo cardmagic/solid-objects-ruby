@@ -2,10 +2,14 @@
 
 [![CI](https://github.com/cardmagic/solid_objects/actions/workflows/ci.yml/badge.svg)](https://github.com/cardmagic/solid_objects/actions/workflows/ci.yml)
 
-Solid Objects is a database-backed virtual actor runtime for Rails. It gives
-domain entities stable addresses, durable JSON state, ordered mailboxes,
-fenced activation leases, per-entity reminders, and live ERB views using the
-MySQL, PostgreSQL, or SQLite database the application already has.
+**Cloudflare Durable Objects, ported to Rails.**
+
+Solid Objects brings the Durable Objects programming model—addressable objects,
+durable state, serialized turns, alarms, and live clients—to ordinary Rails
+applications. It runs on the MySQL, PostgreSQL, or SQLite database the
+application already has, following the database-backed operating model of the
+Solid family. No Redis, Cloudflare account, or separate actor service is
+required.
 
 ```ruby
 class Counter < SolidObjects::Actor
@@ -20,9 +24,15 @@ end
 Counter.ref("global").increment(amount: 5)
 ```
 
-`Counter / global` is a logical identity. Solid Objects activates it
-when work arrives, processes its messages one at a time, persists its state,
-and deactivates it when idle. Different identities can run concurrently.
+`Counter / global` is a logical identity. Like a Durable Object named with
+`idFromName`, it can be addressed from anywhere without first creating or
+locating a Ruby object. Solid Objects activates it when work arrives, commits
+its ordered turns one at a time, persists its state, and deactivates it when
+idle. Different identities can run concurrently.
+
+This is a port of the programming model, not Cloudflare's edge runtime or
+platform. Read the conceptual overview at [solidobjects.dev](https://solidobjects.dev/)
+and the exact Rails guarantees in [Correctness and delivery semantics](docs/correctness.md).
 
 Version 0.1 is an early release. Its correctness core is implemented and tested,
 but the project does not yet claim production readiness. See
@@ -30,7 +40,7 @@ but the project does not yet claim production readiness. See
 
 ## Table of contents
 
-- [Why Solid Objects](#why-solid-objects)
+- [Cloudflare Durable Objects for Rails](#cloudflare-durable-objects-for-rails)
 - [Reactive ERB](#reactive-erb)
 - [Installation](#installation)
 - [Defining an actor](#defining-an-actor)
@@ -38,6 +48,7 @@ but the project does not yet claim production readiness. See
 - [Messages and queries](#messages-and-queries)
 - [Effects](#effects)
 - [Reminders](#reminders)
+- [Destroying an object](#destroying-an-object)
 - [State migrations](#state-migrations)
 - [Configuration](#configuration)
 - [Workers and operations](#workers-and-operations)
@@ -49,11 +60,27 @@ but the project does not yet claim production readiness. See
 - [Status](#status)
 - [License](#license)
 
-## Why Solid Objects
+## Cloudflare Durable Objects for Rails
 
-Rails has excellent tools for jobs, records, and realtime transport. None of
-those primitives alone provides an addressable, stateful entity with an
-ordered durable mailbox. Solid Objects combines five properties:
+Cloudflare Durable Objects combine a name, durable storage, serialized
+execution, alarms, and live connections in one stateful object. Solid Objects
+maps those ideas into Rails:
+
+| Cloudflare Durable Objects | Solid Objects |
+| --- | --- |
+| Namespace plus `idFromName("id")` | Actor class plus `.ref("id")` |
+| RPC method on a stub | Public Ruby method on a reference |
+| Per-object transactional storage | Declared attributes in native JSON |
+| Single-threaded input handling | Ordered mailbox plus fenced activation |
+| Alarms API | Per-object `schedule` |
+| WebSockets | Reactive ERB over Action Cable and Turbo Streams |
+| Hibernation when idle | Idle activation deactivation |
+| Storage deletion | Authorized `reference.destroy` |
+| Cloudflare Workers platform | Your Rails processes and SQL database |
+
+Rails already has excellent tools for jobs, records, and realtime transport.
+None of those primitives alone provides this complete stateful-object shape.
+Solid Objects adds five capabilities:
 
 ### Ordered delivery per identity
 
@@ -79,17 +106,18 @@ membership.
 A stale worker may finish running Ruby code, but it cannot commit stale state,
 complete the message, or publish outbox entries.
 
-### Addressable identity with durable state
+### Addressable objects with durable state
 
 An actor is addressed by `(actor_type, actor_id)`, not by a process, thread, or
 database row ID. Code anywhere in the application can refer to the same logical
 cart, room, device, or workflow. Its JSON state survives worker restarts and
 idle deactivation.
 
-### Per-entity reminders
+### Per-object alarms
 
-Recurring job schedules are global task definitions. Actor reminders are
-durable alarms owned by one logical identity:
+Cloudflare Durable Objects give each object an alarm. Rails recurring schedules
+are normally global task definitions. Solid Objects ports per-object alarms as
+durable reminders owned by one logical identity:
 
 ```ruby
 def schedule_expiration
@@ -100,11 +128,12 @@ end
 When due, a reminder becomes an ordinary mailbox message and follows the same
 ordering, retry, lease, and fencing rules as every other turn.
 
-### Reactive ERB
+### Durable Objects that render themselves
 
-An actor observable can become a live Turbo target with one helper call. The
-actor commit and durable broadcast outbox are atomic, so a rolled-back state
-change cannot leak into the page.
+Cloudflare Durable Objects can coordinate WebSocket clients. Solid Objects adds
+a Rails-native extension: an actor observable becomes a live Turbo target with
+one helper call. The actor commit and durable broadcast outbox are atomic, so a
+rolled-back state change cannot leak into the page.
 
 ## Reactive ERB
 
@@ -133,11 +162,11 @@ and live Turbo replacements after committed actor turns. One `solid_object`
 block makes one Action Cable subscription for all values inside it, and Action
 Cable multiplexes subscriptions over the browser's WebSocket.
 
-No client-side state store, custom Stimulus controller, record callback, or
-one-WebSocket-per-value setup is required. Signed stream tokens protect
-integrity, an application policy authorizes every subscription, broadcasts are
-delivered from a durable outbox, and reconnecting clients refresh from current
-actor state.
+No client-side state store, custom Stimulus controller, channel class, manual
+broadcast, or one-WebSocket-per-value setup is required. Signed stream tokens
+protect integrity, an application policy authorizes every subscription,
+broadcasts are delivered from a durable outbox, and reconnecting clients
+refresh from current actor state.
 
 `cart.component(:summary)` supports initial rendering of
 `actors/shopping_cart/_summary`. Durable live component replacement and
@@ -162,13 +191,14 @@ bin/rails db:migrate
 
 The generated initializer denies all externally initiated operations. Replace
 the policy blocks with application-specific authorization before sending
-messages, querying state, subscribing to streams, or mounting administration
-routes:
+messages, querying state, destroying actors, subscribing to streams, or
+mounting administration routes:
 
 ```ruby
 SolidObjects.configure do |configuration|
   configuration.authorize_message = ->(**) { false }
   configuration.authorize_query = ->(**) { false }
+  configuration.authorize_destroy = ->(**) { false }
   configuration.authorize_subscription = ->(**) { false }
   configuration.authorize_administration = ->(**) { false }
 end
@@ -186,6 +216,8 @@ The engine uses the application's primary Active Record connection by default.
 See [Database support](#database-support) for a separate database configuration.
 
 ## Defining an actor
+
+The Durable Object class becomes an ordinary Ruby class:
 
 ```ruby
 class ShoppingCart < SolidObjects::Actor
@@ -213,9 +245,9 @@ class ShoppingCart < SolidObjects::Actor
 end
 ```
 
-Class-level `attribute` declarations define persisted actor state and generate
-actor instance readers and writers. Public instance methods declared on the
-actor are durable message handlers. They can use `items`,
+Class-level `attribute` declarations are the per-object durable storage schema
+and generate actor instance readers and writers. Public instance methods
+declared on the actor are durable message handlers. They can use `items`,
 `self.checkout_status = "pending"`, or the lower-level `state` object. Declare
 helper methods as private or protected so they are not exposed as messages.
 
@@ -259,7 +291,8 @@ actor_type + actor_id
 ```
 
 `actor_type` is inferred from the Ruby class name, so the normal API needs no
-declaration:
+declaration. The pair plays the role of a Durable Objects namespace and object
+name:
 
 ```ruby
 ShoppingCart.ref("alice")
@@ -279,7 +312,8 @@ constantizes a type supplied by a client.
 
 ## Messages and queries
 
-Declared actor operations are available directly on a reference:
+As with a Durable Object stub, declared actor operations are available directly
+on a reference:
 
 ```ruby
 class Counter < SolidObjects::Actor
@@ -295,8 +329,10 @@ message = counter.increment(amount: 5)
 value = counter.value
 ```
 
-Public actor methods are messages and become asynchronous syntax over `tell`.
-Declared queries and attribute readers are synchronous syntax over `ask`.
+Public actor methods are messages and become asynchronous syntax over `tell`,
+returning a durable `MessageReference`. Declared queries and attribute readers
+are synchronous syntax over `ask`. Unlike Cloudflare RPC, the initial `ask`
+implementation waits by polling the durable database row.
 The `message(:name) { ... }` DSL remains available for dynamic definitions.
 The explicit `tell` and `ask` forms remain available for dynamic operation
 names or names that collide with Ruby or reference methods.
@@ -351,7 +387,8 @@ External systems must also deduplicate effects using the stable effect ID.
 
 ## Effects
 
-Slow external I/O does not run inside an actor-state transaction. `emit`
+Cloudflare Durable Objects can call external services directly. Solid Objects
+does not hold a Rails database transaction across slow external I/O. `emit`
 creates a transactional outbox entry alongside state and message completion:
 
 ```ruby
@@ -394,7 +431,8 @@ before recording completion. The stable effect ID is the idempotency key.
 
 ## Reminders
 
-One-shot and recurring reminders are actor-owned database records:
+Reminders are Solid Objects' durable equivalent of the Durable Objects Alarms
+API. One-shot and recurring alarms are actor-owned database records:
 
 ```ruby
 def schedule_evaluation
@@ -409,6 +447,32 @@ Self-scheduling actors should also have a low-frequency application reconciler.
 It may read `SolidObjects::Instance.states_for`, `.without_pending_work`, and
 `.orphaned`, but every repair must go through `tell`. Never bulk-update actor
 state around the lease and fencing checks.
+
+## Destroying an object
+
+Destroy an actor incarnation through its reference:
+
+```ruby
+Counter.ref("global").destroy
+```
+
+`destroy` is synchronous and idempotent. It returns `true` when it deletes an
+existing incarnation and `false` when none exists. In one transaction it locks
+and deletes the actor instance; cascading foreign keys remove state, message
+history, ready and claimed mailbox rows, dead letters, reminders, effects, and
+broadcasts.
+
+Destruction has its own deny-by-default `authorize_destroy` policy and cannot be
+called synchronously from actor code. It does not run `on_deactivate`. A stale
+activation cannot commit after deletion because its fenced write targets the
+deleted instance primary key. Addressing the same type and ID later creates a
+fresh incarnation with default state and message sequence 1.
+
+Pending outboxes are deleted. An external effect, actor-to-actor delivery, or
+broadcast that already started cannot be recalled, but its stale completion
+cannot enqueue a callback or recreate the source actor. See
+[destruction semantics](docs/correctness.md#destruction) before using deletion
+as application workflow.
 
 ## State migrations
 
@@ -550,6 +614,10 @@ For one actor identity, messages are:
 
 Different actor identities may execute concurrently.
 
+Actor destruction is authorized, synchronous, and linearized by the instance
+row lock. It removes the current incarnation and all actor-owned durable rows.
+A later message may create a fresh incarnation of the same logical identity.
+
 The following writes are atomic for one successful turn:
 
 - actor state and state version;
@@ -575,8 +643,9 @@ contract and crash matrix.
 
 ## When to use it
 
-Solid Objects fits domains with many durable logical identities that need
-serialized state transitions:
+Solid Objects fits the same coordination-heavy domains that lead developers to
+Cloudflare Durable Objects, when the application belongs in Rails and its
+existing database:
 
 - shopping carts;
 - chat rooms and presence;
@@ -594,11 +663,11 @@ are clearer as normalized Active Record models and direct service objects.
 
 | Tool | What Solid Objects adds or changes |
 | --- | --- |
+| Cloudflare Durable Objects | Solid Objects ports the named, stateful, serialized-object model to Ruby and Rails. It uses your SQL database and Rails workers rather than Cloudflare's globally distributed serverless runtime, placement, and storage APIs. |
 | Active Job | Jobs are independent work units. Solid Objects adds addressable identity, durable state, explicit per-identity order, activation leases, and fencing. |
 | Solid Queue | Solid Queue is an excellent database backend for Active Job. Its concurrency controls cap overlap but do not guarantee order. Solid Objects provides actor mailboxes, state, fencing, per-identity reminders, and state-driven views. |
 | Action Cable | Cable transports transient realtime messages. Solid Objects owns durable state and work; Cable is an optional delivery path for committed observable projections. |
-| Cloudflare Durable Objects | Both serialize work by logical identity. Durable Objects are a managed edge runtime; Solid Objects runs Ruby actors in Rails and coordinates through the application's SQL database. |
-| Orleans | Orleans is the conceptual ancestor, with grains, reminders, and activation lifecycle. Solid Objects is a smaller Rails-native runtime and does not match Orleans clustering or placement breadth. |
+| Orleans | Orleans provides the virtual-actor lineage behind the model, with grains, reminders, and activation lifecycle. Solid Objects is a smaller Rails-native runtime and does not match Orleans clustering or placement breadth. |
 | Active Record service object | A service object runs directly against records. Solid Objects adds durable asynchronous ordering, retries, activation fencing, reminders, and outboxes at greater operational cost. |
 
 ## Development
@@ -642,6 +711,8 @@ Implemented and tested in 0.1:
 - retries, strict poison ordering, dead letters, and retry tooling;
 - transactional effects and asynchronous actor-to-actor messages;
 - one-shot and recurring per-actor reminders;
+- authorized actor destruction with fenced stale-write rejection and cascading
+  durable-work cleanup;
 - durable observable broadcasts and authorized Action Cable refresh;
 - process registration, heartbeats, cleanup, and graceful shutdown; and
 - SQLite, PostgreSQL, and MySQL integration tests.
@@ -666,3 +737,8 @@ Production readiness requires hardening and operational soak evidence. The
 
 Solid Objects is MIT Licensed by Lucas Carlson. See
 [MIT-LICENSE](MIT-LICENSE).
+
+Solid Objects is an independent open-source project. It is not affiliated with,
+sponsored by, or endorsed by Cloudflare, Inc. “Cloudflare” and “Durable
+Objects” are trademarks of Cloudflare, Inc. and are used here to identify the
+programming model this gem ports to Rails.
