@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1 - 2026-08-06
+
+- Add `solid_objects:doctor` for configuration, schema, policy, runtime, and
+  workerless synchronous round-trip verification.
+- Add onboarding guidance for fit decisions, worker requirements,
+  authorization, performance and row growth, retention, Sorbet, RuboCop, and
+  migrations from existing state stores.
+- Make the early-Action View engine boot regression explicit.
+
 ## 0.2.0 - 2026-08-06
 
 - Make direct actor methods synchronous Durable Object-style RPC.

@@ -7,6 +7,9 @@ destroying actors, subscribing to actor streams, and administration. The host
 application supplies the authenticated request or connection as
 `authorization_context`. All five hooks deny by default.
 
+The [authorization reference](authorization.md) lists the caller context and
+risk for every hook and includes a tenant-aware policy example.
+
 Method-style reference calls do not bypass these hooks. Public instance methods
 declared on an actor are part of its remotely addressable message surface and
 delegate to the authorized synchronous invocation path. Keep implementation

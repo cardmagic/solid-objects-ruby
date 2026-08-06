@@ -146,6 +146,32 @@ module SolidObjectsBenchmark
     end
 
     # @rbs () -> void
+    def adoption_latency
+      instance_count = SolidObjects::Instance.count
+      message_count = SolidObjects::Message.count
+
+      cold_elapsed = Benchmark.realtime do
+        CounterActor.ref("adoption-cold").increment
+      end
+
+      reference = CounterActor.ref("adoption-warm")
+      reference.increment
+      write_samples = Array.new(count) do
+        Benchmark.realtime { reference.increment }
+      end
+      read_samples = Array.new(count) do
+        Benchmark.realtime { reference.count }
+      end
+
+      puts "first cold call: #{milliseconds(cold_elapsed)}ms"
+      puts latency_summary("warm writes", write_samples)
+      puts latency_summary("ordered reads", read_samples)
+      puts "durable row growth: " \
+        "instances=+#{SolidObjects::Instance.count - instance_count}, " \
+        "messages=+#{SolidObjects::Message.count - message_count}"
+    end
+
+    # @rbs () -> void
     def activation_cache
       reference = CounterActor.ref("cache")
       count.times { reference.async(:increment) }
@@ -253,6 +279,15 @@ module SolidObjectsBenchmark
     # @rbs (Array[Float], Float) -> Float
     def percentile(samples, fraction)
       samples.fetch(((samples.length - 1) * fraction).ceil)
+    end
+
+    # @rbs (String, Array[Float]) -> String
+    def latency_summary(name, samples)
+      sorted = samples.sort
+      "#{name} #{samples.length} calls: " \
+        "median=#{milliseconds(percentile(sorted, 0.50))}ms " \
+        "min=#{milliseconds(sorted.first)}ms " \
+        "max=#{milliseconds(sorted.last)}ms"
     end
 
     # @rbs (Float) -> String

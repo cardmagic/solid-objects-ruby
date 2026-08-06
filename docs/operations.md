@@ -1,5 +1,20 @@
 # Operations guide
 
+## Installation verification
+
+Run the installation doctor after generating the initializer and migrating:
+
+```bash
+bin/rails solid_objects:doctor
+```
+
+It validates runtime configuration, required tables and columns, neutral policy
+posture, live runtime roles, and a real workerless synchronous actor round-trip.
+Engine migration timestamps are rewritten when copied into a host application,
+so the schema check compares the required shape instead of a fixed timestamp.
+Warnings such as an all-deny neutral policy do not fail the command because a
+context-aware production policy may correctly deny the probe.
+
 ## Runtime
 
 Start all configured roles:
@@ -114,9 +129,46 @@ Alert on:
 ## Retention and backups
 
 The schema has cleanup indexes, but automatic pruning commands are still
-roadmap work. Until implemented, define application-owned bounded deletes that
-preserve unfinished messages, dead letters under investigation, and synchronous
-results for the promised lookup period.
+roadmap work. Every actor call creates a durable message-history row, including
+queries and attribute reads. Choose a retention period from measured call
+volume, storage budget, audit needs, and the longest promised synchronous-result
+lookup window.
+
+An application-owned pruning job can start from this conservative relation:
+
+```ruby
+cutoff = 30.days.ago
+
+prunable_messages = SolidObjects::Message
+  .where(completed_at: ...cutoff)
+  .where.not(id: SolidObjects::ReadyMessage.select(:message_id))
+  .where.not(id: SolidObjects::ClaimedMessage.select(:message_id))
+  .where.not(id: SolidObjects::DeadLetter.select(:message_id))
+  .where.not(
+    id: SolidObjects::DeadLetter
+      .where.not(retried_message_id: nil)
+      .select(:retried_message_id)
+  )
+  .where.not(
+    id: SolidObjects::Effect
+      .where.not(status: "completed")
+      .select(:message_id)
+  )
+  .where.not(
+    id: SolidObjects::Broadcast
+      .where.not(status: "delivered")
+      .select(:message_id)
+  )
+
+prunable_messages.in_batches(of: 1_000).delete_all
+```
+
+Deleting a message cascades to its completed effects, delivered broadcasts, and
+other message-owned records. Test the exact relation against a restored
+production snapshot before scheduling it. Keep source and retried messages for
+dead letters under investigation, and never prune pending, processing, ready, or
+claimed work. Choose a cutoff longer than every `sync` timeout because a caller
+whose result row disappears can no longer observe that result.
 
 Back up actor tables with the same consistency guarantees as application data.
 Restoring only instances without their mailboxes/outboxes, or vice versa, can

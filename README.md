@@ -20,8 +20,13 @@ class Counter < SolidObjects::Actor
   end
 end
 
-# from anywhere in your app — addressed by name:
-Counter.ref("global").increment(amount: 5)
+# Synchronous caller-assisted RPC. No worker fleet is required.
+counter = Counter.ref("global")
+count = counter.increment(amount: 5)
+current_count = counter.value
+
+# Durable fire-and-forget delivery. A worker processes it later.
+message = counter.async(:increment, amount: 5)
 ```
 
 `Counter / global` is a logical identity. Like a Durable Object named with
@@ -29,6 +34,23 @@ Counter.ref("global").increment(amount: 5)
 locating a Ruby object. Solid Objects activates it when work arrives, commits
 its ordered turns one at a time, persists its state, and deactivates it when
 idle. Different identities can run concurrently.
+
+The invocation model is the first adoption decision:
+
+| Call | Returns | Worker fleet required? |
+| --- | --- | --- |
+| `counter.increment(amount: 5)` | Committed handler result | No |
+| `counter.sync(:increment, amount: 5)` | Committed handler result | No |
+| `counter.value` | Deeply frozen state snapshot | No |
+| `counter.async(:increment, amount: 5)` | `MessageReference` immediately | Yes |
+
+Direct methods and `sync` durably enqueue the call, then the Rails caller helps
+execute the actor through the same mailbox, lease, and fencing path as a
+worker. `async` only enqueues; a runtime process handles it later.
+
+Before adopting a latency-sensitive or high-volume surface, read
+[Is Solid Objects a good fit?](docs/fit.md) and the
+[measured performance and row-growth costs](docs/benchmarks.md).
 
 This is a port of the programming model, not Cloudflare's edge runtime or
 platform. Read the conceptual overview at [solidobjects.dev](https://solidobjects.dev/)
@@ -43,6 +65,7 @@ but the project does not yet claim production readiness. See
 - [Cloudflare Durable Objects for Rails](#cloudflare-durable-objects-for-rails)
 - [Reactive ERB](#reactive-erb)
 - [Installation](#installation)
+- [Worker requirements](#worker-requirements)
 - [Defining an actor](#defining-an-actor)
 - [Actor identity](#actor-identity)
 - [Invoking an object](#invoking-an-object)
@@ -187,10 +210,17 @@ Add the gem, install its initializer and migration, then migrate:
 bundle add solid_objects
 bin/rails generate solid_objects:install
 bin/rails db:migrate
+bin/rails solid_objects:doctor
 ```
 
-The generated initializer denies all externally initiated operations. Replace
-the policy blocks with application-specific authorization before sending
+The doctor validates configuration and required schema shape, reports
+authorization posture and live runtime roles, and completes a real synchronous
+actor round-trip without a worker. It checks required tables and columns instead
+of a copied migration timestamp, which the host application rewrites. It exits
+unsuccessfully when configuration, schema, or the round-trip is broken.
+
+The generated initializer is intentionally inert: all five policies deny by
+default. Replace them with application-specific authorization before sending
 messages, querying state, destroying actors, subscribing to streams, or
 mounting administration routes:
 
@@ -205,16 +235,62 @@ end
 ```
 
 Knowledge of an actor ID or signed stream token is never authorization.
+Read the [policy reference and tenant-aware example](docs/authorization.md)
+before opening a policy. Unconditionally allowing message and query calls is
+reasonable only for a controlled server-side pilot. Keep destroy,
+subscription, and administration denied until each has an authenticated
+caller.
 
-Start the runtime for asynchronous messages, effects, reminders, and
-broadcasts:
+The engine uses the application's primary Active Record connection by default.
+See [Database support](#database-support) for a separate database configuration.
+
+### Host application tooling
+
+Installed engine migrations are copied as
+`db/migrate/*_create_solid_objects_tables.solid_objects.rb`. If the host enables
+`Rails/CreateTableWithTimestamps`, exclude engine-owned migrations rather than
+editing their intentionally specialized hot tables:
+
+```yaml
+Rails/CreateTableWithTimestamps:
+  Exclude:
+    - "db/migrate/*.solid_objects.rb"
+```
+
+Solid Objects ships inline RBS signatures, not RBI files. Sorbet applications
+can generate the gem RBI with:
+
+```bash
+bundle exec tapioca gem solid_objects
+```
+
+## Worker requirements
+
+Synchronous actors can be adopted without adding a long-running process. Start
+the runtime when the feature introduces asynchronous delivery or outboxes:
+
+| Feature | Runtime roles required |
+| --- | --- |
+| Direct actor method or explicit `sync` | None; the caller executes it |
+| Attribute or declared query read | None; the caller executes it |
+| `destroy` | None |
+| `async` including delayed delivery | Actor worker |
+| One-shot or recurring `schedule` | Reminder scheduler and actor worker |
+| `emit` without an actor callback | Effect worker |
+| `emit` with success or failure callback | Effect worker and actor worker |
+| Actor-to-actor `async` or `send_to` | Effect worker and actor worker |
+| Observable Turbo updates | Broadcast worker, Action Cable, and the actor execution path |
+| Initial `solid_object` server render | No Solid Objects worker; normal Rails rendering |
+
+One command starts every Solid Objects role:
 
 ```bash
 bundle exec solid_objects start
 ```
 
-The engine uses the application's primary Active Record connection by default.
-See [Database support](#database-support) for a separate database configuration.
+Deploy and monitor that process before enabling any feature marked as requiring
+a runtime role. A missing worker never makes a durable `async` message
+disappear, but it leaves the message pending indefinitely.
 
 ## Defining an actor
 
@@ -395,6 +471,10 @@ end
 The caller receives `SolidObjects::Rejected` with a stable code, message, and
 JSON-compatible details. The rejected message remains durable for audit, actor
 state is rolled back, and no later mailbox turn is blocked.
+
+`Rejected#code` is a `String`, even when `reject` receives a symbol. Codes must
+match `\A[a-z][a-z0-9_]*\z`; invalid codes raise `ArgumentError` when the
+handler calls `reject`.
 
 ### Redelivery
 
@@ -685,6 +765,13 @@ existing database:
 Do not use it for stateless work, bulk pipelines, CPU-heavy computation,
 cross-actor transactions, slow network calls inside handlers, or domains that
 are clearer as normalized Active Record models and direct service objects.
+
+High-QPS request reads, rate-limit counters, impression pipelines, large JSON
+documents, and latency budgets that cannot tolerate several coordination
+transactions are explicit anti-patterns. Read the full
+[fit and anti-pattern guide](docs/fit.md) before migrating an existing
+surface, and use the [legacy-state migration cookbook](docs/migrating-existing-state.md)
+for staged cutovers.
 
 ## Comparisons
 

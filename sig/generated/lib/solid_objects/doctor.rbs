@@ -1,0 +1,111 @@
+# Generated from lib/solid_objects/doctor.rb with RBS::Inline
+
+module SolidObjects
+  class Doctor
+    class Check
+      @name: Symbol
+
+      @status: Symbol
+
+      @message: String
+
+      attr_reader name: untyped
+
+      attr_reader status: untyped
+
+      attr_reader message: untyped
+
+      # @rbs (name: Symbol, status: Symbol, message: String) -> void
+      def initialize: (name: Symbol, status: Symbol, message: String) -> void
+
+      # @rbs () -> bool
+      def failed?: () -> bool
+    end
+
+    class Report
+      @checks: Array[Check]
+
+      attr_reader checks: untyped
+
+      # @rbs (checks: Array[Check]) -> void
+      def initialize: (checks: Array[Check]) -> void
+
+      # @rbs () -> bool
+      def healthy?: () -> bool
+
+      # @rbs (Symbol) -> Check
+      def check: (Symbol) -> Check
+
+      # @rbs () -> String
+      def to_s: () -> String
+    end
+
+    EXPECTED_COLUMNS: untyped
+
+    class ProbeActor < Actor
+      # @rbs (value: String) -> String
+      def ping: (value: String) -> String
+    end
+
+    @configuration: Configuration
+
+    @connection: untyped
+
+    # @rbs (?connection: untyped, ?configuration: Configuration) -> void
+    def initialize: (?connection: untyped, ?configuration: Configuration) -> void
+
+    # @rbs () -> Report
+    def call: () -> Report
+
+    private
+
+    attr_reader connection: untyped
+
+    attr_reader configuration: untyped
+
+    # @rbs () -> Check
+    def check_configuration: () -> Check
+
+    # @rbs () -> Check
+    def check_schema: () -> Check
+
+    # @rbs () -> Check
+    def check_authorization: () -> Check
+
+    # @rbs () -> Check
+    def check_runtime: () -> Check
+
+    # @rbs () -> Check
+    def check_sync_round_trip: () -> Check
+
+    # @rbs (Check, Check) -> bool
+    def ready_for_round_trip?: (Check, Check) -> bool
+
+    # @rbs () -> Check
+    def skipped_runtime: () -> Check
+
+    # @rbs () -> Check
+    def skipped_round_trip: () -> Check
+
+    # @rbs () -> Hash[Symbol, Hash[Symbol, untyped]]
+    def policy_probes: () -> Hash[Symbol, Hash[Symbol, untyped]]
+
+    # @rbs () -> Array[String]
+    def expected_table_names: () -> Array[String]
+
+    # @rbs (Symbol, String) -> Check
+    def pass: (Symbol, String) -> Check
+
+    # @rbs (Symbol, String) -> Check
+    def info: (Symbol, String) -> Check
+
+    # @rbs (Symbol, String) -> Check
+    def warn_check: (Symbol, String) -> Check
+
+    # @rbs (Symbol, String) -> Check
+    def fail_check: (Symbol, String) -> Check
+
+    # @rbs (Symbol, String) -> Check
+    def skip: (Symbol, String) -> Check
+  end
+end

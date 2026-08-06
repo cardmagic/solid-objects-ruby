@@ -4,7 +4,7 @@ require "test_helper"
 require "open3"
 
 class EngineTest < ActiveSupport::TestCase
-  test "boots and eager loads inside a host Rails application" do
+  test "boots when Action View loads before the engine initializer" do
     command = [
       Gem.ruby,
       File.expand_path("../dummy/boot_check.rb", __dir__)

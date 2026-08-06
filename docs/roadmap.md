@@ -17,6 +17,8 @@
 - One-shot and recurring reminders with `:latest` or `:all` catch-up
 - Durable observable broadcast outbox and authorized Action Cable refresh
 - Reconciliation read APIs
+- Installation doctor, authorization reference, fit guide, and legacy-state
+  migration cookbook
 - SQLite, PostgreSQL, and MySQL integration suites
 - Inline RBS generation/validation, Steep, Standard Ruby, Solid Queue's exact
   RuboCop policy, and a warning-free Brakeman scan
@@ -50,7 +52,8 @@
    eviction.
 8. Expand security scanning and run compatibility CI across supported Rails and
    Ruby versions.
-9. Benchmark all workloads under documented hardware/database settings.
+9. Benchmark all workloads under documented hardware/database settings and
+   publish adapter-specific adoption measurements.
 
 No production-ready claim should be made until these hardening milestones have
 operational soak evidence.

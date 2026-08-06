@@ -8,5 +8,6 @@ Rails.application.eager_load!
 
 abort "engine is not isolated" unless SolidObjects::Engine.isolated?
 abort "record is not loaded" unless SolidObjects::Record < ActiveRecord::Base
+abort "actor helper is not installed" unless ActionView::Base < SolidObjects::ActorHelper
 
 puts "solid_objects_dummy_booted"
