@@ -8,12 +8,25 @@ module SolidObjects
 
     # @rbs () -> void
     def show
+      SolidObjects.instrument(:"component.refreshed") { |payload| refresh(payload) }
+    end
+
+    private
+
+    # @rbs (Hash[Symbol, untyped]) -> void
+    def refresh(payload)
       registration = ComponentRegistration.from_token(
         params.require(:token)
       )
+      payload.merge!(registration_payload(registration))
       requested_revision = requested_revision_key
       snapshot = ActorSnapshot.new(registration.reference)
-      return head :conflict if newer_than_snapshot?(requested_revision, snapshot)
+      payload[:instance_id] = snapshot.instance_id
+      payload[:revision] = snapshot.revision
+      if newer_than_snapshot?(requested_revision, snapshot)
+        payload[:outcome] = "conflict"
+        return head :conflict
+      end
 
       authorization_context = SolidObjects
         .configuration
@@ -26,18 +39,32 @@ module SolidObjects
         authorization_context:
       ).call
       response.headers["Cache-Control"] = "private, no-store"
+      payload[:outcome] = "rendered"
       render html: component_frame(registration, snapshot, rendered)
     rescue Unauthorized
+      payload[:outcome] = "unauthorized"
       head :forbidden
     rescue UnknownComponent
+      payload[:outcome] = "unknown_component"
       head :not_found
     rescue ActionController::ParameterMissing,
       ArgumentError,
       InvalidComponentToken
+      payload[:outcome] = "invalid_token"
       head :bad_request
     end
 
-    private
+    # @rbs (ComponentRegistration) -> Hash[Symbol, untyped]
+    def registration_payload(registration)
+      {
+        actor_type: registration.reference.actor_type,
+        actor_id: registration.reference.actor_id,
+        component_name: registration.component_name,
+        component_key: registration.component_key,
+        dependencies: registration.dependencies,
+        refresh_method: registration.refresh_method
+      }
+    end
 
     # @rbs () -> Array[Integer]
     def requested_revision_key

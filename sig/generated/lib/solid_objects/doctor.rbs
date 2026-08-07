@@ -78,6 +78,18 @@ module SolidObjects
     # @rbs () -> Check
     def check_sync_round_trip: () -> Check
 
+    # @rbs (String) -> Check
+    def run_sync_probe: (String) -> Check
+
+    # @rbs (actor_id: String, caller_process_id: String?) -> Array[String]
+    def remove_probe_records: (actor_id: String, caller_process_id: String?) -> Array[String]
+
+    # @rbs (String) -> bool
+    def delete_probe_actor: (String) -> bool
+
+    # @rbs (String) -> bool
+    def delete_probe_caller_process: (String) -> bool
+
     # @rbs (Check, Check) -> bool
     def ready_for_round_trip?: (Check, Check) -> bool
 

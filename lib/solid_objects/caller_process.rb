@@ -26,6 +26,14 @@ module SolidObjects
       end
     end
 
+    # @rbs () -> String?
+    def process_record_id
+      mutex.synchronize do
+        reset_after_fork
+        registry&.process_record&.id
+      end
+    end
+
     # @rbs () -> bool
     def stop
       mutex.synchronize do
@@ -33,6 +41,20 @@ module SolidObjects
         return false unless registry&.process_record
 
         registry.stop.tap { @registry = nil }
+      end
+    end
+
+    # @rbs (String) -> bool
+    def delete_process_record(process_id)
+      mutex.synchronize do
+        reset_after_fork
+        process_record = registry&.process_record
+        return false unless process_record&.id == process_id
+
+        registry.stop
+        process_record.delete
+        @registry = nil
+        true
       end
     end
 

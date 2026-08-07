@@ -21,6 +21,43 @@ class DoctorTest < ActiveSupport::TestCase
     assert_empty SolidObjects::Process.where(kind: "caller")
   end
 
+  test "preserves a caller process the application registered before the probe" do
+    existing_record = SolidObjects.caller_process.process_registry.process_record
+
+    report = SolidObjects::Doctor.new.call
+
+    assert_equal :pass, report.check(:sync_round_trip).status
+    assert SolidObjects::Process.exists?(id: existing_record.id),
+      "doctor deleted the caller process the application already registered"
+    assert_equal "running", existing_record.reload.shutdown_state
+    assert_empty SolidObjects::Instance.where(actor_type: "solid_objects_doctor")
+  ensure
+    SolidObjects.reset_caller_process!
+  end
+
+  test "reports a failed round trip instead of raising while the database stays locked" do
+    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    lock = hold_sqlite_write_lock
+
+    report = SolidObjects::Doctor.new.call
+
+    refute report.healthy?
+    assert_equal :fail, report.check(:sync_round_trip).status
+  ensure
+    release_sqlite_write_lock(lock) if lock
+  end
+
+  test "warns when probe records outlive a passing round trip" do
+    doctor = SolidObjects::Doctor.new
+    doctor.define_singleton_method(:delete_probe_actor) { |_actor_id| false }
+
+    report = doctor.call
+
+    assert report.healthy?
+    assert_equal :warn, report.check(:sync_round_trip).status
+    assert_match(/probe actor/, report.check(:sync_round_trip).message)
+  end
+
   test "warns when every policy denies a neutral context without changing policies" do
     deny = ->(**) { false }
     SolidObjects.configuration.authorize_message = deny
@@ -92,5 +129,37 @@ class DoctorTest < ActiveSupport::TestCase
     assert_includes output, "sync_round_trip"
   ensure
     Rake.application = original_application
+  end
+
+  private
+
+  def hold_sqlite_write_lock
+    locked = Queue.new
+    release = Queue.new
+    thread = Thread.new do
+      SolidObjects::Record.connection_pool.with_connection do
+        SolidObjects::Record.transaction do
+          SolidObjects::Process.create!(
+            id: SecureRandom.uuid,
+            kind: "lock-holder",
+            hostname: "test-host",
+            pid: ::Process.pid,
+            started_at: Time.current,
+            last_heartbeat_at: Time.current,
+            metadata: {}
+          )
+          locked << true
+          release.pop
+        end
+      end
+    end
+    Timeout.timeout(2) { locked.pop }
+    [ thread, release ]
+  end
+
+  def release_sqlite_write_lock(lock)
+    thread, release = lock
+    release << true
+    thread.join
   end
 end

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.1 - 2026-08-07
+
+- Keep the doctor round-trip probe from stopping and deleting a caller process
+  the application registered, which released its activations and unclaimed its
+  messages.
+- Report doctor probe cleanup failures as a failed or warned check instead of
+  raising a database lock error out of the command and leaking the probe
+  caller process.
+- Instrument component refreshes with actor identity, component name, key,
+  dependencies, refresh method, revision, and outcome, excluding locals.
+
 ## 0.5.0 - 2026-08-07
 
 - Add repeatable reactive components with signed string or integer keys and

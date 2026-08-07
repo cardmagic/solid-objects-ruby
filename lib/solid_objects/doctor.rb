@@ -215,11 +215,22 @@ module SolidObjects
     # @rbs () -> Check
     def check_sync_round_trip
       actor_id = SecureRandom.uuid
+      caller_process_id = SolidObjects.caller_process.process_record_id
+      check = run_sync_probe(actor_id)
+      leftovers = remove_probe_records(actor_id:, caller_process_id:)
+      return check if leftovers.empty? || check.failed?
+
+      warn_check(
+        :sync_round_trip,
+        "#{check.message}; could not remove the #{leftovers.join(" and ")}"
+      )
+    end
+
+    # @rbs (String) -> Check
+    def run_sync_probe(actor_id)
       value = SecureRandom.hex(8)
-      process_registry = SolidObjects.caller_process.process_registry
-      reference = ProbeActor.ref(actor_id)
       message_reference = Mailbox.new.enqueue(
-        reference,
+        ProbeActor.ref(actor_id),
         :ping,
         { value: },
         kind: "sync"
@@ -230,10 +241,33 @@ module SolidObjects
       pass(:sync_round_trip, "durable synchronous actor call completed without a worker")
     rescue => error
       fail_check(:sync_round_trip, "#{error.class}: #{error.message}")
-    ensure
-      Instance.where(actor_type: ProbeActor.actor_type, actor_id:).delete_all if actor_id
-      process_registry&.stop
-      process_registry&.process_record&.delete
+    end
+
+    # @rbs (actor_id: String, caller_process_id: String?) -> Array[String]
+    def remove_probe_records(actor_id:, caller_process_id:)
+      leftovers = []
+      leftovers << "probe actor" unless delete_probe_actor(actor_id)
+      probe_process_id = SolidObjects.caller_process.process_record_id
+      return leftovers if probe_process_id.nil? || probe_process_id == caller_process_id
+
+      leftovers << "probe caller process" unless delete_probe_caller_process(probe_process_id)
+      leftovers
+    end
+
+    # @rbs (String) -> bool
+    def delete_probe_actor(actor_id)
+      Instance.where(actor_type: ProbeActor.actor_type, actor_id:).delete_all
+      true
+    rescue
+      false
+    end
+
+    # @rbs (String) -> bool
+    def delete_probe_caller_process(process_id)
+      SolidObjects.caller_process.delete_process_record(process_id)
+      true
+    rescue
+      false
     end
 
     # @rbs (Check, Check) -> bool
