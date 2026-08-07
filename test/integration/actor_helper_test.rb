@@ -74,8 +74,10 @@ class ActorHelperTest < ActionView::TestCase
     assert_includes html, %(channel="SolidObjects::ActorChannel")
     assert_includes html, %(id="#{SolidObjects::DomIdentity.scope(reference)}")
     refute_includes html, reference.actor_id
+    assert_includes html, "data-token="
+    assert_nil html[/<turbo-cable-stream-source[^>]*\stoken="/]
 
-    token = html[/token="([^"]+)"/, 1]
+    token = html[/data-token="([^"]+)"/, 1]
     identity = SolidObjects::StreamToken.verify(token)
     assert_equal [ "items_count" ], identity.fetch("observables")
   end
@@ -110,8 +112,10 @@ class ActorHelperTest < ActionView::TestCase
     assert_includes html, "<li>Second</li>"
     refute_includes html, JSON.generate(reference.snapshot.items)
     assert_includes html, "data-components="
+    assert_includes html, "data-token="
+    assert_nil html[/<turbo-cable-stream-source[^>]*\stoken="/]
 
-    token = html[/token="([^"]+)"/, 1]
+    token = html[/data-token="([^"]+)"/, 1]
     identity = SolidObjects::StreamToken.verify(token)
     assert_empty identity.fetch("observables")
   end

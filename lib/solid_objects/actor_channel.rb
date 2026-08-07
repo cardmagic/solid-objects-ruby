@@ -1,6 +1,6 @@
 # rbs_inline: enabled
 
-require "action_cable/channel/base"
+require "action_cable"
 
 module SolidObjects
   class ActorChannel < ActionCable::Channel::Base
