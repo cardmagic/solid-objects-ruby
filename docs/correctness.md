@@ -129,7 +129,7 @@ explicit dependencies, initial instance ID and revision, and same-origin
 refresh path. The signature detects modification but grants no access. Initial
 rendering invokes query authorization, Cable separately invokes subscription
 authorization, and the cookie-bearing refresh request invokes query
-authorization again for every dependency.
+authorization again for the component name and every dependency.
 
 The actor stream token separately signs the scalar observable targets rendered
 into its scope. A component dependency that has no scalar target carries only

@@ -507,10 +507,11 @@ Turbo Frame whose source is the signed engine endpoint.
 
 The browser then makes an ordinary cookie-bearing HTTP request. The engine
 controller derives a request-specific context through
-`component_authorization_context`, calls `authorize_query` for every declared
-dependency, renders the host partial from a new committed snapshot, and returns
-`private, no-store` HTML. Subscribers to the same actor can therefore receive
-different HTML without sharing it through Cable or the database.
+`component_authorization_context`, calls `authorize_query` for the component
+name and every declared dependency, renders the host partial from a new
+committed snapshot, and returns `private, no-store` HTML. Subscribers to the
+same actor can therefore receive different HTML without sharing it through
+Cable or the database.
 
 Each channel subscription transmits current scalar replacements and compares
 each component's signed initial revision against the latest committed

@@ -25,7 +25,9 @@ module SolidObjects
 
     # @rbs () -> untyped
     def call
-      dependencies.each { |dependency| authorize_read!(dependency) }
+      [ component_name, *dependencies ].uniq.each do |authorization_name|
+        authorize_read!(authorization_name)
+      end
       actor = ComponentView.new(
         snapshot:,
         dependencies:,

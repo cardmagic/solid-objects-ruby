@@ -30,7 +30,8 @@ three boundaries:
 2. `ActorChannel` passes its authenticated `ActionCable::Connection` to
    `authorize_subscription`.
 3. `ComponentsController` resolves a fresh context for the cookie-bearing HTTP
-   request and calls `authorize_query` for every component dependency.
+   request and calls `authorize_query` for the component name and every
+   dependency.
 
 Configure the refresh resolver when the query policy expects a user or service
 principal rather than the engine controller:

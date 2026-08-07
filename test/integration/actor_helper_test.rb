@@ -52,6 +52,9 @@ class ActorHelperTest < ActionView::TestCase
             <p>Open</p>
           <% end %>
         ERB
+        "actors/actor_helper_test/cart_actor/_summary.html.erb" => <<~ERB,
+          <p><%= actor.items.length %> items</p>
+        ERB
         "actors/actor_helper_test/cart_actor/_leaky.html.erb" => <<~ERB
           <p><%= actor.status %></p>
         ERB
@@ -175,6 +178,26 @@ class ActorHelperTest < ActionView::TestCase
         actor.component(:items, observes: :items)
       end
     end
+  end
+
+  test "authorizes a reactive component name before its dependencies" do
+    authorization_calls = []
+    SolidObjects.configuration.authorize_query = lambda do |**arguments|
+      authorization_calls << arguments
+      arguments.fetch(:message_name) == "items"
+    end
+
+    assert_raises(SolidObjects::Unauthorized) do
+      solid_object(
+        CartActor.ref("alice"),
+        authorization_context: "alice"
+      ) do |actor|
+        actor.component(:summary, observes: :items)
+      end
+    end
+
+    assert_equal [ "summary" ],
+      authorization_calls.map { |arguments| arguments.fetch(:message_name) }
   end
 
   test "rejects observable reads omitted from component dependencies" do

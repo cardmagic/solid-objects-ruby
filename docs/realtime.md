@@ -61,8 +61,9 @@ approval.
 Initial scalar and component reads call `authorize_query` with the context
 passed to `solid_object`. The refresh controller resolves a new request context
 through `component_authorization_context`, then calls `authorize_query` again
-for every declared dependency. The default resolver supplies the engine
-controller; applications commonly resolve it to `Current.user`:
+for the component name and every declared dependency. The default resolver
+supplies the engine controller; applications commonly resolve it to
+`Current.user`:
 
 ```ruby
 configuration.component_authorization_context = ->(controller:) { Current.user }

@@ -247,9 +247,9 @@ Turbo Frame requests the component with normal cookies. Only scalar targets
 that the server rendered into this `solid_object` scope are signed into its
 stream token and receive value payloads; component-only dependencies do not
 send their values to the browser. The endpoint renders the latest committed
-snapshot, returns `private, no-store`, and reauthorizes every declared
-dependency. Two viewers can therefore receive different HTML for the same
-actor without sharing either projection.
+snapshot, returns `private, no-store`, and reauthorizes the component name plus
+every declared dependency. Two viewers can therefore receive different HTML
+for the same actor without sharing either projection.
 
 Reconnect compares the component's signed initial revision with the latest
 actor incarnation and state revision, then refreshes stale components. Cable

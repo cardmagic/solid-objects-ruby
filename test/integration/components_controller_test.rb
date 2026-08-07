@@ -139,6 +139,26 @@ class ComponentsControllerTest < ActionController::TestCase
     assert_empty @response.body
   end
 
+  test "reauthorizes the component name before refresh dependencies" do
+    reference = RoomActor.ref("general")
+    token = component_token(
+      reference,
+      component_name: "messages",
+      dependencies: %w[recent_messages]
+    )
+    authorization_calls = []
+    SolidObjects.configuration.authorize_query = lambda do |**arguments|
+      authorization_calls << arguments
+      arguments.fetch(:message_name) == "recent_messages"
+    end
+
+    render_component(token, viewer: "alice")
+
+    assert_response :forbidden
+    assert_equal [ "messages" ],
+      authorization_calls.map { |arguments| arguments.fetch(:message_name) }
+  end
+
   test "renders personalized HTML independently for each authorized request" do
     reference = RoomActor.ref("general")
     token = component_token(

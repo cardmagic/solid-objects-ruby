@@ -49,14 +49,8 @@ SolidObjects.configure do |configuration|
   configuration.authorize_subscription = ->(**) { false }
   configuration.authorize_administration = ->(**) { false }
 
-  # Reactive component refreshes run in the engine controller after a Cable
-  # invalidation. Resolve that controller to the same authenticated principal
-  # used by the initial view render. The query policy runs again for every
-  # declared component dependency:
-  #
-  # configuration.component_authorization_context = lambda do |controller:|
-  #   Current.user
-  # end
+  # Configure component_authorization_context to return the authenticated
+  # principal used for reactive component refreshes.
 
   # On hosts where shell access is already an authenticated administrative
   # boundary, this enables only gem commands that pass the CLI context:
