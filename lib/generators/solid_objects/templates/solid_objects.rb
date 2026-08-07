@@ -49,6 +49,9 @@ SolidObjects.configure do |configuration|
   configuration.authorize_subscription = ->(**) { false }
   configuration.authorize_administration = ->(**) { false }
 
+  # Configure component_authorization_context to return the authenticated
+  # principal used for reactive component refreshes.
+
   # On hosts where shell access is already an authenticated administrative
   # boundary, this enables only gem commands that pass the CLI context:
   #

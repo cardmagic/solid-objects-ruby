@@ -4,8 +4,6 @@ module SolidObjects
   class Configuration
     @table_name_prefix: String
 
-    @process_alive_threshold: Float
-
     @shutdown_timeout: Float
 
     @message_retention: Numeric
@@ -35,6 +33,10 @@ module SolidObjects
     @broadcast_adapter: Proc?
 
     @wake_up_adapter: untyped
+
+    @component_path_resolver: Proc?
+
+    @component_authorization_context: Proc
 
     @authorize_message: Proc
 
@@ -75,6 +77,8 @@ module SolidObjects
     @retry_delay: Proc
 
     @process_heartbeat_interval: Float
+
+    @process_alive_threshold: Float
 
     attr_accessor table_name_prefix: untyped
 
@@ -139,6 +143,10 @@ module SolidObjects
     attr_accessor broadcast_adapter: untyped
 
     attr_accessor wake_up_adapter: untyped
+
+    attr_accessor component_path_resolver: untyped
+
+    attr_accessor component_authorization_context: untyped
 
     attr_accessor authorize_message: untyped
 

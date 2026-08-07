@@ -36,6 +36,7 @@ class BroadcastsTest < ActiveSupport::TestCase
     assert_equal "pending", broadcast.status
     assert_equal 1, broadcast.state_version
     assert_equal 1, broadcast.activation_generation
+    assert_equal message_reference.sequence, broadcast.instance.state_revision
   ensure
     worker&.stop
   end
@@ -47,6 +48,7 @@ class BroadcastsTest < ActiveSupport::TestCase
     worker.run_once
 
     assert_empty SolidObjects::Broadcast.all
+    assert_equal 0, SolidObjects::Instance.first.state_revision
   ensure
     worker&.stop
   end

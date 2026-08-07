@@ -9,11 +9,20 @@ module SolidObjects
         view_context: self,
         authorization_context:
       )
-      subscription = tag.turbo_cable_stream_source(
-        channel: "SolidObjects::ActorChannel",
-        token: StreamToken.generate(reference)
-      )
       content = capture(actor, &block)
+      subscription_attributes = {
+        channel: "SolidObjects::ActorChannel",
+        token: StreamToken.generate(
+          reference,
+          observables: actor.scalar_observable_names
+        )
+      }
+      if actor.component_tokens.any?
+        subscription_attributes[:data] = {
+          components: JSON.generate(actor.component_tokens)
+        }
+      end
+      subscription = tag.turbo_cable_stream_source(**subscription_attributes)
 
       content_tag(
         :div,

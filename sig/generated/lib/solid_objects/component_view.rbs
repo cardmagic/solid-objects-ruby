@@ -1,0 +1,43 @@
+# Generated from lib/solid_objects/component_view.rb with RBS::Inline
+
+module SolidObjects
+  class ComponentView
+    @snapshot: ActorSnapshot
+
+    @dependencies: Array[String]
+
+    @authorization_context: untyped
+
+    attr_reader authorization_context: untyped
+
+    # @rbs (snapshot: ActorSnapshot, dependencies: Array[String], authorization_context: untyped) -> void
+    def initialize: (snapshot: ActorSnapshot, dependencies: Array[String], authorization_context: untyped) -> void
+
+    # @rbs () -> Reference
+    def reference: () -> Reference
+
+    # @rbs () -> String
+    def actor_id: () -> String
+
+    # @rbs () -> void
+    def state: () -> void
+
+    # @rbs (Symbol, *untyped, **untyped) -> untyped
+    def method_missing: (Symbol, *untyped, **untyped) -> untyped
+
+    # @rbs (Symbol, bool) -> bool
+    def respond_to_missing?: (Symbol, bool) -> bool
+
+    private
+
+    attr_reader snapshot: untyped
+
+    attr_reader dependencies: untyped
+
+    # @rbs (Symbol | String) -> bool
+    def observable?: (Symbol | String) -> bool
+
+    # @rbs (Symbol | String) -> untyped
+    def observable_value: (Symbol | String) -> untyped
+  end
+end

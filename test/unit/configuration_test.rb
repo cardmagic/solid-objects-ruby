@@ -23,6 +23,14 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert_equal 1_000, configuration.prune_batch_size
   end
 
+  test "uses the refresh controller as the default component authorization context" do
+    configuration = SolidObjects::Configuration.new
+    controller = Object.new
+
+    assert_same controller,
+      configuration.component_authorization_context.call(controller:)
+  end
+
   test "rejects invalid actor retention overrides" do
     configuration = SolidObjects::Configuration.new
     configuration.message_retention_by_actor_type = { "Counter" => 0.days }

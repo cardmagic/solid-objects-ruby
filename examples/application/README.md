@@ -10,7 +10,8 @@ key. The chat actor also gives every submitted chat message a caller-generated
 message ID and checks that ID in durable actor state, because actor handlers may
 be redelivered.
 
-The views demonstrate initial `solid_object` rendering and live observable
-replacement. Live cart-summary replacement and chat-message append are
-deliberately not shown as working behavior because component broadcasts and
-Turbo append intents remain roadmap items.
+The views demonstrate scalar observable replacement and a live chat-message
+ERB component. The chat component receives `recent_messages` as an ordinary
+Ruby array, rerenders its `<ol>` after committed changes, and refreshes through
+the authenticated host request context. Turbo append intents remain roadmap
+work.

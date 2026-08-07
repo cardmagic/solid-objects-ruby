@@ -5,33 +5,52 @@ require "active_support/message_verifier"
 module SolidObjects
   module StreamToken
     PURPOSE = "solid_objects.actor_stream"
+    MAXIMUM_OBSERVABLES = 100
 
     module_function
 
-    # @rbs (Reference) -> String
-    def generate(reference)
-      verifier.generate(
-        {
-          "actor_type" => reference.actor_type,
-          "actor_id" => reference.actor_id
-        },
-        purpose: PURPOSE
-      )
+    # @rbs (Reference, ?observables: Array[String]?) -> String
+    def generate(reference, observables: nil)
+      identity = {
+        "actor_type" => reference.actor_type,
+        "actor_id" => reference.actor_id
+      }
+      identity["observables"] = observables if observables
+      validate_identity!(identity)
+      verifier.generate(identity, purpose: PURPOSE)
     end
 
-    # @rbs (String) -> Hash[String, String]
+    # @rbs (String) -> Hash[String, untyped]
     def verify(token)
       identity = verifier.verified(token, purpose: PURPOSE)
+      validate_identity!(identity)
+    rescue ActiveSupport::MessageVerifier::InvalidSignature
+      raise InvalidStreamToken, "invalid actor stream token"
+    end
+
+    # @rbs (Hash[String, untyped]) -> Hash[String, untyped]
+    def validate_identity!(identity)
       unless identity.is_a?(Hash) &&
           identity["actor_type"].is_a?(String) &&
           identity["actor_id"].is_a?(String)
         raise InvalidStreamToken, "invalid actor stream token"
       end
 
-      identity
-    rescue ActiveSupport::MessageVerifier::InvalidSignature
-      raise InvalidStreamToken, "invalid actor stream token"
+      observables = identity["observables"]
+      return identity unless observables
+
+      valid = observables.is_a?(Array) &&
+        observables.length <= MAXIMUM_OBSERVABLES &&
+        observables.uniq.length == observables.length &&
+        observables.all? do |observable|
+          observable.is_a?(String) &&
+            observable.match?(/\A[a-zA-Z0-9_]+\z/)
+        end
+      return identity if valid
+
+      raise InvalidStreamToken, "invalid actor stream observables"
     end
+    private_class_method :validate_identity!
 
     # @rbs () -> ActiveSupport::MessageVerifier
     def verifier

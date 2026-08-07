@@ -120,7 +120,11 @@ instance first prevents a claimed reminder from recreating a destroyed actor.
 
 ### Broadcast worker
 
-The broadcast worker claims committed observable-change rows, renders idempotent Turbo replacements, broadcasts to a signed actor stream, and records delivery. Current actor state remains the reconnect source of truth.
+The broadcast worker claims committed observable-change rows, renders
+idempotent scalar Turbo replacements with component invalidation metadata,
+broadcasts to a signed actor stream, and records delivery. It never renders
+personalized component HTML. Current actor state remains the reconnect and
+request-time component source of truth.
 
 ### Process registry
 
@@ -288,13 +292,14 @@ Successful completion uses one database transaction:
 3. Lock the durable message and verify its claimed membership belongs to that owner, activation token, and generation.
 4. Execute registered same-database commit actions.
 5. Update native JSON state and state version.
-6. Store the completion timestamp and result on the durable message and delete claimed membership.
-7. Insert staged effects.
-8. Insert or update staged reminders.
-9. Insert staged actor-message outbox rows.
-10. Insert changed-observable broadcast rows.
-11. Update actor last-used time.
-12. Commit.
+6. Advance the actor state revision to the completed message sequence.
+7. Store the completion timestamp and result on the durable message and delete claimed membership.
+8. Insert staged effects.
+9. Insert or update staged reminders.
+10. Insert staged actor-message outbox rows.
+11. Insert changed-observable broadcast rows.
+12. Update actor last-used time.
+13. Commit.
 
 Any lease or message predicate failure raises `LostActivation` and rolls back every item. The stale worker discards its in-memory activation.
 
@@ -460,25 +465,61 @@ Large repairs use `async(..., available_at:)` to spread work over an application
 
 ## Realtime integration
 
-`solid_object` performs an authorized state read for initial rendering and emits:
+`solid_object` performs an authorized state read for initial rendering and
+emits:
 
 - A stable scope DOM ID derived from actor type and a SHA-256 digest of actor ID
 - One Turbo Cable subscription element for the actor
 - Stable child target IDs for values and components
 - A signed actor token used by the channel subscription
+- Signed component registrations containing a conventional component name,
+  explicit observable dependencies, the initial actor incarnation/revision,
+  and a same-origin engine refresh path
 
 ```erb
 <%= solid_object current_cart do |cart| %>
   Cart items: <%= cart.items_count %>
-  <%= cart.component :summary %>
+  <%= cart.component :summary, observes: %i[items checkout_status] %>
 <% end %>
 ```
 
 The signed token proves integrity, not authorization. `ActorChannel#subscribed` verifies the token, resolves the registered actor type, invokes `authorize_subscription`, and only then streams.
 
-Broadcast replacements happen after the actor transaction commits because only a committed broadcast outbox row can be delivered. Multiple values share the same Action Cable connection and one actor subscription.
+Scalar observable calls remain direct escaped Turbo replacements. A reactive
+component resolves only `actors/<actor_class>/_<component>`, receives its
+declared observables as frozen Ruby values, and cannot read raw state or a
+dependency it did not declare. A static initial-only component can still use a
+server-selected explicit partial; a reactive component cannot.
 
-Each channel subscription transmits current observable replacements before streaming future broadcasts, including after reconnect. Missing a broadcast therefore creates temporary staleness, not permanent divergence.
+Broadcast replacements happen after the actor transaction commits because only
+a committed broadcast outbox row can be delivered. Multiple scalar values and
+components share the same Action Cable connection and one actor subscription.
+One outbox row still exists per changed observable.
+
+The shared stream contains invalidation metadata and scalar HTML only for the
+scalar targets signed into that scope's stream token. Component-only
+dependencies do not send their values to the browser, and the stream never
+contains personalized component HTML. For each subscription, `ActorChannel`
+matches the changed observable to registered component dependencies. It
+coalesces multiple dependencies at the same message sequence and drops older
+revision pairs. A component invalidation replaces its stable target with a
+Turbo Frame whose source is the signed engine endpoint.
+
+The browser then makes an ordinary cookie-bearing HTTP request. The engine
+controller derives a request-specific context through
+`component_authorization_context`, calls `authorize_query` for the component
+name and every declared dependency, renders the host partial from a new
+committed snapshot, and returns `private, no-store` HTML. Subscribers to the
+same actor can therefore receive different HTML without sharing it through
+Cable or the database.
+
+Each channel subscription transmits current scalar replacements and compares
+each component's signed initial revision against the latest committed
+`(instance_id, state_revision)` pair, including after reconnect. Missing a
+broadcast therefore creates temporary staleness, not permanent divergence.
+The instance primary key distinguishes destroy-and-recreate incarnations.
+Replacing the full frame on each newer invalidation detaches an older in-flight
+frame, preventing its slower response from replacing the current generation.
 
 ## Authorization
 
@@ -496,6 +537,11 @@ carrier. Internal runtime deliveries carry a system context that is separately
 recognizable.
 
 No controller, channel, or administrative command treats an actor ID, message ID, request ID, or signed stream name as authorization.
+
+Initial component rendering, Cable subscription, and request-time component
+refresh deliberately use different authorization contexts. Signed component
+tokens constrain actor identity, component convention, dependencies, revision,
+and same-origin refresh path but never grant access.
 
 Actor IDs are bounded UTF-8 strings and never become constant names, SQL identifiers, file paths, or raw stream names.
 
@@ -639,7 +685,7 @@ PostgreSQL transaction-level advisory locks may be used for optional singleton m
 | Create actor and allocate message sequence | Instance insert/lock, sequence increment, durable message and ready-membership inserts |
 | Claim activation | Backend claim transaction, generation increment, owner and expiry |
 | Claim next message | Move ready membership to claimed membership conditioned on lease |
-| Successful message commit | Fenced state, durable message result, claimed-membership deletion, effects, reminders, actor outbox, broadcasts |
+| Successful message commit | Fenced state and monotonic revision, durable message result, claimed-membership deletion, effects, reminders, actor outbox, broadcasts |
 | Failed message attempt | Conditional error, claimed deletion, ready reinsertion or dead letter |
 | Renew or release lease | Conditional instance update |
 | Destroy actor | Instance identity lock and cascading delete of state, mailbox, reminders, and outboxes |
@@ -687,7 +733,7 @@ All backends use unique identity and sequence constraints, short transactions, a
 19. **How are state migrations performed?** Explicit one-step actor migrations on activation, persisted only with a successful fenced commit.
 20. **What happens during rolling deploys?** Newer state can make old workers incompatible; deploys must preserve backward readability or drain old workers.
 21. **How are subscriptions authorized?** Verify signed identity, resolve registered type, invoke host authorization, then stream.
-22. **How are lost broadcasts recovered?** Current-state refresh after reconnect; durable outbox retries server delivery.
+22. **How are lost broadcasts recovered?** Current-state scalar replacement and authorized component refresh after reconnect; durable outbox retries server delivery.
 23. **How are actor-to-actor cycles handled?** Synchronous actor waits are rejected; asynchronous request/result messages avoid call-stack cycles.
 24. **Which operations are transactional?** The transaction map above lists every atomic boundary. Actor code and external I/O are outside; registered same-pool commit actions execute inside the fenced state/message transaction.
 25. **Which guarantees depend on PostgreSQL?** None of the public semantics are PostgreSQL-only. PostgreSQL and MySQL depend on row-lock claiming; SQLite depends on serialized write transactions. Each backend's guarantee depends on its adapter-specific integration tests.

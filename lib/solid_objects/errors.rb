@@ -37,6 +37,18 @@ module SolidObjects
   class InvalidStreamToken < Error
   end
 
+  class InvalidComponentToken < Error
+  end
+
+  class UnknownComponent < Error
+  end
+
+  class UnknownComponentDependency < Error
+  end
+
+  class UnsupportedComponentRendering < Error
+  end
+
   class LostActivation < Error
   end
 

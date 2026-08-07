@@ -74,6 +74,7 @@ tested, but the project does not yet claim production readiness. See
 - [Cloudflare Durable Objects for Rails](#cloudflare-durable-objects-for-rails)
 - [Reactive ERB](#reactive-erb)
 - [Installation](#installation)
+- [Upgrading](#upgrading)
 - [Worker requirements](#worker-requirements)
 - [Defining an actor](#defining-an-actor)
 - [Actor identity](#actor-identity)
@@ -173,42 +174,105 @@ rolled-back state change cannot leak into the page.
 Define an observable:
 
 ```ruby
-class ShoppingCart < SolidObjects::Actor
-  attribute :items, default: -> { [] }
+class ChatRoom < SolidObjects::Actor
+  attribute :recent_messages, default: -> { [] }
+  attribute :status, default: "open"
 
-  observable :items_count do
-    items.sum { |item| item.fetch("quantity") }
+  observable :message_count do
+    recent_messages.length
   end
+
+  observable :recent_messages
+  observable :status
 end
 ```
 
-Render it:
+Scalar observables remain stable `<span>` targets:
 
 ```erb
-<%= solid_object current_cart do |cart| %>
-  Cart items: <%= cart.items_count %>
+<%= solid_object @room, authorization_context: current_user do |room| %>
+  Messages: <%= room.message_count %>
 <% end %>
 ```
 
-That template provides initial server rendering, a stable opaque DOM target,
-and live Turbo replacements after committed actor turns. One `solid_object`
-block makes one Action Cable subscription for all values inside it, and Action
-Cable multiplexes subscriptions over the browser's WebSocket.
+Reactive components rerender a host ERB partial when one of their explicit
+dependencies changes:
+
+```erb
+<%= solid_object @room, authorization_context: current_user do |room| %>
+  <%= room.component :messages, observes: :recent_messages %>
+  <%= room.component :presence, observes: %i[recent_messages status] %>
+<% end %>
+```
+
+`room.component(:messages)` resolves only
+`actors/chat_room/_messages`. Its partial receives `actor` and
+`authorization_context` locals:
+
+```erb
+<ul>
+  <% actor.recent_messages.each do |message| %>
+    <li><%= message.fetch("body") %></li>
+  <% end %>
+</ul>
+```
+
+Declared observables are deeply frozen ordinary Ruby values inside a
+component. Arrays support loops, hashes support ordinary lookup, conditionals
+work normally, and ERB still escapes user strings. A reactive component cannot
+read `actor.state`, access an undeclared observable, or choose a dynamic
+partial path.
+
+That template provides initial server rendering, stable opaque DOM targets,
+and live updates after committed actor turns. One `solid_object` block makes
+one Action Cable subscription for all scalar values and components inside it,
+and Action Cable multiplexes subscriptions over the browser's WebSocket.
 
 No client-side state store, custom Stimulus controller, channel class, manual
 broadcast, or one-WebSocket-per-value setup is required. Signed stream tokens
-protect integrity, an application policy authorizes every subscription,
-broadcasts are delivered from a durable outbox, and reconnecting clients
-refresh from current actor state.
+protect integrity, not access. Initial rendering authorizes with the
+`authorization_context` passed to `solid_object`; Cable authorizes with its
+connection; every component refresh authorizes again with a request-specific
+context:
 
-`cart.component(:summary)` supports initial rendering of
-`actors/shopping_cart/_summary`. Durable live component replacement and
-Turbo append actions are roadmap work; observable replacement is the live path
-implemented today.
+```ruby
+SolidObjects.configure do |configuration|
+  configuration.component_authorization_context = ->(controller:) { Current.user }
+end
+```
+
+The durable outbox stores one row per changed observable, never personalized
+HTML. Cable sends invalidation metadata over the shared actor stream, then a
+Turbo Frame requests the component with normal cookies. Only scalar targets
+that the server rendered into this `solid_object` scope are signed into its
+stream token and receive value payloads; component-only dependencies do not
+send their values to the browser. The endpoint renders the latest committed
+snapshot, returns `private, no-store`, and reauthorizes the component name plus
+every declared dependency. Two viewers can therefore receive different HTML
+for the same actor without sharing either projection.
+
+Reconnect compares the component's signed initial revision with the latest
+actor incarnation and state revision, then refreshes stale components. Cable
+coalesces several dependency changes from one actor turn into one component
+refresh and ignores older out-of-order invalidations. A newer invalidation
+replaces an in-flight frame, so its detached older response cannot overwrite
+newer state.
+
+Reactive components add no HTML to durable rows, but each affected component
+causes an authorized HTTP render. One actor turn still inserts one broadcast
+row per changed observable; several dependencies from that turn coalesce at
+the subscriber. Keep components bounded, declare only necessary dependencies,
+and use scalar observables for inexpensive single-value replacement.
 
 Reactive views require `turbo-rails` and a working Action Cable adapter in the
-host application. They are optional; the actor runtime itself does not depend
-on Turbo.
+host application. The Solid Objects engine must be mounted so its signed
+component endpoint is reachable. Reactive views are optional; the actor
+runtime itself does not depend on Turbo.
+
+```ruby
+# config/routes.rb
+mount SolidObjects::Engine => "/solid_objects"
+```
 
 ## Installation
 
@@ -274,6 +338,50 @@ can generate the gem RBI with:
 bundle exec tapioca gem solid_objects
 ```
 
+## Upgrading
+
+Review [CHANGELOG.md](CHANGELOG.md) for compatibility and deployment-order
+notes, then update the gem:
+
+```bash
+bundle update solid_objects
+```
+
+If the `Gemfile` pins an exact version, update that constraint first and run
+`bundle install`. Commit both `Gemfile.lock` and the copied Solid Objects
+migrations.
+
+Copy only migrations that the newer gem has added, migrate, and verify the
+installation:
+
+```bash
+bin/rails solid_objects:install:migrations
+bin/rails db:migrate
+bin/rails solid_objects:doctor
+```
+
+The migration task skips engine migrations already present in the application
+and gives new migrations host-specific timestamps. Inspect the resulting
+`db/migrate/*.solid_objects.rb` files before applying them. Do not rerun
+`generate solid_objects:install` during an upgrade because that also attempts
+to regenerate the application initializer.
+
+When Solid Objects uses a separate database configuration named `actors`, copy
+and run migrations through that database's configured migration path:
+
+```bash
+DATABASE=actors bin/rails solid_objects:install:migrations
+bin/rails db:migrate:actors
+bin/rails solid_objects:doctor
+```
+
+For production, back up the actor database and run new migrations before
+starting application or Solid Objects worker processes that require the new
+schema. Restart the web and Solid Objects worker fleet after the bundle and
+schema are current. For releases that change actor state versions, also follow
+the [state migration and rolling-deployment guide](docs/state-migrations.md);
+Rails schema migrations and actor state migrations are separate concerns.
+
 ## Worker requirements
 
 Synchronous actors can be adopted without adding a long-running process. Start
@@ -290,7 +398,7 @@ the runtime when the feature introduces asynchronous delivery or outboxes:
 | `emit` without an actor callback | Effect worker |
 | `emit` with success or failure callback | Effect worker and actor worker |
 | Actor-to-actor `async` or `send_to` | Effect worker and actor worker |
-| Observable Turbo updates | Broadcast worker, Action Cable, and the actor execution path |
+| Scalar or component Turbo updates | Broadcast worker, Action Cable, and the actor execution path |
 | Initial `solid_object` server render | No Solid Objects worker; normal Rails rendering |
 
 One command starts every Solid Objects role:
@@ -929,7 +1037,7 @@ See the [development guide](docs/development.md) and
 
 ## Status
 
-Implemented and tested in 0.3:
+Implemented and tested in 0.4:
 
 - Rails engine, install generator, migrations, and `solid_objects` executable;
 - actor registry, references, JSON state, and state migrations;
@@ -947,7 +1055,8 @@ Implemented and tested in 0.3:
 - one-shot and recurring per-actor reminders;
 - authorized actor destruction with fenced stale-write rejection and cascading
   durable-work cleanup;
-- durable observable broadcasts and authorized Action Cable refresh;
+- durable observable invalidations, scalar Turbo replacement, and authorized
+  request-time ERB component refresh;
 - process registration, heartbeats, caller shutdown, cleanup, and bounded
   message/process retention plus opt-in actor-instance expiration;
 - an opt-in Minitest helper for actor-state isolation and deterministic async
@@ -961,8 +1070,8 @@ Partially implemented:
   run periodic maintenance automatically;
 - cross-process wake-up uses polling; PostgreSQL notifications and optional
   Redis acceleration are not implemented;
-- live observable replacement works, while live component replacement and
-  Turbo append actions remain future work;
+- live observable and component replacement work, while Turbo append actions
+  remain future work;
 - local admission limits exist, but distributed rate limits and global
   admission control do not; and
 - administration views and pruning commands exist, but scheduled maintenance

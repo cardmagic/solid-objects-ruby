@@ -29,6 +29,16 @@ class SchemaConstraintsTest < ActiveSupport::TestCase
     assert_includes columns, "rejected_at"
   end
 
+  test "persists a monotonic actor state revision" do
+    column = ActiveRecord::Base.connection.columns("solid_objects_instances").find do |candidate|
+      candidate.name == "state_revision"
+    end
+
+    assert column
+    assert_equal 0, column.default.to_i
+    refute column.null
+  end
+
   test "uses only ordinary indexes for execution membership" do
     indexes = %w[
       solid_objects_ready_messages

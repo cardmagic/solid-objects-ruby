@@ -101,8 +101,8 @@ The following are atomic:
 - activation owner, expiration, and generation acquisition;
 - ready-to-claimed membership move and attempt increment;
 - state, state version, message result/completion, claimed deletion, effects,
-  same-database commit actions, reminders, outbound actor messages, and
-  observable broadcasts;
+  same-database commit actions, reminders, outbound actor messages, observable
+  broadcasts, and the monotonic actor state revision;
 - failed-attempt record plus ready reinsertion or dead letter;
 - effect completion plus its optional actor outcome message;
 - reminder occurrence enqueue plus reminder advancement; and
@@ -115,6 +115,32 @@ action is the only application-record write path inside the fenced commit, and
 it is available only when Solid Objects and `ActiveRecord::Base` share one
 connection pool. Commit actions must contain only bounded database work.
 External I/O belongs in the effect outbox.
+
+## Reactive components
+
+A successful fenced turn advances `instances.state_revision` to that message's
+per-actor sequence and inserts changed-observable broadcast rows in the same
+transaction. A rollback, retryable handler failure, or lost activation advances
+neither. Component HTML is not durable and is never placed on the shared actor
+stream.
+
+Each component token signs the actor identity, conventional component name,
+explicit dependencies, initial instance ID and revision, and same-origin
+refresh path. The signature detects modification but grants no access. Initial
+rendering invokes query authorization, Cable separately invokes subscription
+authorization, and the cookie-bearing refresh request invokes query
+authorization again for the component name and every dependency.
+
+The actor stream token separately signs the scalar observable targets rendered
+into its scope. A component dependency that has no scalar target carries only
+its name and revision over Cable, not its serialized value.
+
+Cable compares `(instance_id, state_revision)` pairs, coalesces dependencies
+changed by the same turn, and ignores an older pair after a newer one. A new
+invalidation replaces the whole Turbo Frame generation. A response owned by
+the detached older frame cannot overwrite the current frame. Reconnect
+compares the component's signed initial pair with the current instance row and
+requests the latest committed snapshot when stale.
 
 ## Synchronous invocation
 

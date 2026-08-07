@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - 2026-08-06
 
+- Add dependency-driven live ERB components with request-time authorization,
+  conventional partial resolution, revision fencing, refresh coalescing, and
+  reconnect convergence without broadcasting personalized HTML.
+- Persist a monotonic state revision for secure component refresh ordering.
 - Retry SQLite synchronous lock contention in Ruby so a native busy wait
   cannot starve the thread holding the database lock.
 - Allow maintainers to dispatch CI manually when a push webhook is dropped.

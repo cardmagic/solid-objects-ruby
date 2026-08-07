@@ -1,0 +1,40 @@
+# Generated from lib/solid_objects/component_subscriptions.rb with RBS::Inline
+
+module SolidObjects
+  class ComponentSubscriptions
+    MAXIMUM_COMPONENTS: ::Integer
+
+    MAXIMUM_SERIALIZED_BYTES: ::Integer
+
+    @registrations: Array[ComponentRegistration]
+
+    @revisions: Hash[String, Array[Integer]]
+
+    # @rbs (String?, reference: Reference) -> ComponentSubscriptions
+    def self.parse: (String?, reference: Reference) -> ComponentSubscriptions
+
+    # @rbs (Array[ComponentRegistration]) -> void
+    def initialize: (Array[ComponentRegistration]) -> void
+
+    # @rbs (Hash[String, untyped]) -> Array[String]
+    def refreshes_for: (Hash[String, untyped]) -> Array[String]
+
+    # @rbs (ActorSnapshot) -> Array[String]
+    def reconnect_refreshes: (ActorSnapshot) -> Array[String]
+
+    # @rbs (ComponentRegistration, Reference) -> void
+    private def self.validate_identity!: (ComponentRegistration, Reference) -> void
+
+    private
+
+    attr_reader registrations: untyped
+
+    attr_reader revisions: untyped
+
+    # @rbs (ComponentRegistration, Integer, Integer) -> String
+    def refresh: (ComponentRegistration, Integer, Integer) -> String
+
+    # @rbs (String, Integer, Integer) -> bool
+    def newer_revision?: (String, Integer, Integer) -> bool
+  end
+end

@@ -166,6 +166,9 @@ module SolidObjects
     # @rbs () -> Hash[String, untyped]
     def observable_values: () -> Hash[String, untyped]
 
+    # @rbs (Symbol | String) -> untyped
+    def observable_value: (Symbol | String) -> untyped
+
     # @rbs () -> void
     def activate: () -> void
 

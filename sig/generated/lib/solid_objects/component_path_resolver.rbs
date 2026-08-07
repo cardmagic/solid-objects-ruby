@@ -1,0 +1,13 @@
+# Generated from lib/solid_objects/component_path_resolver.rb with RBS::Inline
+
+module SolidObjects
+  class ComponentPathResolver
+    # @rbs (view_context: untyped) -> String
+    def call: (view_context: untyped) -> String
+
+    private
+
+    # @rbs () -> bool
+    def mounted?: () -> bool
+  end
+end

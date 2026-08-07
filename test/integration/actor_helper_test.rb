@@ -2,6 +2,7 @@
 
 require "database_test_helper"
 require "action_view/test_case"
+require "action_view/testing/resolvers"
 require_relative "../../app/helpers/solid_objects/actor_helper"
 
 class ActorHelperTest < ActionView::TestCase
@@ -11,15 +12,54 @@ class ActorHelperTest < ActionView::TestCase
     actor_type "helper-cart"
 
     attribute :items, default: -> { [] }
+    attribute :status, default: "open"
 
     observable :items_count do
       items.length
+    end
+
+    observable :items
+    observable :status
+
+    def replace_items(items:)
+      self.items = items
+    end
+
+    def close
+      self.status = "closed"
     end
   end
 
   setup do
     SolidObjects.configuration.stream_signing_secret = "test-stream-signing-secret"
+    SolidObjects.configuration.component_path_resolver = lambda do |view_context:|
+      "/solid_objects/components"
+    end
     CartActor.ensure_registered!
+    @controller.prepend_view_path(
+      ActionView::FixtureResolver.new(
+        "actors/actor_helper_test/cart_actor/_items.html.erb" => <<~ERB,
+          <ul>
+            <% actor.items.each do |item| %>
+              <li><%= item.fetch("name") %></li>
+            <% end %>
+          </ul>
+        ERB
+        "actors/actor_helper_test/cart_actor/_status.html.erb" => <<~ERB,
+          <% if actor.status == "closed" %>
+            <p>Closed</p>
+          <% else %>
+            <p>Open</p>
+          <% end %>
+        ERB
+        "actors/actor_helper_test/cart_actor/_summary.html.erb" => <<~ERB,
+          <p><%= actor.items.length %> items</p>
+        ERB
+        "actors/actor_helper_test/cart_actor/_leaky.html.erb" => <<~ERB
+          <p><%= actor.status %></p>
+        ERB
+      )
+    )
   end
 
   test "renders initial observable values with one actor subscription" do
@@ -34,6 +74,10 @@ class ActorHelperTest < ActionView::TestCase
     assert_includes html, %(channel="SolidObjects::ActorChannel")
     assert_includes html, %(id="#{SolidObjects::DomIdentity.scope(reference)}")
     refute_includes html, reference.actor_id
+
+    token = html[/token="([^"]+)"/, 1]
+    identity = SolidObjects::StreamToken.verify(token)
+    assert_equal [ "items_count" ], identity.fetch("observables")
   end
 
   test "authorizes initial actor state reads" do
@@ -46,5 +90,123 @@ class ActorHelperTest < ActionView::TestCase
 
   test "does not expose the old actor scope helper" do
     assert_not respond_to?(:actor_scope, true)
+  end
+
+  test "renders collection components as ordinary ERB values" do
+    reference = CartActor.ref("alice")
+    reference.replace_items(
+      items: [
+        { name: "<First>" },
+        { name: "Second" }
+      ]
+    )
+
+    html = solid_object(reference, authorization_context: "alice") do |actor|
+      actor.component(:items, observes: :items)
+    end
+
+    assert_includes html, "<turbo-frame"
+    assert_includes html, "<li>&lt;First&gt;</li>"
+    assert_includes html, "<li>Second</li>"
+    refute_includes html, JSON.generate(reference.snapshot.items)
+    assert_includes html, "data-components="
+
+    token = html[/token="([^"]+)"/, 1]
+    identity = SolidObjects::StreamToken.verify(token)
+    assert_empty identity.fetch("observables")
+  end
+
+  test "renders conditional components from declared dependencies" do
+    reference = CartActor.ref("alice")
+
+    open_html = solid_object(reference) do |actor|
+      actor.component(:status, observes: :status)
+    end
+    reference.close
+    closed_html = solid_object(reference) do |actor|
+      actor.component(:status, observes: :status)
+    end
+
+    assert_includes open_html, "<p>Open</p>"
+    assert_includes closed_html, "<p>Closed</p>"
+  end
+
+  test "rejects unknown component dependencies" do
+    error = assert_raises(SolidObjects::UnknownComponentDependency) do
+      solid_object(CartActor.ref("alice")) do |actor|
+        actor.component(:items, observes: :private_items)
+      end
+    end
+
+    assert_match(/private_items/, error.message)
+  end
+
+  test "rejects arbitrary partial paths for reactive components" do
+    assert_raises(ArgumentError) do
+      solid_object(CartActor.ref("alice")) do |actor|
+        actor.component(
+          :items,
+          observes: :items,
+          partial: "../../secrets"
+        )
+      end
+    end
+  end
+
+  test "authorizes initial component rendering with the view context" do
+    authorization_calls = []
+    SolidObjects.configuration.authorize_query = lambda do |**arguments|
+      authorization_calls << arguments
+      arguments.fetch(:authorization_context) == "alice"
+    end
+
+    html = solid_object(
+      CartActor.ref("alice"),
+      authorization_context: "alice"
+    ) do |actor|
+      actor.component(:items, observes: :items)
+    end
+
+    assert_includes html, "<turbo-frame"
+    assert_equal "items", authorization_calls.sole.fetch(:message_name)
+
+    assert_raises(SolidObjects::Unauthorized) do
+      solid_object(
+        CartActor.ref("alice"),
+        authorization_context: "mallory"
+      ) do |actor|
+        actor.component(:items, observes: :items)
+      end
+    end
+  end
+
+  test "authorizes a reactive component name before its dependencies" do
+    authorization_calls = []
+    SolidObjects.configuration.authorize_query = lambda do |**arguments|
+      authorization_calls << arguments
+      arguments.fetch(:message_name) == "items"
+    end
+
+    assert_raises(SolidObjects::Unauthorized) do
+      solid_object(
+        CartActor.ref("alice"),
+        authorization_context: "alice"
+      ) do |actor|
+        actor.component(:summary, observes: :items)
+      end
+    end
+
+    assert_equal [ "summary" ],
+      authorization_calls.map { |arguments| arguments.fetch(:message_name) }
+  end
+
+  test "rejects observable reads omitted from component dependencies" do
+    error = assert_raises(SolidObjects::UnknownComponentDependency) do
+      solid_object(CartActor.ref("alice")) do |actor|
+        actor.component(:leaky, observes: :items)
+      end
+    end
+
+    assert_match(/status/, error.message)
   end
 end

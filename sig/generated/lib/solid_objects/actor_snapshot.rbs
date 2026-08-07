@@ -8,11 +8,23 @@ module SolidObjects
 
     @actor: Actor
 
+    @instance_id: Integer
+
+    @revision: Integer
+
+    @observable_values: Hash[String, untyped]?
+
+    @observable_value_cache: Hash[String, untyped]
+
     attr_reader reference: untyped
 
     attr_reader actor_class: untyped
 
     attr_reader actor: untyped
+
+    attr_reader instance_id: untyped
+
+    attr_reader revision: untyped
 
     # @rbs (Reference) -> void
     def initialize: (Reference) -> void
@@ -20,7 +32,12 @@ module SolidObjects
     # @rbs () -> Hash[String, untyped]
     def observable_values: () -> Hash[String, untyped]
 
+    # @rbs (Symbol | String) -> untyped
+    def observable_value: (Symbol | String) -> untyped
+
     private
+
+    attr_reader instance: untyped
 
     # @rbs () -> Actor
     def build_actor: () -> Actor

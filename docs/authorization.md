@@ -10,7 +10,7 @@ intentionally inert until the host application defines its trust boundary.
 | Policy | Gates | Caller context | Risk if opened globally |
 | --- | --- | --- | --- |
 | `authorize_message` | Direct actor methods, explicit `sync` messages, and public `async` enqueue | Value passed as `authorization_context:`; often a user, service principal, or trusted internal marker | Anyone reaching the call site can mutate any known actor identity |
-| `authorize_query` | Attribute reads, declared queries, committed snapshots, observable reads, and component reads | Explicit call context or the Rails view context supplied by `solid_object` | Actor state can leak across users or tenants |
+| `authorize_query` | Attribute reads, declared queries, committed snapshots, scalar observable reads, initial component rendering, and every component refresh dependency | Explicit call context, the context passed to `solid_object`, or the request context resolved for a component refresh | Actor state or personalized projections can leak across users or tenants |
 | `authorize_destroy` | `reference.destroy` | Value passed as `authorization_context:` | Complete actor state, mailbox, reminders, and pending outboxes can be deleted |
 | `authorize_subscription` | Action Cable subscription to one actor stream | The `ActionCable::Connection` object | Clients can receive future observable updates for other actors |
 | `authorize_administration` | Engine administration controllers, process inspection/cleanup/pruning, message pruning, and dead-letter inspection/retry | Rails controller or `{ source: "cli" }` | Operational metadata, arguments, errors, deletion, and retries become exposed or mutable |
@@ -19,6 +19,43 @@ Waiting again through `MessageReference#wait` reauthorizes the stored
 invocation as a message or query. Internal reminder, effect-callback, and
 actor-to-actor deliveries come from
 already committed runtime rows and do not re-enter the public client policy.
+
+## Realtime authorization contexts
+
+Reactive components cross three Rails execution contexts and authorize at all
+three boundaries:
+
+1. `solid_object(..., authorization_context:)` uses the explicit Action View
+   render context for initial scalar and component reads.
+2. `ActorChannel` passes its authenticated `ActionCable::Connection` to
+   `authorize_subscription`.
+3. `ComponentsController` resolves a fresh context for the cookie-bearing HTTP
+   request and calls `authorize_query` for the component name and every
+   dependency.
+
+Configure the refresh resolver when the query policy expects a user or service
+principal rather than the engine controller:
+
+```ruby
+SolidObjects.configure do |configuration|
+  configuration.component_authorization_context = lambda do |controller:|
+    Current.user
+  end
+end
+```
+
+Authentication middleware must populate `Current.user` for the refresh
+request. Do not copy an Action View object or Cable connection into the signed
+token. Those objects are request-specific and the token provides integrity,
+not authorization.
+
+Component partials receive the resolved value as the
+`authorization_context` local, allowing two authorized viewers to render
+different projections. Responses use `Cache-Control: private, no-store`.
+Durable outbox rows and shared Cable messages never contain component HTML.
+The stream token also signs the scalar observable targets rendered into that
+specific scope. Component-only dependencies send invalidation metadata but not
+their state value to the browser.
 
 ## A tenant-aware policy
 

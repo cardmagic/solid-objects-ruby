@@ -238,6 +238,17 @@ module SolidObjects
       end
     end
 
+    # @rbs (Symbol | String) -> untyped
+    def observable_value(name)
+      observable_name = name.to_sym
+      handler = self.class.definition.observables[observable_name]
+      raise UnknownMessage, "unknown observable #{name.inspect}" unless handler
+
+      guard_application_writes("observable.#{observable_name}") do
+        Serialization.dump(instance_exec(&handler.block))
+      end
+    end
+
     # @rbs () -> void
     def activate
       guard_application_writes("on_activate") do

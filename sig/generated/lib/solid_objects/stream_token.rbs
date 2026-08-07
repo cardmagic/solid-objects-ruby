@@ -4,11 +4,16 @@ module SolidObjects
   module StreamToken
     PURPOSE: ::String
 
-    # @rbs (Reference) -> String
-    def self?.generate: (Reference) -> String
+    MAXIMUM_OBSERVABLES: ::Integer
 
-    # @rbs (String) -> Hash[String, String]
-    def self?.verify: (String) -> Hash[String, String]
+    # @rbs (Reference, ?observables: Array[String]?) -> String
+    def self?.generate: (Reference, ?observables: Array[String]?) -> String
+
+    # @rbs (String) -> Hash[String, untyped]
+    def self?.verify: (String) -> Hash[String, untyped]
+
+    # @rbs (Hash[String, untyped]) -> Hash[String, untyped]
+    def self?.validate_identity!: (Hash[String, untyped]) -> Hash[String, untyped]
 
     # @rbs () -> ActiveSupport::MessageVerifier
     def self?.verifier: () -> ActiveSupport::MessageVerifier

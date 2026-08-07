@@ -15,4 +15,16 @@ class EngineTest < ActiveSupport::TestCase
     assert status.success?, error_output
     assert_equal "solid_objects_dummy_booted", output.strip
   end
+
+  test "resolves the component endpoint from the engine mount" do
+    command = [
+      Gem.ruby,
+      File.expand_path("../dummy/component_path_check.rb", __dir__)
+    ]
+
+    output, error_output, status = Open3.capture3(*command)
+
+    assert status.success?, error_output
+    assert_equal "/solid_objects/components", output.strip
+  end
 end
