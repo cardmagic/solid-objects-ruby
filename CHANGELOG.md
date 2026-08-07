@@ -2,9 +2,10 @@
 
 ## 0.5.1 - 2026-08-07
 
-- Keep the doctor round-trip probe from stopping and deleting a caller process
-  the application registered, which released its activations and unclaimed its
-  messages.
+- Run the doctor round-trip probe on a dedicated caller process, and accept an
+  explicit process registry in `SynchronousInvocation`, so the probe can no
+  longer stop and delete a shared application caller process, release its
+  activations, and unclaim its messages.
 - Report doctor probe cleanup failures as a failed or warned check instead of
   raising a database lock error out of the command and leaking the probe
   caller process.

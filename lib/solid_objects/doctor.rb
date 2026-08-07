@@ -215,9 +215,9 @@ module SolidObjects
     # @rbs () -> Check
     def check_sync_round_trip
       actor_id = SecureRandom.uuid
-      caller_process_id = SolidObjects.caller_process.process_record_id
-      check = run_sync_probe(actor_id)
-      leftovers = remove_probe_records(actor_id:, caller_process_id:)
+      probe_registry = ProcessRegistry.new
+      check = run_sync_probe(actor_id, probe_registry)
+      leftovers = remove_probe_records(actor_id:, probe_registry:)
       return check if leftovers.empty? || check.failed?
 
       warn_check(
@@ -226,8 +226,9 @@ module SolidObjects
       )
     end
 
-    # @rbs (String) -> Check
-    def run_sync_probe(actor_id)
+    # @rbs (String, ProcessRegistry) -> Check
+    def run_sync_probe(actor_id, probe_registry)
+      probe_registry.register(kind: "caller", metadata: { execution: "doctor" })
       value = SecureRandom.hex(8)
       message_reference = Mailbox.new.enqueue(
         ProbeActor.ref(actor_id),
@@ -235,7 +236,9 @@ module SolidObjects
         { value: },
         kind: "sync"
       )
-      result = SynchronousInvocation.new.call(message_reference, timeout: 5.seconds)
+      result = SynchronousInvocation
+        .new(process_registry: probe_registry)
+        .call(message_reference, timeout: 5.seconds)
       raise Error, "unexpected round-trip result" unless result == value
 
       pass(:sync_round_trip, "durable synchronous actor call completed without a worker")
@@ -243,14 +246,11 @@ module SolidObjects
       fail_check(:sync_round_trip, "#{error.class}: #{error.message}")
     end
 
-    # @rbs (actor_id: String, caller_process_id: String?) -> Array[String]
-    def remove_probe_records(actor_id:, caller_process_id:)
+    # @rbs (actor_id: String, probe_registry: ProcessRegistry) -> Array[String]
+    def remove_probe_records(actor_id:, probe_registry:)
       leftovers = []
       leftovers << "probe actor" unless delete_probe_actor(actor_id)
-      probe_process_id = SolidObjects.caller_process.process_record_id
-      return leftovers if probe_process_id.nil? || probe_process_id == caller_process_id
-
-      leftovers << "probe caller process" unless delete_probe_caller_process(probe_process_id)
+      leftovers << "probe caller process" unless delete_probe_caller_process(probe_registry)
       leftovers
     end
 
@@ -262,9 +262,13 @@ module SolidObjects
       false
     end
 
-    # @rbs (String) -> bool
-    def delete_probe_caller_process(process_id)
-      SolidObjects.caller_process.delete_process_record(process_id)
+    # @rbs (ProcessRegistry) -> bool
+    def delete_probe_caller_process(probe_registry)
+      process_record = probe_registry.process_record
+      return true unless process_record
+
+      probe_registry.stop
+      process_record.delete
       true
     rescue
       false

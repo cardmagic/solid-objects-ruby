@@ -15,12 +15,13 @@ so the schema check compares the required shape instead of a fixed timestamp.
 Warnings such as an all-deny neutral policy do not fail the command because a
 context-aware production policy may correctly deny the probe.
 
-The round-trip probe cleans up after itself. It removes its temporary actor,
-and removes the caller process record only when the probe registered it, so
-running the doctor inside a process that already serves synchronous calls
-leaves that caller process and its activations untouched. A database busy
-enough to block cleanup reports a failed or warned check rather than raising
-out of the command.
+The round-trip probe runs on its own dedicated caller process rather than the
+shared application caller process, and removes that record together with its
+temporary actor when it finishes. Running the doctor inside a process that
+already serves synchronous calls therefore leaves the application caller
+process, its activations, and its claimed messages untouched, including when an
+application call overlaps the probe. A database busy enough to block cleanup
+reports a failed or warned check rather than raising out of the command.
 
 ## Runtime
 

@@ -2,6 +2,11 @@
 
 module SolidObjects
   class SynchronousInvocation
+    @dedicated_process_registry: ProcessRegistry?
+
+    # @rbs (?process_registry: ProcessRegistry?) -> void
+    def initialize: (?process_registry: ProcessRegistry?) -> void
+
     # @rbs (MessageReference, timeout: Numeric) -> untyped
     def call: (MessageReference, timeout: Numeric) -> untyped
 
@@ -21,6 +26,9 @@ module SolidObjects
 
     # @rbs (Message) -> bot
     def raise_rejection: (Message) -> bot
+
+    # @rbs () -> ProcessRegistry
+    def process_registry: () -> ProcessRegistry
 
     # @rbs (Message, deadline: Float) -> Integer
     def assist: (Message, deadline: Float) -> Integer

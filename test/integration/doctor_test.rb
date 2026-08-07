@@ -21,6 +21,19 @@ class DoctorTest < ActiveSupport::TestCase
     assert_empty SolidObjects::Process.where(kind: "caller")
   end
 
+  test "runs its probe on a caller process the application cannot adopt" do
+    SolidObjects.caller_process.define_singleton_method(:process_registry) do
+      raise "the doctor probe must not share the application caller process"
+    end
+
+    report = SolidObjects::Doctor.new.call
+
+    assert_equal :pass, report.check(:sync_round_trip).status
+    assert_empty SolidObjects::Process.where(kind: "caller")
+  ensure
+    SolidObjects.reset_caller_process!
+  end
+
   test "preserves a caller process the application registered before the probe" do
     existing_record = SolidObjects.caller_process.process_registry.process_record
 
@@ -39,10 +52,11 @@ class DoctorTest < ActiveSupport::TestCase
     skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
     lock = hold_sqlite_write_lock
 
-    report = SolidObjects::Doctor.new.call
+    report = without_sqlite_busy_wait { SolidObjects::Doctor.new.call }
 
     refute report.healthy?
     assert_equal :fail, report.check(:sync_round_trip).status
+    assert_match(/database is locked/, report.check(:sync_round_trip).message)
   ensure
     release_sqlite_write_lock(lock) if lock
   end
@@ -155,6 +169,16 @@ class DoctorTest < ActiveSupport::TestCase
     end
     Timeout.timeout(2) { locked.pop }
     [ thread, release ]
+  end
+
+  def without_sqlite_busy_wait
+    SolidObjects::Record.connection_pool.with_connection do |connection|
+      previous_timeout = connection.select_value("PRAGMA busy_timeout").to_i
+      connection.execute("PRAGMA busy_timeout = 0")
+      yield
+    ensure
+      connection.execute("PRAGMA busy_timeout = #{previous_timeout}") if previous_timeout
+    end
   end
 
   def release_sqlite_write_lock(lock)

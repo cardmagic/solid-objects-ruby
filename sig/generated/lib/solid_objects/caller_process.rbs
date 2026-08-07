@@ -16,14 +16,8 @@ module SolidObjects
     # @rbs () -> ProcessRegistry
     def process_registry: () -> ProcessRegistry
 
-    # @rbs () -> String?
-    def process_record_id: () -> String?
-
     # @rbs () -> bool
     def stop: () -> bool
-
-    # @rbs (String) -> bool
-    def delete_process_record: (String) -> bool
 
     private
 
