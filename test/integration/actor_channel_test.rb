@@ -3,7 +3,10 @@
 require "database_test_helper"
 require "action_cable/test_helper"
 require "action_cable/channel/test_case"
-require "solid_objects/actor_channel"
+require "action_view/test_case"
+require "action_view/testing/resolvers"
+require "cgi/escape"
+require_relative "../../app/helpers/solid_objects/actor_helper"
 
 ActionCable.server.config.cable = { "adapter" => "test" }
 
@@ -38,7 +41,78 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     SolidObjects.configuration.stream_signing_secret = "test-stream-signing-secret"
     SolidObjects.configuration.authorize_message = ->(**) { true }
     SolidObjects.configuration.authorize_query = ->(**) { true }
+    SolidObjects.configuration.component_path_resolver = lambda do |view_context:|
+      "/solid_objects/components"
+    end
     ActionCable.server.config.logger = Logger.new(nil)
+  end
+
+  test "loads the actor channel with the gem" do
+    assert_equal SolidObjects::ActorChannel,
+      "SolidObjects::ActorChannel".safe_constantize
+  end
+
+  test "subscribes to scalar updates through rendered Turbo data" do
+    reference = ChannelActor.ref("actor-1")
+    SolidObjects.configuration.authorize_subscription = ->(**) { true }
+    parameters = rendered_subscription_parameters(reference) do |actor|
+      actor.missing
+    end
+
+    assert_equal "SolidObjects::ActorChannel", parameters.fetch(:channel)
+    assert parameters.key?(:token)
+    refute parameters.key?(:components)
+
+    subscribe(**parameters)
+
+    assert subscription.confirmed?
+    assert_has_stream SolidObjects::StreamName.for(reference)
+
+    reference.async(:update_missing)
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    broadcast = SolidObjects::Broadcast.find_by!(observable_name: "missing")
+    subscription.__send__(
+      :receive_broadcast,
+      SolidObjects::TurboStreamRenderer.observable(broadcast)
+    )
+
+    target = SolidObjects::DomIdentity.observable(reference, :missing)
+    updates = transmissions.select { |transmission| transmission.include?(target) }
+    assert_equal 2, updates.length
+    assert_includes updates.last, ">1</span>"
+  ensure
+    worker&.stop
+  end
+
+  test "subscribes to component updates through rendered Turbo data" do
+    reference = ChannelActor.ref("actor-1")
+    SolidObjects.configuration.authorize_subscription = ->(**) { true }
+    parameters = rendered_subscription_parameters(reference) do |actor|
+      actor.component(:summary, observes: :missing)
+    end
+
+    assert_equal "SolidObjects::ActorChannel", parameters.fetch(:channel)
+    assert parameters.key?(:token)
+    assert parameters.key?(:components)
+
+    subscribe(**parameters)
+
+    assert subscription.confirmed?
+    assert_has_stream SolidObjects::StreamName.for(reference)
+
+    reference.async(:update_missing)
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    broadcast = SolidObjects::Broadcast.find_by!(observable_name: "missing")
+    subscription.__send__(
+      :receive_broadcast,
+      SolidObjects::TurboStreamRenderer.observable(broadcast)
+    )
+
+    assert_equal 1, component_refreshes(reference, :summary).length
+  ensure
+    worker&.stop
   end
 
   test "streams only after token verification and host authorization" do
@@ -255,6 +329,36 @@ class ActorChannelTest < ActionCable::Channel::TestCase
   end
 
   private
+
+  def rendered_subscription_parameters(reference, &block)
+    html = actor_view.solid_object(reference, &block)
+    source = html.match(/<turbo-cable-stream-source (?<attributes>[^>]*)>/)
+    attributes = source[:attributes]
+      .scan(/([a-z-]+)="([^"]*)"/)
+      .to_h
+    data = attributes
+      .select { |name, _value| name.start_with?("data-") }
+      .to_h do |name, value|
+        [ name.delete_prefix("data-").tr("-", "_").to_sym, CGI.unescapeHTML(value) ]
+      end
+
+    {
+      channel: attributes.fetch("channel"),
+      **data
+    }
+  end
+
+  def actor_view
+    resolver = ActionView::FixtureResolver.new(
+      "actors/actor_channel_test/channel_actor/_summary.html.erb" =>
+        "<p><%= actor.missing %></p>"
+    )
+    view = ActionView::Base
+      .with_empty_template_cache
+      .with_view_paths([ resolver ])
+    view.extend(SolidObjects::ActorHelper)
+    view
+  end
 
   def component_token(reference, component_name:, dependencies:, revision:)
     SolidObjects::ComponentToken.generate(

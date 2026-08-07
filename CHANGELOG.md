@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Load `SolidObjects::ActorChannel` with the gem and pass stream and component
+  subscription tokens through Turbo-compatible `data-*` attributes.
+
 ## 0.4.0 - 2026-08-06
 
 - Add dependency-driven live ERB components with request-time authorization,
