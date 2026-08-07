@@ -67,11 +67,46 @@ module SolidObjects
       def with_transaction_deadline(connection)
         return yield unless SyncDeadline.active?
 
-        previous_timeout = connection.select_value("PRAGMA busy_timeout").to_i
+        busy_wait = suspend_busy_wait(connection)
+        begin
+          yield
+        ensure
+          restore_busy_wait(connection, busy_wait)
+        end
+      end
+
+      # @rbs (untyped) -> Hash[Symbol, untyped]
+      def suspend_busy_wait(connection)
+        busy_wait = {
+          pragma_timeout: connection.select_value("PRAGMA busy_timeout").to_i,
+          handler_timeout: configured_busy_handler_timeout(connection)
+        }
         connection.execute("PRAGMA busy_timeout = 0")
-        yield
-      ensure
-        connection.execute("PRAGMA busy_timeout = #{previous_timeout}") if previous_timeout
+        busy_wait
+      end
+
+      # @rbs (untyped, Hash[Symbol, untyped]) -> void
+      def restore_busy_wait(connection, busy_wait)
+        handler_timeout = busy_wait.fetch(:handler_timeout)
+        pragma_timeout = busy_wait.fetch(:pragma_timeout)
+        if handler_timeout && pragma_timeout.zero?
+          connection.raw_connection.busy_handler_timeout = handler_timeout
+          return
+        end
+
+        connection.execute("PRAGMA busy_timeout = #{pragma_timeout}")
+      end
+
+      # @rbs (untyped) -> Integer?
+      def configured_busy_handler_timeout(connection)
+        return nil unless connection.respond_to?(:raw_connection)
+        return nil unless connection.raw_connection.respond_to?(:busy_handler_timeout=)
+
+        pool = connection.respond_to?(:pool) ? connection.pool : nil
+        return nil unless pool.respond_to?(:db_config)
+
+        timeout = pool.db_config.configuration_hash[:timeout]
+        timeout&.to_i
       end
 
       # @rbs (Exception) -> bool

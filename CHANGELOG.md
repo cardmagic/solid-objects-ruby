@@ -2,6 +2,14 @@
 
 ## 0.5.1 - 2026-08-07
 
+- Restore the SQLite busy wait that a synchronous invocation suspends for its
+  deadline. Rails installs the busy wait as a Ruby busy handler through the
+  sqlite3 `timeout` configuration, which `PRAGMA busy_timeout` reports as zero
+  and silently replaces, so the previous save and restore left pooled
+  connections with no busy handler at all. Every later writer on that
+  connection, inside or outside Solid Objects, then failed immediately with
+  `SQLite3::BusyException` instead of waiting for the lock.
+
 - Run the doctor round-trip probe on a dedicated caller process, and accept an
   explicit process registry in `SynchronousInvocation`, so the probe can no
   longer stop and delete a shared application caller process, release its
