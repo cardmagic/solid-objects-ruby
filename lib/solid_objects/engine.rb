@@ -26,6 +26,13 @@ module SolidObjects
       end
     end
 
+    initializer "solid_objects.assets" do |application|
+      next unless application.config.respond_to?(:assets)
+      next unless application.config.assets.respond_to?(:precompile)
+
+      application.config.assets.precompile << "solid_objects/component_refresh.js"
+    end
+
     rake_tasks do
       tasks_path = File.expand_path("../tasks", __dir__)
       Dir[File.join(tasks_path, "**/*.rake")].sort.each { |task| load task }

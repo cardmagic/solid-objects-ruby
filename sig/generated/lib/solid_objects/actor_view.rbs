@@ -22,14 +22,17 @@ module SolidObjects
     # @rbs (Symbol | String) -> untyped
     def value: (Symbol | String) -> untyped
 
-    # @rbs (Symbol | String, ?observes: Symbol | String | Array[Symbol | String]?, ?partial: String?) -> untyped
-    def component: (Symbol | String, ?observes: Symbol | String | Array[Symbol | String]?, ?partial: String?) -> untyped
+    # @rbs (Symbol | String, ?observes: Symbol | String | Array[Symbol | String]?, ?partial: String?, ?key: untyped, ?locals: Hash[untyped, untyped], ?refresh: String | Symbol) -> untyped
+    def component: (Symbol | String, ?observes: Symbol | String | Array[Symbol | String]?, ?partial: String?, ?key: untyped, ?locals: Hash[untyped, untyped], ?refresh: String | Symbol) -> untyped
 
     # @rbs () -> Array[String]
     def component_tokens: () -> Array[String]
 
     # @rbs () -> Array[String]
     def scalar_observable_names: () -> Array[String]
+
+    # @rbs () -> bool
+    def morph_components?: () -> bool
 
     # @rbs () -> State
     def state: () -> State
@@ -73,8 +76,11 @@ module SolidObjects
     # @rbs (Array[String]) -> void
     def validate_dependencies!: (Array[String]) -> void
 
-    # @rbs (String) -> void
-    def ensure_unique_component!: (String) -> void
+    # @rbs (ComponentRegistration) -> void
+    def ensure_unique_component!: (ComponentRegistration) -> void
+
+    # @rbs (key: untyped, locals: Hash[untyped, untyped], refresh: String | Symbol) -> void
+    def validate_static_options!: (key: untyped, locals: Hash[untyped, untyped], refresh: String | Symbol) -> void
 
     # @rbs () -> Proc | ComponentPathResolver
     def component_path_resolver: () -> Proc

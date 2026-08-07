@@ -8,8 +8,18 @@ module SolidObjects
 
     MAXIMUM_DEPENDENCIES: ::Integer
 
-    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String) -> String
-    def self?.generate: (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String) -> String
+    MAXIMUM_LOCALS: ::Integer
+
+    MAXIMUM_COMPONENT_KEY_BYTES: ::Integer
+
+    REFRESH_METHODS: untyped
+
+    RESERVED_LOCALS: untyped
+
+    RUBY_KEYWORDS: untyped
+
+    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String, ?component_key: untyped, ?locals: Hash[untyped, untyped], ?refresh_method: String | Symbol) -> String
+    def self?.generate: (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String, ?component_key: untyped, ?locals: Hash[untyped, untyped], ?refresh_method: String | Symbol) -> String
 
     # @rbs (String) -> Hash[String, untyped]
     def self?.verify: (String) -> Hash[String, untyped]
@@ -17,11 +27,23 @@ module SolidObjects
     # @rbs (Hash[String, untyped]) -> Hash[String, untyped]
     def self?.validate_payload!: (Hash[String, untyped]) -> Hash[String, untyped]
 
+    # @rbs (Hash[String, untyped]?) -> void
+    def self?.apply_defaults!: (Hash[String, untyped]?) -> void
+
     # @rbs (String) -> void
     def self?.validate_component_name!: (String) -> void
 
+    # @rbs (untyped) -> void
+    def self?.validate_component_key!: (untyped) -> void
+
     # @rbs (Array[untyped]) -> void
     def self?.validate_dependencies!: (Array[untyped]) -> void
+
+    # @rbs (Hash[untyped, untyped]) -> void
+    def self?.validate_locals!: (Hash[untyped, untyped]) -> void
+
+    # @rbs (String) -> void
+    def self?.validate_refresh_method!: (String) -> void
 
     # @rbs (Integer, Integer) -> void
     def self?.validate_revision!: (Integer, Integer) -> void

@@ -23,10 +23,17 @@ module SolidObjects
         channel: "SolidObjects::ActorChannel",
         data: subscription_data
       )
+      refresh_client = if actor.morph_components?
+        javascript_include_tag(
+          "solid_objects/component_refresh",
+          type: "module",
+          data: { turbo_track: "reload" }
+        )
+      end
 
       content_tag(
         :div,
-        safe_join([ subscription, content ]),
+        safe_join([ refresh_client, subscription, content ].compact),
         id: DomIdentity.scope(reference)
       )
     end

@@ -16,9 +16,12 @@ module SolidObjects
       "#{scope(reference)}_observable_#{normalized_name(name)}"
     end
 
-    # @rbs (Reference, Symbol | String) -> String
-    def component(reference, name)
-      "#{scope(reference)}_component_#{normalized_name(name)}"
+    # @rbs (Reference, Symbol | String, ?key: String | Integer?) -> String
+    def component(reference, name, key: nil)
+      identity = "#{scope(reference)}_component_#{normalized_name(name)}"
+      return identity unless key
+
+      "#{identity}_#{component_key_digest(key)}"
     end
 
     # @rbs (Reference) -> String
@@ -34,5 +37,11 @@ module SolidObjects
       name.to_s.gsub(/[^a-zA-Z0-9_-]/, "_")
     end
     private_class_method :normalized_name
+
+    # @rbs (String | Integer) -> String
+    def component_key_digest(key)
+      Digest::SHA256.hexdigest(JSON.generate(key)).first(24)
+    end
+    private_class_method :component_key_digest
   end
 end

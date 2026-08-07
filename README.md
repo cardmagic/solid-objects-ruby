@@ -205,9 +205,42 @@ dependencies changes:
 <% end %>
 ```
 
+Component names can repeat when each instance has a stable key. Signed
+JSON-compatible locals let one conventional partial render the matching
+projection:
+
+```erb
+<%= solid_object @room, authorization_context: current_user do |room| %>
+  <% @players.each do |player| %>
+    <%= room.component :player,
+      key: player.id,
+      observes: %i[players life_totals],
+      locals: { player_id: player.id },
+      refresh: :morph %>
+  <% end %>
+<% end %>
+```
+
+The host partial still resolves only to `actors/chat_room/_player`. It receives
+`actor`, `authorization_context`, `component_key`, and the declared locals:
+
+```erb
+<article id="player_<%= player_id %>">
+  Life: <%= actor.life_totals.fetch(player_id.to_s) %>
+</article>
+```
+
+The default refresh strategy is `:replace`. `refresh: :morph` loads the
+authorized component HTML through a gem-owned browser element, rejects stale
+responses by actor revision, and applies the result using Turbo's scoped
+`replace method="morph"`. Superseded requests for the same keyed target are
+aborted. This preserves unchanged DOM nodes where Turbo's morphing rules allow
+it, including focus and `data-turbo-permanent` content.
+
 `room.component(:messages)` resolves only
 `actors/chat_room/_messages`. Its partial receives `actor` and
-`authorization_context` locals:
+`authorization_context` locals, plus a `component_key` of `nil` when the
+component is unkeyed:
 
 ```erb
 <ul>
@@ -221,7 +254,14 @@ Declared observables are deeply frozen ordinary Ruby values inside a
 component. Arrays support loops, hashes support ordinary lookup, conditionals
 work normally, and ERB still escapes user strings. A reactive component cannot
 read `actor.state`, access an undeclared observable, or choose a dynamic
-partial path.
+partial path. A component name and key pair must be unique within its
+`solid_object` scope.
+
+Component keys and locals are signed into the refresh token and cannot be
+modified without invalidating it, but they are visible to the browser and are
+not secrets. Every initial render and refresh passes the signed locals and
+`component_key` to `authorize_query` as `arguments`. Authorization must still
+bind them to the authenticated request context.
 
 That template provides initial server rendering, stable opaque DOM targets,
 and live updates after committed actor turns. One `solid_object` block makes
@@ -254,20 +294,27 @@ for the same actor without sharing either projection.
 Reconnect compares the component's signed initial revision with the latest
 actor incarnation and state revision, then refreshes stale components. Cable
 coalesces several dependency changes from one actor turn into one component
-refresh and ignores older out-of-order invalidations. A newer invalidation
-replaces an in-flight frame, so its detached older response cannot overwrite
-newer state.
+refresh and ignores older out-of-order invalidations. Replace refreshes detach
+an older in-flight frame. Morph refreshes abort the older request and compare
+the returned revision with the current target before applying HTML.
 
 Reactive components add no HTML to durable rows, but each affected component
 causes an authorized HTTP render. One actor turn still inserts one broadcast
 row per changed observable; several dependencies from that turn coalesce at
 the subscriber. Keep components bounded, declare only necessary dependencies,
-and use scalar observables for inexpensive single-value replacement.
+keep signed locals small, and use scalar observables for inexpensive
+single-value replacement. Each keyed component counts toward the 50-component
+subscription limit and carries its own signed token.
 
 Reactive views require `turbo-rails` and a working Action Cable adapter in the
 host application. The Solid Objects engine must be mounted so its signed
 component endpoint is reachable. Reactive views are optional; the actor
-runtime itself does not depend on Turbo.
+runtime itself does not depend on Turbo. Morph components automatically include
+the engine's `solid_objects/component_refresh` JavaScript module; the host does
+not need a Stimulus controller or custom stream action. The default Rails
+Propshaft and Sprockets setups discover namespaced engine assets automatically.
+An application created with `--skip-asset-pipeline` should use replace refreshes
+unless it explicitly serves that module.
 
 ```ruby
 # config/routes.rb

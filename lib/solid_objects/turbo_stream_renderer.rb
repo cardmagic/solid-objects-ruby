@@ -40,15 +40,14 @@ module SolidObjects
 
     # @rbs (ComponentRegistration, Integer, Integer) -> String
     def component_refresh(registration, instance_id, revision)
-      target = DomIdentity.component(
-        registration.reference,
-        registration.component_name
-      )
+      return morph_component_refresh(registration, instance_id, revision) if registration.morph?
+
+      target = registration.dom_id
       source = ERB::Util.html_escape(
         registration.refresh_url(instance_id, revision)
       )
       revision_value = "#{instance_id}:#{revision}"
-      %(<turbo-stream action="replace" target="#{target}"><template><turbo-frame id="#{target}" src="#{source}" data-solid-objects-revision="#{revision_value}"></turbo-frame></template></turbo-stream>)
+      %(<turbo-stream action="replace" target="#{target}"><template><turbo-frame id="#{target}" src="#{source}" data-solid-objects-revision="#{revision_value}" data-solid-objects-refresh="replace"></turbo-frame></template></turbo-stream>)
     end
 
     # @rbs (String) -> Hash[String, untyped]?
@@ -75,5 +74,15 @@ module SolidObjects
       JSON.generate(value)
     end
     private_class_method :display_value
+
+    # @rbs (ComponentRegistration, Integer, Integer) -> String
+    def morph_component_refresh(registration, instance_id, revision)
+      source = ERB::Util.html_escape(
+        registration.refresh_url(instance_id, revision)
+      )
+      scope = DomIdentity.scope(registration.reference)
+      %(<turbo-stream action="append" target="#{scope}"><template><solid-objects-refresh data-target="#{registration.dom_id}" data-source="#{source}" data-refresh-method="morph"></solid-objects-refresh></template></turbo-stream>)
+    end
+    private_class_method :morph_component_refresh
   end
 end

@@ -3,6 +3,7 @@
 require "database_test_helper"
 require "action_view/test_case"
 require "action_view/testing/resolvers"
+require "cgi/escape"
 require_relative "../../app/helpers/solid_objects/actor_helper"
 
 class ActorHelperTest < ActionView::TestCase
@@ -54,6 +55,11 @@ class ActorHelperTest < ActionView::TestCase
         ERB
         "actors/actor_helper_test/cart_actor/_summary.html.erb" => <<~ERB,
           <p><%= actor.items.length %> items</p>
+        ERB
+        "actors/actor_helper_test/cart_actor/_player.html.erb" => <<~ERB,
+          <article data-player-id="<%= player_id %>" data-component-key="<%= component_key %>">
+            <%= label %>: <%= actor.status %>
+          </article>
         ERB
         "actors/actor_helper_test/cart_actor/_leaky.html.erb" => <<~ERB
           <p><%= actor.status %></p>
@@ -212,5 +218,108 @@ class ActorHelperTest < ActionView::TestCase
     end
 
     assert_match(/status/, error.message)
+  end
+
+  test "renders repeatable keyed components with signed locals" do
+    reference = CartActor.ref("alice")
+
+    html = solid_object(reference) do |actor|
+      safe_join(
+        [
+          actor.component(
+            :player,
+            key: "alice",
+            observes: :status,
+            locals: { player_id: "alice", label: "You" }
+          ),
+          actor.component(
+            :player,
+            key: "bob",
+            observes: :status,
+            locals: { player_id: "bob", label: "Opponent" }
+          )
+        ]
+      )
+    end
+
+    assert_includes html, %(data-player-id="alice")
+    assert_includes html, %(data-component-key="alice")
+    assert_includes html, "You: open"
+    assert_includes html, %(data-player-id="bob")
+    assert_includes html, "Opponent: open"
+
+    registrations = component_registrations(html)
+    assert_equal %w[alice bob], registrations.map(&:component_key)
+    assert_equal(
+      [
+        { "player_id" => "alice", "label" => "You" },
+        { "player_id" => "bob", "label" => "Opponent" }
+      ],
+      registrations.map(&:locals)
+    )
+    assert_equal 2, registrations.map(&:dom_id).uniq.length
+  end
+
+  test "rejects duplicate component names and keys within one scope" do
+    error = assert_raises(ArgumentError) do
+      solid_object(CartActor.ref("alice")) do |actor|
+        safe_join(
+          [
+            actor.component(:status, key: "alice", observes: :status),
+            actor.component(:status, key: "alice", observes: :status)
+          ]
+        )
+      end
+    end
+
+    assert_match(/already rendered/, error.message)
+  end
+
+  test "rejects unsafe reactive component locals" do
+    invalid_locals = [
+      [ { actor: "shadowed" }, SolidObjects::InvalidComponentToken ],
+      [ { authorization_context: "shadowed" }, SolidObjects::InvalidComponentToken ],
+      [ { component_key: "shadowed" }, SolidObjects::InvalidComponentToken ],
+      [ { "invalid-name" => "value" }, SolidObjects::InvalidComponentToken ],
+      [ { class: "value" }, SolidObjects::InvalidComponentToken ],
+      [ { callback: Object.new }, SolidObjects::InvalidPayload ]
+    ]
+    invalid_locals.each do |locals, error_class|
+      assert_raises(error_class) do
+        solid_object(CartActor.ref("alice")) do |actor|
+          actor.component(
+            :player,
+            key: "alice",
+            observes: :status,
+            locals:
+          )
+        end
+      end
+    end
+  end
+
+  test "loads the morph refresh client only for morph components" do
+    reference = CartActor.ref("alice")
+
+    replace_html = solid_object(reference) do |actor|
+      actor.component(:status, observes: :status)
+    end
+    morph_html = solid_object(reference) do |actor|
+      actor.component(:status, observes: :status, refresh: :morph)
+    end
+
+    refute_includes replace_html, "solid_objects/component_refresh"
+    assert_includes morph_html, "solid_objects/component_refresh"
+    assert_includes morph_html, %(data-solid-objects-refresh="morph")
+    assert_equal "morph", component_registrations(morph_html).sole.refresh_method
+  end
+
+  private
+
+  def component_registrations(html)
+    serialized = CGI.unescapeHTML(html[/data-components="([^"]+)"/, 1])
+    JSON.parse(serialized).map do |token|
+      SolidObjects::ComponentRegistration.from_token(token)
+    end
   end
 end

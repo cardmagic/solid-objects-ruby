@@ -15,8 +15,8 @@
 - Transactional effects with success/failure actor messages
 - Actor-to-actor asynchronous outbox delivery
 - One-shot and recurring reminders with `:latest` or `:all` catch-up
-- Durable observable invalidations, scalar Turbo replacement, and authorized
-  request-time ERB component refresh
+- Durable observable invalidations, scalar Turbo replacement, keyed ERB
+  components, signed component locals, and authorized replace or morph refresh
 - Reconciliation read APIs
 - Installation doctor, authorization reference, fit guide, and legacy-state
   migration cookbook
@@ -36,9 +36,10 @@
   role or run periodic maintenance automatically.
 - Wake-up strategy: in-process signaling plus durable polling and injection are
   implemented; PostgreSQL `LISTEN/NOTIFY` and optional Redis adapters are not.
-- Realtime: scalar and dependency-driven ERB component replacement,
-  personalized refresh authorization, revision fencing, coalescing, and
-  reconnect convergence are implemented; Turbo append actions are not.
+- Realtime: scalar and dependency-driven keyed ERB component replacement or
+  morphing, personalized refresh authorization, revision fencing, coalescing,
+  and reconnect convergence are implemented; application-directed Turbo
+  append intents are not.
 - Backpressure: mailbox/payload/state/result caps and fair yields exist;
   distributed per-actor rate limits and global admission control do not.
 - Administration: actor and dead-letter views plus policy hooks exist; richer

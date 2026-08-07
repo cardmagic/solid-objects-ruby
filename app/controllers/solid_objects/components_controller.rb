@@ -21,8 +21,7 @@ module SolidObjects
         .call(controller: self)
       rendered = ComponentRenderer.new(
         snapshot:,
-        component_name: registration.component_name,
-        dependencies: registration.dependencies,
+        registration:,
         view_context: component_view_context,
         authorization_context:
       ).call
@@ -67,12 +66,8 @@ module SolidObjects
 
     # @rbs (ComponentRegistration, ActorSnapshot, untyped) -> String
     def component_frame(registration, snapshot, rendered)
-      target = DomIdentity.component(
-        registration.reference,
-        registration.component_name
-      )
       revision = "#{snapshot.instance_id}:#{snapshot.revision}"
-      %(<turbo-frame id="#{target}" data-solid-objects-revision="#{revision}">#{rendered}</turbo-frame>).html_safe
+      %(<turbo-frame id="#{registration.dom_id}" data-solid-objects-revision="#{revision}" data-solid-objects-refresh="#{registration.refresh_method}">#{rendered}</turbo-frame>).html_safe
     end
   end
 end

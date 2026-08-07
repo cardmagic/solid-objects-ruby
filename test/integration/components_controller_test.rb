@@ -44,12 +44,17 @@ class ComponentsControllerTest < ActionController::TestCase
             <% end %>
           </ul>
         ERB
-        "actors/components_controller_test/room_actor/_presence.html.erb" => <<~ERB
+        "actors/components_controller_test/room_actor/_presence.html.erb" => <<~ERB,
           <% if actor.status == "closed" %>
             <p>Room closed</p>
           <% else %>
             <p><%= actor.recent_messages.length %> present</p>
           <% end %>
+        ERB
+        "actors/components_controller_test/room_actor/_player.html.erb" => <<~ERB
+          <article data-player-id="<%= player_id %>" data-component-key="<%= component_key %>">
+            <%= label %>: <%= actor.status %>
+          </article>
         ERB
       )
     )
@@ -235,9 +240,68 @@ class ComponentsControllerTest < ActionController::TestCase
     assert_empty @response.body
   end
 
+  test "renders signed keyed locals and passes them to authorization" do
+    reference = RoomActor.ref("general")
+    authorization_calls = []
+    SolidObjects.configuration.authorize_query = lambda do |**arguments|
+      authorization_calls << arguments
+      arguments.fetch(:arguments).fetch("player_id") == "alice"
+    end
+    token = component_token(
+      reference,
+      component_name: "player",
+      component_key: "alice",
+      dependencies: %w[status],
+      locals: {
+        player_id: "alice",
+        label: "You"
+      }
+    )
+
+    render_component(token, viewer: "alice")
+
+    assert_response :success
+    assert_includes @response.body, %(data-player-id="alice")
+    assert_includes @response.body, %(data-component-key="alice")
+    assert_includes @response.body, "You: open"
+    assert_equal 2, authorization_calls.length
+    expected_arguments = {
+      "player_id" => "alice",
+      "label" => "You",
+      "component_key" => "alice"
+    }
+    assert authorization_calls.all? { |arguments|
+      arguments.fetch(:arguments) == expected_arguments
+    }
+  end
+
+  test "returns morph metadata for a morph component refresh" do
+    reference = RoomActor.ref("general")
+    token = component_token(
+      reference,
+      component_name: "player",
+      component_key: "alice",
+      dependencies: %w[status],
+      locals: { player_id: "alice", label: "You" },
+      refresh_method: "morph"
+    )
+
+    render_component(token, viewer: "alice")
+
+    assert_response :success
+    assert_includes @response.body, %(data-solid-objects-refresh="morph")
+  end
+
   private
 
-  def component_token(reference, component_name:, dependencies:)
+  def component_token(
+    reference,
+    component_name:,
+    dependencies:,
+    component_key: nil,
+    locals: {},
+    refresh_method: "replace"
+  )
     instance = SolidObjects::Instance.find_by(
       actor_type: reference.actor_type,
       actor_id: reference.actor_id
@@ -245,7 +309,10 @@ class ComponentsControllerTest < ActionController::TestCase
     SolidObjects::ComponentToken.generate(
       reference:,
       component_name:,
+      component_key:,
       dependencies:,
+      locals:,
+      refresh_method:,
       instance_id: instance&.id || 0,
       revision: instance&.state_revision || 0,
       refresh_path: "/components"

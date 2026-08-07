@@ -4,16 +4,14 @@ module SolidObjects
   class ComponentRenderer
     @snapshot: ActorSnapshot
 
-    @component_name: String
-
-    @dependencies: Array[String]
+    @registration: ComponentRegistration
 
     @view_context: untyped
 
     @authorization_context: untyped
 
-    # @rbs (snapshot: ActorSnapshot, component_name: String, dependencies: Array[String], view_context: untyped, authorization_context: untyped) -> void
-    def initialize: (snapshot: ActorSnapshot, component_name: String, dependencies: Array[String], view_context: untyped, authorization_context: untyped) -> void
+    # @rbs (snapshot: ActorSnapshot, registration: ComponentRegistration, view_context: untyped, authorization_context: untyped) -> void
+    def initialize: (snapshot: ActorSnapshot, registration: ComponentRegistration, view_context: untyped, authorization_context: untyped) -> void
 
     # @rbs () -> untyped
     def call: () -> untyped
@@ -22,9 +20,7 @@ module SolidObjects
 
     attr_reader snapshot: untyped
 
-    attr_reader component_name: untyped
-
-    attr_reader dependencies: untyped
+    attr_reader registration: untyped
 
     attr_reader view_context: untyped
 

@@ -3,46 +3,44 @@
 module SolidObjects
   class ComponentRenderer
     # @rbs @snapshot: ActorSnapshot
-    # @rbs @component_name: String
-    # @rbs @dependencies: Array[String]
+    # @rbs @registration: ComponentRegistration
     # @rbs @view_context: untyped
     # @rbs @authorization_context: untyped
 
-    # @rbs (snapshot: ActorSnapshot, component_name: String, dependencies: Array[String], view_context: untyped, authorization_context: untyped) -> void
+    # @rbs (snapshot: ActorSnapshot, registration: ComponentRegistration, view_context: untyped, authorization_context: untyped) -> void
     def initialize(
       snapshot:,
-      component_name:,
-      dependencies:,
+      registration:,
       view_context:,
       authorization_context:
     )
       @snapshot = snapshot
-      @component_name = component_name
-      @dependencies = dependencies
+      @registration = registration
       @view_context = view_context
       @authorization_context = authorization_context
     end
 
     # @rbs () -> untyped
     def call
-      [ component_name, *dependencies ].uniq.each do |authorization_name|
+      [ registration.component_name, *registration.dependencies ].uniq.each do |authorization_name|
         authorize_read!(authorization_name)
       end
       actor = ComponentView.new(
         snapshot:,
-        dependencies:,
+        dependencies: registration.dependencies,
         authorization_context:
       )
       view_context.render(
         partial: default_partial,
-        locals: {
+        locals: registration.locals.transform_keys(&:to_sym).merge(
           actor:,
-          authorization_context:
-        }
+          authorization_context:,
+          component_key: registration.component_key
+        )
       )
     rescue ActionView::MissingTemplate
       raise UnknownComponent,
-        "unknown component #{component_name.inspect} for #{snapshot.reference.actor_type}"
+        "unknown component #{registration.component_name.inspect} for #{snapshot.reference.actor_type}"
     rescue ActionView::Template::Error => error
       raise error.cause if error.cause.is_a?(SolidObjects::Error)
 
@@ -52,8 +50,7 @@ module SolidObjects
     private
 
     attr_reader :snapshot,
-      :component_name,
-      :dependencies,
+      :registration,
       :view_context,
       :authorization_context
 
@@ -63,7 +60,7 @@ module SolidObjects
         actor_type: snapshot.reference.actor_type,
         actor_id: snapshot.reference.actor_id,
         message_name: observable_name,
-        arguments: {},
+        arguments: registration.authorization_arguments,
         authorization_context:
       )
       return if authorized
@@ -76,7 +73,7 @@ module SolidObjects
       actor_name = snapshot.actor_class.name
       raise InvalidActor, "anonymous actors cannot render reactive components" unless actor_name
 
-      "actors/#{actor_name.underscore}/#{component_name}"
+      "actors/#{actor_name.underscore}/#{registration.component_name}"
     end
   end
 end

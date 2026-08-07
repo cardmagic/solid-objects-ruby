@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 - 2026-08-07
+
+- Add repeatable reactive components with signed string or integer keys and
+  JSON-compatible partial locals.
+- Add opt-in Turbo morph refreshes with superseded-request cancellation and
+  browser-side actor revision fencing.
+- Pass signed component keys and locals through request-time query
+  authorization without broadcasting personalized HTML.
+
 ## 0.4.3 - 2026-08-07
 
 - Bound SQLite caller-process registration, reuse, heartbeat, and synchronous

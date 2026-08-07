@@ -57,6 +57,30 @@ The stream token also signs the scalar observable targets rendered into that
 specific scope. Component-only dependencies send invalidation metadata but not
 their state value to the browser.
 
+Keyed components sign their `component_key` and declared JSON-compatible
+locals into the component token. Initial rendering and every refresh pass those
+values to `authorize_query` as `arguments`; unkeyed components without locals
+retain an empty arguments hash. This lets a policy authorize a projection such
+as one seat or player:
+
+```ruby
+configuration.authorize_query = lambda do |actor_type:, actor_id:, message_name:, arguments:, authorization_context:|
+  user = authorization_context
+  player_id = arguments["player_id"]
+
+  actor_type == "PlaymatRoom" &&
+    user.present? &&
+    user.can_view_room?(actor_id) &&
+    (player_id.nil? || user.can_view_player?(player_id))
+end
+```
+
+The values are signed but not encrypted. They are present in server-rendered
+HTML and the Cable subscription identifier, so they must not contain secrets
+or sensitive state. A valid signature proves that the server issued the
+registration; it does not prove the current user may still read it. Always
+reauthorize against the current request context.
+
 ## A tenant-aware policy
 
 Pass the authenticated user as the call context:

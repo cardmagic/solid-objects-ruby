@@ -2,25 +2,37 @@
 
 module SolidObjects
   class ComponentRegistration
-    @reference: Reference
-
-    @component_name: String
-
-    @dependencies: Array[String]
-
-    @instance_id: Integer
-
-    @revision: Integer
+    @token: String
 
     @refresh_path: String
 
-    @token: String
+    @revision: Integer
+
+    @instance_id: Integer
+
+    @refresh_method: String
+
+    @locals: Hash[String, untyped]
+
+    @dependencies: Array[String]
+
+    @component_key: String | Integer?
+
+    @component_name: String
+
+    @reference: Reference
 
     attr_reader reference: untyped
 
     attr_reader component_name: untyped
 
+    attr_reader component_key: untyped
+
     attr_reader dependencies: untyped
+
+    attr_reader locals: untyped
+
+    attr_reader refresh_method: untyped
 
     attr_reader instance_id: untyped
 
@@ -30,20 +42,32 @@ module SolidObjects
 
     attr_reader token: untyped
 
-    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String, token: String) -> void
-    def initialize: (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String, token: String) -> void
+    # @rbs (reference: Reference, component_name: String, component_key: String | Integer?, dependencies: Array[String], locals: Hash[String, untyped], refresh_method: String, instance_id: Integer, revision: Integer, refresh_path: String, token: String) -> void
+    def initialize: (reference: Reference, component_name: String, component_key: String | Integer?, dependencies: Array[String], locals: Hash[String, untyped], refresh_method: String, instance_id: Integer, revision: Integer, refresh_path: String, token: String) -> void
 
-    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], snapshot: ActorSnapshot, refresh_path: String) -> ComponentRegistration
-    def self.issue: (reference: Reference, component_name: String, dependencies: Array[String], snapshot: ActorSnapshot, refresh_path: String) -> ComponentRegistration
+    # @rbs (reference: Reference, component_name: String, component_key: untyped, dependencies: Array[String], locals: Hash[untyped, untyped], refresh_method: String | Symbol, snapshot: ActorSnapshot, refresh_path: String) -> ComponentRegistration
+    def self.issue: (reference: Reference, component_name: String, component_key: untyped, dependencies: Array[String], locals: Hash[untyped, untyped], refresh_method: String | Symbol, snapshot: ActorSnapshot, refresh_path: String) -> ComponentRegistration
 
     # @rbs (String) -> ComponentRegistration
     def self.from_token: (String) -> ComponentRegistration
+
+    # @rbs (Hash[String, untyped], token: String) -> ComponentRegistration
+    private def self.build: (Hash[String, untyped], token: String) -> ComponentRegistration
 
     # @rbs (Reference, Array[String]) -> void
     private def self.validate_dependencies!: (Reference, Array[String]) -> void
 
     # @rbs () -> Array[Integer]
     def revision_key: () -> Array[Integer]
+
+    # @rbs () -> String
+    def dom_id: () -> String
+
+    # @rbs () -> bool
+    def morph?: () -> bool
+
+    # @rbs () -> Hash[String, untyped]
+    def authorization_arguments: () -> Hash[String, untyped]
 
     # @rbs (Integer, Integer) -> String
     def refresh_url: (Integer, Integer) -> String
