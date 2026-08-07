@@ -4,5 +4,25 @@ module SolidObjects
   class ActorChannel < ActionCable::Channel::Base
     # @rbs () -> void
     def subscribed: () -> void
+
+    private
+
+    attr_reader reference: untyped
+
+    attr_reader component_subscriptions: untyped
+
+    attr_reader scalar_observables: untyped
+
+    # @rbs (String) -> void
+    def receive_broadcast: (String) -> void
+
+    # @rbs (ActorSnapshot) -> void
+    def refresh_outdated_components: (ActorSnapshot) -> void
+
+    # @rbs () -> void
+    def validate_scalar_observables!: () -> void
+
+    # @rbs (ActorSnapshot) -> Array[String]
+    def scalar_observable_names: (ActorSnapshot) -> Array[String]
   end
 end

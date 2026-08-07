@@ -34,6 +34,8 @@ module SolidObjects
     # @rbs @stream_signing_secret: String?
     # @rbs @broadcast_adapter: Proc?
     # @rbs @wake_up_adapter: untyped
+    # @rbs @component_path_resolver: Proc?
+    # @rbs @component_authorization_context: Proc
     # @rbs @authorize_message: Proc
     # @rbs @authorize_query: Proc
     # @rbs @authorize_destroy: Proc
@@ -72,6 +74,8 @@ module SolidObjects
       :stream_signing_secret,
       :broadcast_adapter,
       :wake_up_adapter,
+      :component_path_resolver,
+      :component_authorization_context,
       :authorize_message,
       :authorize_query,
       :authorize_destroy,
@@ -111,6 +115,8 @@ module SolidObjects
       @stream_signing_secret = nil
       @broadcast_adapter = nil
       @wake_up_adapter = nil
+      @component_path_resolver = nil
+      @component_authorization_context = ->(controller:) { controller }
       @logger = if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
         Rails.logger
       else
@@ -150,6 +156,12 @@ module SolidObjects
       instance_retention_by_actor_type.each do |actor_type, retention|
         raise ArgumentError, "actor type cannot be empty" if actor_type.to_s.empty?
         raise ArgumentError, "instance retention must be positive" unless retention.positive?
+      end
+      unless component_path_resolver.nil? || component_path_resolver.respond_to?(:call)
+        raise ArgumentError, "component_path_resolver must respond to call"
+      end
+      unless component_authorization_context.respond_to?(:call)
+        raise ArgumentError, "component_authorization_context must respond to call"
       end
 
       self

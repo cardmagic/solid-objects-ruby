@@ -1,0 +1,51 @@
+# Generated from lib/solid_objects/component_registration.rb with RBS::Inline
+
+module SolidObjects
+  class ComponentRegistration
+    @reference: Reference
+
+    @component_name: String
+
+    @dependencies: Array[String]
+
+    @instance_id: Integer
+
+    @revision: Integer
+
+    @refresh_path: String
+
+    @token: String
+
+    attr_reader reference: untyped
+
+    attr_reader component_name: untyped
+
+    attr_reader dependencies: untyped
+
+    attr_reader instance_id: untyped
+
+    attr_reader revision: untyped
+
+    attr_reader refresh_path: untyped
+
+    attr_reader token: untyped
+
+    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String, token: String) -> void
+    def initialize: (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String, token: String) -> void
+
+    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], snapshot: ActorSnapshot, refresh_path: String) -> ComponentRegistration
+    def self.issue: (reference: Reference, component_name: String, dependencies: Array[String], snapshot: ActorSnapshot, refresh_path: String) -> ComponentRegistration
+
+    # @rbs (String) -> ComponentRegistration
+    def self.from_token: (String) -> ComponentRegistration
+
+    # @rbs (Reference, Array[String]) -> void
+    private def self.validate_dependencies!: (Reference, Array[String]) -> void
+
+    # @rbs () -> Array[Integer]
+    def revision_key: () -> Array[Integer]
+
+    # @rbs (Integer, Integer) -> String
+    def refresh_url: (Integer, Integer) -> String
+  end
+end

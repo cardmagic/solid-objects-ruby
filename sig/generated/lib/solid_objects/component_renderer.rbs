@@ -1,0 +1,39 @@
+# Generated from lib/solid_objects/component_renderer.rb with RBS::Inline
+
+module SolidObjects
+  class ComponentRenderer
+    @snapshot: ActorSnapshot
+
+    @component_name: String
+
+    @dependencies: Array[String]
+
+    @view_context: untyped
+
+    @authorization_context: untyped
+
+    # @rbs (snapshot: ActorSnapshot, component_name: String, dependencies: Array[String], view_context: untyped, authorization_context: untyped) -> void
+    def initialize: (snapshot: ActorSnapshot, component_name: String, dependencies: Array[String], view_context: untyped, authorization_context: untyped) -> void
+
+    # @rbs () -> untyped
+    def call: () -> untyped
+
+    private
+
+    attr_reader snapshot: untyped
+
+    attr_reader component_name: untyped
+
+    attr_reader dependencies: untyped
+
+    attr_reader view_context: untyped
+
+    attr_reader authorization_context: untyped
+
+    # @rbs (String) -> void
+    def authorize_read!: (String) -> void
+
+    # @rbs () -> String
+    def default_partial: () -> String
+  end
+end

@@ -2,6 +2,10 @@
 
 module SolidObjects
   class ActorView
+    @observable_names: Array[String]
+
+    @component_registrations: Array[ComponentRegistration]
+
     @snapshot: ActorSnapshot
 
     @authorization_context: untyped
@@ -18,8 +22,14 @@ module SolidObjects
     # @rbs (Symbol | String) -> untyped
     def value: (Symbol | String) -> untyped
 
-    # @rbs (Symbol | String, ?partial: String?) -> untyped
-    def component: (Symbol | String, ?partial: String?) -> untyped
+    # @rbs (Symbol | String, ?observes: Symbol | String | Array[Symbol | String]?, ?partial: String?) -> untyped
+    def component: (Symbol | String, ?observes: Symbol | String | Array[Symbol | String]?, ?partial: String?) -> untyped
+
+    # @rbs () -> Array[String]
+    def component_tokens: () -> Array[String]
+
+    # @rbs () -> Array[String]
+    def scalar_observable_names: () -> Array[String]
 
     # @rbs () -> State
     def state: () -> State
@@ -38,6 +48,13 @@ module SolidObjects
 
     attr_reader snapshot: untyped
 
+    attr_reader component_registrations: untyped
+
+    attr_reader observable_names: untyped
+
+    # @rbs (String, partial: String?) -> untyped
+    def static_component: (String, partial: String?) -> untyped
+
     # @rbs (Symbol | String) -> void
     def authorize_read!: (Symbol | String) -> void
 
@@ -49,6 +66,18 @@ module SolidObjects
 
     # @rbs (Symbol | String) -> String
     def normalized_component_name: (Symbol | String) -> String
+
+    # @rbs (Symbol | String | Array[Symbol | String]) -> Array[String]
+    def normalized_dependencies: (Symbol | String | Array[Symbol | String]) -> Array[String]
+
+    # @rbs (Array[String]) -> void
+    def validate_dependencies!: (Array[String]) -> void
+
+    # @rbs (String) -> void
+    def ensure_unique_component!: (String) -> void
+
+    # @rbs () -> Proc | ComponentPathResolver
+    def component_path_resolver: () -> Proc
 
     # @rbs (String) -> String
     def default_partial: (String) -> String

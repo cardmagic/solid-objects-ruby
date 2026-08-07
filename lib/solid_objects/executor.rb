@@ -98,6 +98,7 @@ module SolidObjects
         instance.update!(
           state: serialized_state,
           state_version: actor.class.state_version,
+          state_revision: locked_message.sequence,
           last_used_at: SolidObjects.database_adapter.database_now
         )
         locked_message.update!(

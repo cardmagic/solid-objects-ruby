@@ -8,9 +8,15 @@ migrations load. No partial indexes are used.
 ### `instances`
 
 One row per `(actor_type, actor_id)`. Stores JSON state, state version,
-next-message sequence, activation owner/token/expiration/generation, pause
-state, and lifecycle timestamps. The owner/token pairing is constrained so one
-process row cannot make two concurrent activations appear identical.
+monotonic state revision, next-message sequence, activation
+owner/token/expiration/generation, pause state, and lifecycle timestamps. The
+owner/token pairing is constrained so one process row cannot make two
+concurrent activations appear identical.
+
+`state_revision` advances to the successful message sequence in the same
+fenced transaction as state and outboxes. Reactive components compare
+`(instance_id, state_revision)` so pruned message history cannot make revisions
+regress and destroy-and-recreate produces a new incarnation.
 
 Deleting an instance is the actor-incarnation boundary. Foreign keys cascade
 the delete through messages, ready and claimed memberships, reminders, effects,
@@ -85,8 +91,10 @@ Status/availability/ID drives delivery; completion/ID drives cleanup.
 ### `broadcasts`
 
 Durable observable-change outbox. The unique message/observable key prevents
-duplicate rows for one actor turn. Claim and delivery indexes support retries
-and cleanup.
+duplicate rows for one actor turn. Rows contain the observable JSON value and
+message/instance references used to derive invalidation metadata, never
+personalized rendered HTML. Claim and delivery indexes support retries and
+cleanup.
 
 ### `dead_letters`
 

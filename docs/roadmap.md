@@ -15,7 +15,8 @@
 - Transactional effects with success/failure actor messages
 - Actor-to-actor asynchronous outbox delivery
 - One-shot and recurring reminders with `:latest` or `:all` catch-up
-- Durable observable broadcast outbox and authorized Action Cable refresh
+- Durable observable invalidations, scalar Turbo replacement, and authorized
+  request-time ERB component refresh
 - Reconciliation read APIs
 - Installation doctor, authorization reference, fit guide, and legacy-state
   migration cookbook
@@ -35,8 +36,9 @@
   role or run periodic maintenance automatically.
 - Wake-up strategy: in-process signaling plus durable polling and injection are
   implemented; PostgreSQL `LISTEN/NOTIFY` and optional Redis adapters are not.
-- Realtime: observable replacement and reconnect refresh are implemented;
-  durable component replacement and Turbo append actions are not.
+- Realtime: scalar and dependency-driven ERB component replacement,
+  personalized refresh authorization, revision fencing, coalescing, and
+  reconnect convergence are implemented; Turbo append actions are not.
 - Backpressure: mailbox/payload/state/result caps and fair yields exist;
   distributed per-actor rate limits and global admission control do not.
 - Administration: actor and dead-letter views plus policy hooks exist; richer
@@ -52,8 +54,7 @@
 3. Add result lookup by request ID and broader deadlock retry classification.
 4. Add scheduled retention and stale-process maintenance.
 5. Add database/server-version checks and MySQL InnoDB verification at boot.
-6. Add component broadcast rendering, Turbo append intents, and reconnect tests
-   in a full browser.
+6. Add Turbo append intents and expand reconnect coverage in a full browser.
 7. Add distributed rate limits, global admission hooks, and cache-capacity
    eviction.
 8. Expand security scanning and run compatibility CI across supported Rails and

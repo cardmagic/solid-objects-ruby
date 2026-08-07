@@ -20,6 +20,37 @@ class StreamTokenTest < ActiveSupport::TestCase
     )
   end
 
+  test "round trips a signed scalar observable scope" do
+    token = SolidObjects::StreamToken.generate(
+      StreamActor.ref("actor-1"),
+      observables: %w[count status]
+    )
+
+    assert_equal(
+      {
+        "actor_type" => "stream-token",
+        "actor_id" => "actor-1",
+        "observables" => %w[count status]
+      },
+      SolidObjects::StreamToken.verify(token)
+    )
+  end
+
+  test "rejects malformed scalar observable scope" do
+    token = SolidObjects::StreamToken.__send__(:verifier).generate(
+      {
+        "actor_type" => "stream-token",
+        "actor_id" => "actor-1",
+        "observables" => [ "../../secret" ]
+      },
+      purpose: SolidObjects::StreamToken::PURPOSE
+    )
+
+    assert_raises(SolidObjects::InvalidStreamToken) do
+      SolidObjects::StreamToken.verify(token)
+    end
+  end
+
   test "rejects a modified token" do
     token = SolidObjects::StreamToken.generate(StreamActor.ref("actor-1"))
 

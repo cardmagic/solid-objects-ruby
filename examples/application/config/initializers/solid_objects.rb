@@ -2,16 +2,22 @@
 
 SolidObjects.configure do |configuration|
   configuration.authorize_message = lambda do |actor_type:, actor_id:, authorization_context:, **|
-    next false unless authorization_context.respond_to?(:current_user)
+    user = if authorization_context.respond_to?(:current_user)
+      authorization_context.current_user
+    else
+      authorization_context
+    end
+    next false unless user
 
     if actor_type == ShoppingCartActor.actor_type
-      authorization_context.current_user.id.to_s == actor_id
+      user.id.to_s == actor_id
     else
-      ChatRoomPolicy.new(authorization_context.current_user).access?(actor_id)
+      ChatRoomPolicy.new(user).access?(actor_id)
     end
   end
   configuration.authorize_query = configuration.authorize_message
   configuration.authorize_subscription = configuration.authorize_message
+  configuration.component_authorization_context = ->(controller:) { Current.user }
 end
 
 SolidObjects.register_effect(:charge_payment) do |arguments, context|

@@ -1,8 +1,8 @@
-<%= solid_object @room do |room| %>
+<%= solid_object @room, authorization_context: current_user do |room| %>
   <p>
     Present:
     <%= room.presence %>
   </p>
 
-  <%= room.component :messages %>
+  <%= room.component :messages, observes: :recent_messages %>
 <% end %>

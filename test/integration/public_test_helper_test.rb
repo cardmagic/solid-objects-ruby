@@ -52,7 +52,7 @@ class PublicTestHelperTest < ActiveSupport::TestCase
     test_case = ActorTestCase.new("unused")
     message_reference = HelperActor.ref("async").async(:increment)
 
-    assert_equal 1, test_case.drain_solid_objects
+    assert_equal 1, test_case.drain_solid_objects(roles: [ :actors ])
     assert_equal "completed", message_reference.status
   end
 

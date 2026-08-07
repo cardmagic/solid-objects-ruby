@@ -6,6 +6,8 @@ module SolidObjects
     # @rbs @view_context: untyped
     # @rbs @authorization_context: untyped
     # @rbs @snapshot: ActorSnapshot
+    # @rbs @component_registrations: Array[ComponentRegistration]
+    # @rbs @observable_names: Array[String]
 
     attr_reader :reference
 
@@ -15,6 +17,8 @@ module SolidObjects
       @view_context = view_context
       @authorization_context = authorization_context
       @snapshot = ActorSnapshot.new(reference)
+      @component_registrations = []
+      @observable_names = []
     end
 
     # @rbs (Symbol | String) -> untyped
@@ -24,7 +28,8 @@ module SolidObjects
       raise UnknownMessage, "unknown observable #{name.inspect}" unless handler
 
       authorize_read!(observable_name)
-      value = snapshot.observable_values.fetch(observable_name.to_s)
+      value = snapshot.observable_value(observable_name)
+      observable_names << observable_name.to_s unless observable_names.include?(observable_name.to_s)
       view_context.content_tag(
         :span,
         display_value(value),
@@ -32,19 +37,52 @@ module SolidObjects
       )
     end
 
-    # @rbs (Symbol | String, ?partial: String?) -> untyped
-    def component(name, partial: nil)
+    # @rbs (Symbol | String, ?observes: Symbol | String | Array[Symbol | String]?, ?partial: String?) -> untyped
+    def component(name, observes: nil, partial: nil)
       component_name = normalized_component_name(name)
-      authorize_read!(component_name)
-      rendered = view_context.render(
-        partial: partial || default_partial(component_name),
-        locals: { actor: self }
+      return static_component(component_name, partial:) unless observes
+      if partial
+        raise ArgumentError,
+          "reactive components resolve partials by actor and component name"
+      end
+
+      dependencies = normalized_dependencies(observes)
+      validate_dependencies!(dependencies)
+      ensure_unique_component!(component_name)
+      refresh_path = component_path_resolver.call(view_context:)
+      registration = ComponentRegistration.issue(
+        reference:,
+        component_name:,
+        dependencies:,
+        snapshot:,
+        refresh_path:
       )
+      rendered = ComponentRenderer.new(
+        snapshot:,
+        component_name:,
+        dependencies:,
+        view_context:,
+        authorization_context:
+      ).call
+      component_registrations << registration
       view_context.content_tag(
-        :div,
+        :"turbo-frame",
         rendered,
-        id: DomIdentity.component(reference, component_name)
+        id: DomIdentity.component(reference, component_name),
+        data: {
+          solid_objects_revision: "#{snapshot.instance_id}:#{snapshot.revision}"
+        }
       )
+    end
+
+    # @rbs () -> Array[String]
+    def component_tokens
+      component_registrations.map(&:token)
+    end
+
+    # @rbs () -> Array[String]
+    def scalar_observable_names
+      observable_names.dup
     end
 
     # @rbs () -> State
@@ -66,7 +104,25 @@ module SolidObjects
 
     private
 
-    attr_reader :view_context, :authorization_context, :snapshot
+    attr_reader :view_context,
+      :authorization_context,
+      :snapshot,
+      :component_registrations,
+      :observable_names
+
+    # @rbs (String, partial: String?) -> untyped
+    def static_component(component_name, partial:)
+      authorize_read!(component_name)
+      rendered = view_context.render(
+        partial: partial || default_partial(component_name),
+        locals: { actor: self }
+      )
+      view_context.content_tag(
+        :div,
+        rendered,
+        id: DomIdentity.component(reference, component_name)
+      )
+    end
 
     # @rbs (Symbol | String) -> void
     def authorize_read!(name)
@@ -104,6 +160,43 @@ module SolidObjects
       end
 
       component_name
+    end
+
+    # @rbs (Symbol | String | Array[Symbol | String]) -> Array[String]
+    def normalized_dependencies(observes)
+      dependencies = Array(observes).map(&:to_s).uniq
+      if dependencies.empty?
+        raise ArgumentError, "reactive components require at least one observable"
+      end
+
+      dependencies
+    end
+
+    # @rbs (Array[String]) -> void
+    def validate_dependencies!(dependencies)
+      unknown = dependencies.find do |dependency|
+        !snapshot.actor_class.definition.observables.key?(dependency.to_sym)
+      end
+      return unless unknown
+
+      raise UnknownComponentDependency,
+        "unknown observable dependency #{unknown.inspect} for #{reference.actor_type}"
+    end
+
+    # @rbs (String) -> void
+    def ensure_unique_component!(component_name)
+      return unless component_registrations.any? do |registration|
+        registration.component_name == component_name
+      end
+
+      raise ArgumentError,
+        "component #{component_name.inspect} is already rendered in this solid_object scope"
+    end
+
+    # @rbs () -> Proc | ComponentPathResolver
+    def component_path_resolver
+      SolidObjects.configuration.component_path_resolver ||
+        ComponentPathResolver.new
     end
 
     # @rbs (String) -> String

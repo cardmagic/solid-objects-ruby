@@ -1,0 +1,22 @@
+# Generated from app/controllers/solid_objects/components_controller.rb with RBS::Inline
+
+module SolidObjects
+  class ComponentsController < ActionController::Base
+    # @rbs () -> void
+    def show: () -> void
+
+    private
+
+    # @rbs () -> Array[Integer]
+    def requested_revision_key: () -> Array[Integer]
+
+    # @rbs (Array[Integer], ActorSnapshot) -> bool
+    def newer_than_snapshot?: (Array[Integer], ActorSnapshot) -> bool
+
+    # @rbs () -> untyped
+    def component_view_context: () -> untyped
+
+    # @rbs (ComponentRegistration, ActorSnapshot, untyped) -> String
+    def component_frame: (ComponentRegistration, ActorSnapshot, untyped) -> String
+  end
+end
