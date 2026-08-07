@@ -74,6 +74,7 @@ tested, but the project does not yet claim production readiness. See
 - [Cloudflare Durable Objects for Rails](#cloudflare-durable-objects-for-rails)
 - [Reactive ERB](#reactive-erb)
 - [Installation](#installation)
+- [Upgrading](#upgrading)
 - [Worker requirements](#worker-requirements)
 - [Defining an actor](#defining-an-actor)
 - [Actor identity](#actor-identity)
@@ -336,6 +337,50 @@ can generate the gem RBI with:
 ```bash
 bundle exec tapioca gem solid_objects
 ```
+
+## Upgrading
+
+Review [CHANGELOG.md](CHANGELOG.md) for compatibility and deployment-order
+notes, then update the gem:
+
+```bash
+bundle update solid_objects
+```
+
+If the `Gemfile` pins an exact version, update that constraint first and run
+`bundle install`. Commit both `Gemfile.lock` and the copied Solid Objects
+migrations.
+
+Copy only migrations that the newer gem has added, migrate, and verify the
+installation:
+
+```bash
+bin/rails solid_objects:install:migrations
+bin/rails db:migrate
+bin/rails solid_objects:doctor
+```
+
+The migration task skips engine migrations already present in the application
+and gives new migrations host-specific timestamps. Inspect the resulting
+`db/migrate/*.solid_objects.rb` files before applying them. Do not rerun
+`generate solid_objects:install` during an upgrade because that also attempts
+to regenerate the application initializer.
+
+When Solid Objects uses a separate database configuration named `actors`, copy
+and run migrations through that database's configured migration path:
+
+```bash
+DATABASE=actors bin/rails solid_objects:install:migrations
+bin/rails db:migrate:actors
+bin/rails solid_objects:doctor
+```
+
+For production, back up the actor database and run new migrations before
+starting application or Solid Objects worker processes that require the new
+schema. Restart the web and Solid Objects worker fleet after the bundle and
+schema are current. For releases that change actor state versions, also follow
+the [state migration and rolling-deployment guide](docs/state-migrations.md);
+Rails schema migrations and actor state migrations are separate concerns.
 
 ## Worker requirements
 
