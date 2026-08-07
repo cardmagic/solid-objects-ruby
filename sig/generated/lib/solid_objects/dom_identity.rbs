@@ -8,13 +8,16 @@ module SolidObjects
     # @rbs (Reference, Symbol | String) -> String
     def self?.observable: (Reference, Symbol | String) -> String
 
-    # @rbs (Reference, Symbol | String) -> String
-    def self?.component: (Reference, Symbol | String) -> String
+    # @rbs (Reference, Symbol | String, ?key: String | Integer?) -> String
+    def self?.component: (Reference, Symbol | String, ?key: String | Integer?) -> String
 
     # @rbs (Reference) -> String
     def self?.identity_digest: (Reference) -> String
 
     # @rbs (Symbol | String) -> String
     def self?.normalized_name: (Symbol | String) -> String
+
+    # @rbs (String | Integer) -> String
+    def self?.component_key_digest: (String | Integer) -> String
   end
 end

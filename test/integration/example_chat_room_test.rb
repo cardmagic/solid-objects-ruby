@@ -29,7 +29,11 @@ class ExampleChatRoomTest < ActionView::TestCase
     )
 
     html = solid_object(room, authorization_context: "alice") do |actor|
-      actor.component(:messages, observes: :recent_messages)
+      actor.component(
+        :messages,
+        observes: :recent_messages,
+        refresh: :morph
+      )
     end
 
     assert_includes html, %(id="message_message-1")
@@ -37,5 +41,7 @@ class ExampleChatRoomTest < ActionView::TestCase
     assert_includes html, "&lt;Hello&gt;"
     refute_includes html, JSON.generate(room.snapshot.recent_messages)
     assert_equal 1, html.scan("<turbo-cable-stream-source").length
+    assert_includes html, "solid_objects/component_refresh"
+    assert_includes html, %(data-solid-objects-refresh="morph")
   end
 end

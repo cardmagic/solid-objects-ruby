@@ -402,6 +402,138 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     assert_no_streams
   end
 
+  test "refreshes repeatable keyed components independently" do
+    reference = ChannelActor.ref("actor-1")
+    SolidObjects.configuration.authorize_subscription = ->(**) { true }
+    subscribe(
+      token: SolidObjects::StreamToken.generate(reference),
+      components: JSON.generate(
+        %w[alice bob].map do |player_id|
+          component_token(
+            reference,
+            component_name: "player",
+            component_key: player_id,
+            dependencies: %w[status],
+            locals: { player_id: },
+            revision: 0
+          )
+        end
+      )
+    )
+    reference.async(:update_all)
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    broadcast = SolidObjects::Broadcast.find_by!(observable_name: "status")
+
+    subscription.__send__(
+      :receive_broadcast,
+      SolidObjects::TurboStreamRenderer.observable(broadcast)
+    )
+
+    assert_equal 1, component_refreshes(reference, :player, key: "alice").length
+    assert_equal 1, component_refreshes(reference, :player, key: "bob").length
+  ensure
+    worker&.stop
+  end
+
+  test "rejects duplicate keyed component registrations" do
+    reference = ChannelActor.ref("actor-1")
+    SolidObjects.configuration.authorize_subscription = ->(**) { true }
+    token = component_token(
+      reference,
+      component_name: "player",
+      component_key: "alice",
+      dependencies: %w[status],
+      revision: 0
+    )
+
+    subscribe(
+      token: SolidObjects::StreamToken.generate(reference),
+      components: JSON.generate([ token, token ])
+    )
+
+    assert subscription.rejected?
+    assert_no_streams
+  end
+
+  test "routes invalidations by each keyed component dependency" do
+    reference = ChannelActor.ref("actor-1")
+    SolidObjects.configuration.authorize_subscription = ->(**) { true }
+    subscribe(
+      token: SolidObjects::StreamToken.generate(reference),
+      components: JSON.generate(
+        [
+          component_token(
+            reference,
+            component_name: "player",
+            component_key: "alice",
+            dependencies: %w[status],
+            revision: 0
+          ),
+          component_token(
+            reference,
+            component_name: "player",
+            component_key: "bob",
+            dependencies: %w[missing],
+            revision: 0
+          )
+        ]
+      )
+    )
+    reference.async(:update_missing)
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    broadcast = SolidObjects::Broadcast.find_by!(observable_name: "missing")
+
+    subscription.__send__(
+      :receive_broadcast,
+      SolidObjects::TurboStreamRenderer.observable(broadcast)
+    )
+
+    assert_empty component_refreshes(reference, :player, key: "alice")
+    assert_equal 1, component_refreshes(reference, :player, key: "bob").length
+  ensure
+    worker&.stop
+  end
+
+  test "transmits a morph refresh through the browser refresh element" do
+    reference = ChannelActor.ref("actor-1")
+    SolidObjects.configuration.authorize_subscription = ->(**) { true }
+    subscribe(
+      token: SolidObjects::StreamToken.generate(reference),
+      components: JSON.generate(
+        [
+          component_token(
+            reference,
+            component_name: "summary",
+            dependencies: %w[status],
+            refresh_method: "morph",
+            revision: 0
+          )
+        ]
+      )
+    )
+    reference.async(:update_all)
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    broadcast = SolidObjects::Broadcast.find_by!(observable_name: "status")
+
+    subscription.__send__(
+      :receive_broadcast,
+      SolidObjects::TurboStreamRenderer.observable(broadcast)
+    )
+
+    refresh = transmissions.find do |transmission|
+      transmission.include?("<solid-objects-refresh")
+    end
+    assert refresh
+    assert_includes refresh, %(action="append")
+    assert_includes refresh, %(data-refresh-method="morph")
+    assert_includes refresh, %(revision=1)
+  ensure
+    worker&.stop
+  end
+
   private
 
   def rendered_subscription_parameters(reference, &block)
@@ -434,19 +566,39 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     view
   end
 
-  def component_token(reference, component_name:, dependencies:, revision:)
+  def component_token(
+    reference,
+    component_name:,
+    dependencies:,
+    revision:,
+    component_key: nil,
+    locals: {},
+    refresh_method: "replace"
+  )
     SolidObjects::ComponentToken.generate(
       reference:,
       component_name:,
+      component_key:,
       dependencies:,
+      locals:,
+      refresh_method:,
       instance_id: 0,
       revision:,
       refresh_path: "/solid_objects/components"
     )
   end
 
-  def component_refreshes(reference, component_name, messages: transmissions)
-    target = SolidObjects::DomIdentity.component(reference, component_name)
+  def component_refreshes(
+    reference,
+    component_name,
+    key: nil,
+    messages: transmissions
+  )
+    target = SolidObjects::DomIdentity.component(
+      reference,
+      component_name,
+      key:
+    )
     messages.select do |transmission|
       transmission.include?(%(target="#{target}")) &&
         transmission.include?("<turbo-frame")

@@ -4,5 +4,7 @@
     <%= room.presence %>
   </p>
 
-  <%= room.component :messages, observes: :recent_messages %>
+  <%= room.component :messages,
+    observes: :recent_messages,
+    refresh: :morph %>
 <% end %>

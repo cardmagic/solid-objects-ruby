@@ -28,7 +28,7 @@ module SolidObjects
           validate_identity!(registration, reference)
         end
       end
-      if registrations.map(&:component_name).uniq.length != registrations.length
+      if registrations.map(&:dom_id).uniq.length != registrations.length
         raise InvalidComponentToken, "duplicate actor component registration"
       end
 
@@ -39,7 +39,7 @@ module SolidObjects
     def initialize(registrations)
       @registrations = registrations
       @revisions = registrations.to_h do |registration|
-        [ registration.component_name, registration.revision_key ]
+        [ registration.dom_id, registration.revision_key ]
       end
     end
 
@@ -51,7 +51,7 @@ module SolidObjects
       registrations.filter_map do |registration|
         next unless registration.dependencies.include?(observable_name)
         next unless newer_revision?(
-          registration.component_name,
+          registration.dom_id,
           instance_id,
           revision
         )
@@ -64,7 +64,7 @@ module SolidObjects
     def reconnect_refreshes(snapshot)
       registrations.filter_map do |registration|
         next unless newer_revision?(
-          registration.component_name,
+          registration.dom_id,
           snapshot.instance_id,
           snapshot.revision
         )
@@ -92,7 +92,7 @@ module SolidObjects
 
     # @rbs (ComponentRegistration, Integer, Integer) -> String
     def refresh(registration, instance_id, revision)
-      revisions[registration.component_name] = [ instance_id, revision ]
+      revisions[registration.dom_id] = [ instance_id, revision ]
       TurboStreamRenderer.component_refresh(
         registration,
         instance_id,
@@ -101,8 +101,8 @@ module SolidObjects
     end
 
     # @rbs (String, Integer, Integer) -> bool
-    def newer_revision?(component_name, instance_id, revision)
-      current = revisions.fetch(component_name)
+    def newer_revision?(dom_id, instance_id, revision)
+      current = revisions.fetch(dom_id)
       (current <=> [ instance_id, revision ]) == -1
     end
   end

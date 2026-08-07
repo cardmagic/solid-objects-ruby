@@ -7,23 +7,38 @@ module SolidObjects
     PURPOSE = "solid_objects.actor_component"
     MAXIMUM_TOKEN_BYTES = 16_384
     MAXIMUM_DEPENDENCIES = 50
+    MAXIMUM_LOCALS = 50
+    MAXIMUM_COMPONENT_KEY_BYTES = 512
+    REFRESH_METHODS = %w[replace morph].freeze
+    RESERVED_LOCALS = %w[actor authorization_context component_key].freeze
+    RUBY_KEYWORDS = %w[
+      alias and begin break case class def defined do else elsif end ensure
+      false for if in module next nil not or redo rescue retry return self
+      super then true undef unless until when while yield
+    ].freeze
 
     module_function
 
-    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String) -> String
+    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String, ?component_key: untyped, ?locals: Hash[untyped, untyped], ?refresh_method: String | Symbol) -> String
     def generate(
       reference:,
       component_name:,
       dependencies:,
       instance_id:,
       revision:,
-      refresh_path:
+      refresh_path:,
+      component_key: nil,
+      locals: {},
+      refresh_method: "replace"
     )
       payload = {
         "actor_type" => reference.actor_type,
         "actor_id" => reference.actor_id,
         "component_name" => component_name,
+        "component_key" => Serialization.dump(component_key),
         "dependencies" => dependencies,
+        "locals" => Serialization.dump(locals),
+        "refresh_method" => refresh_method.to_s,
         "instance_id" => instance_id,
         "revision" => revision,
         "refresh_path" => refresh_path
@@ -41,6 +56,7 @@ module SolidObjects
       end
 
       payload = verifier.verified(token, purpose: PURPOSE)
+      apply_defaults!(payload)
       validate_payload!(payload)
       payload
     rescue ActiveSupport::MessageVerifier::InvalidSignature
@@ -54,6 +70,8 @@ module SolidObjects
           payload["actor_id"].is_a?(String) &&
           payload["component_name"].is_a?(String) &&
           payload["dependencies"].is_a?(Array) &&
+          payload["locals"].is_a?(Hash) &&
+          payload["refresh_method"].is_a?(String) &&
           payload["instance_id"].is_a?(Integer) &&
           payload["revision"].is_a?(Integer) &&
           payload["refresh_path"].is_a?(String)
@@ -61,7 +79,10 @@ module SolidObjects
       end
 
       validate_component_name!(payload.fetch("component_name"))
+      validate_component_key!(payload["component_key"])
       validate_dependencies!(payload.fetch("dependencies"))
+      validate_locals!(payload.fetch("locals"))
+      validate_refresh_method!(payload.fetch("refresh_method"))
       validate_revision!(
         payload.fetch("instance_id"),
         payload.fetch("revision")
@@ -71,6 +92,16 @@ module SolidObjects
     end
     private_class_method :validate_payload!
 
+    # @rbs (Hash[String, untyped]?) -> void
+    def apply_defaults!(payload)
+      return unless payload.is_a?(Hash)
+
+      payload["component_key"] = nil unless payload.key?("component_key")
+      payload["locals"] = {} unless payload.key?("locals")
+      payload["refresh_method"] = "replace" unless payload.key?("refresh_method")
+    end
+    private_class_method :apply_defaults!
+
     # @rbs (String) -> void
     def validate_component_name!(component_name)
       return if component_name.match?(/\A[a-zA-Z0-9_]+\z/)
@@ -78,6 +109,20 @@ module SolidObjects
       raise InvalidComponentToken, "invalid actor component name"
     end
     private_class_method :validate_component_name!
+
+    # @rbs (untyped) -> void
+    def validate_component_key!(component_key)
+      return if component_key.nil?
+      return if component_key.is_a?(Integer)
+      if component_key.is_a?(String) &&
+          component_key.bytesize.positive? &&
+          component_key.bytesize <= MAXIMUM_COMPONENT_KEY_BYTES
+        return
+      end
+
+      raise InvalidComponentToken, "invalid actor component key"
+    end
+    private_class_method :validate_component_key!
 
     # @rbs (Array[untyped]) -> void
     def validate_dependencies!(dependencies)
@@ -90,6 +135,29 @@ module SolidObjects
       raise InvalidComponentToken, "invalid actor component dependencies"
     end
     private_class_method :validate_dependencies!
+
+    # @rbs (Hash[untyped, untyped]) -> void
+    def validate_locals!(locals)
+      valid = locals.length <= MAXIMUM_LOCALS &&
+        locals.keys.all? do |name|
+          name.is_a?(String) &&
+            name.match?(/\A[a-z_][a-zA-Z0-9_]*\z/) &&
+            !RESERVED_LOCALS.include?(name) &&
+            !RUBY_KEYWORDS.include?(name)
+        end
+      return if valid
+
+      raise InvalidComponentToken, "invalid actor component locals"
+    end
+    private_class_method :validate_locals!
+
+    # @rbs (String) -> void
+    def validate_refresh_method!(refresh_method)
+      return if REFRESH_METHODS.include?(refresh_method)
+
+      raise InvalidComponentToken, "invalid actor component refresh method"
+    end
+    private_class_method :validate_refresh_method!
 
     # @rbs (Integer, Integer) -> void
     def validate_revision!(instance_id, revision)

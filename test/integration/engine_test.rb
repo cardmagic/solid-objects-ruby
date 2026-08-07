@@ -27,4 +27,13 @@ class EngineTest < ActiveSupport::TestCase
     assert status.success?, error_output
     assert_equal "/solid_objects/components", output.strip
   end
+
+  test "packages the morph refresh browser module" do
+    specification = Gem::Specification.load(
+      File.expand_path("../../solid_objects.gemspec", __dir__)
+    )
+
+    assert_includes specification.files,
+      "app/assets/javascripts/solid_objects/component_refresh.js"
+  end
 end

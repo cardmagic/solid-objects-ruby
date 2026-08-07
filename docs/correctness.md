@@ -137,10 +137,18 @@ its name and revision over Cable, not its serialized value.
 
 Cable compares `(instance_id, state_revision)` pairs, coalesces dependencies
 changed by the same turn, and ignores an older pair after a newer one. A new
-invalidation replaces the whole Turbo Frame generation. A response owned by
-the detached older frame cannot overwrite the current frame. Reconnect
-compares the component's signed initial pair with the current instance row and
-requests the latest committed snapshot when stale.
+invalidation advances each keyed component registration independently. Replace
+refreshes replace the whole Turbo Frame generation, so a response owned by the
+detached older frame cannot overwrite the current frame. Morph refreshes abort
+a superseded request for the same target and compare the response revision
+with the current DOM revision immediately before applying Turbo's scoped
+morph. Reconnect compares every component's signed initial pair with the
+current instance row and requests the latest committed snapshot when stale.
+
+Component keys, JSON locals, dependencies, and refresh strategy are covered by
+the signed registration. Keys and locals are visible to the browser and are
+passed back to `authorize_query` on every render; integrity never substitutes
+for request-specific authorization.
 
 ## Synchronous invocation
 

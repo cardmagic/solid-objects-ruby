@@ -20,5 +20,8 @@ module SolidObjects
 
     # @rbs (untyped) -> String
     def self?.display_value: (untyped) -> String
+
+    # @rbs (ComponentRegistration, Integer, Integer) -> String
+    def self?.morph_component_refresh: (ComponentRegistration, Integer, Integer) -> String
   end
 end

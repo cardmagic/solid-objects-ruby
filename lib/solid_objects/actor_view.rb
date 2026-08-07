@@ -37,10 +37,20 @@ module SolidObjects
       )
     end
 
-    # @rbs (Symbol | String, ?observes: Symbol | String | Array[Symbol | String]?, ?partial: String?) -> untyped
-    def component(name, observes: nil, partial: nil)
+    # @rbs (Symbol | String, ?observes: Symbol | String | Array[Symbol | String]?, ?partial: String?, ?key: untyped, ?locals: Hash[untyped, untyped], ?refresh: String | Symbol) -> untyped
+    def component(
+      name,
+      observes: nil,
+      partial: nil,
+      key: nil,
+      locals: {},
+      refresh: :replace
+    )
       component_name = normalized_component_name(name)
-      return static_component(component_name, partial:) unless observes
+      unless observes
+        validate_static_options!(key:, locals:, refresh:)
+        return static_component(component_name, partial:)
+      end
       if partial
         raise ArgumentError,
           "reactive components resolve partials by actor and component name"
@@ -48,19 +58,21 @@ module SolidObjects
 
       dependencies = normalized_dependencies(observes)
       validate_dependencies!(dependencies)
-      ensure_unique_component!(component_name)
       refresh_path = component_path_resolver.call(view_context:)
       registration = ComponentRegistration.issue(
         reference:,
         component_name:,
+        component_key: key,
         dependencies:,
+        locals:,
+        refresh_method: refresh,
         snapshot:,
         refresh_path:
       )
+      ensure_unique_component!(registration)
       rendered = ComponentRenderer.new(
         snapshot:,
-        component_name:,
-        dependencies:,
+        registration:,
         view_context:,
         authorization_context:
       ).call
@@ -68,9 +80,10 @@ module SolidObjects
       view_context.content_tag(
         :"turbo-frame",
         rendered,
-        id: DomIdentity.component(reference, component_name),
+        id: registration.dom_id,
         data: {
-          solid_objects_revision: "#{snapshot.instance_id}:#{snapshot.revision}"
+          solid_objects_revision: "#{snapshot.instance_id}:#{snapshot.revision}",
+          solid_objects_refresh: registration.refresh_method
         }
       )
     end
@@ -83,6 +96,11 @@ module SolidObjects
     # @rbs () -> Array[String]
     def scalar_observable_names
       observable_names.dup
+    end
+
+    # @rbs () -> bool
+    def morph_components?
+      component_registrations.any?(&:morph?)
     end
 
     # @rbs () -> State
@@ -183,14 +201,23 @@ module SolidObjects
         "unknown observable dependency #{unknown.inspect} for #{reference.actor_type}"
     end
 
-    # @rbs (String) -> void
-    def ensure_unique_component!(component_name)
-      return unless component_registrations.any? do |registration|
-        registration.component_name == component_name
+    # @rbs (ComponentRegistration) -> void
+    def ensure_unique_component!(registration)
+      return unless component_registrations.any? do |existing_registration|
+        existing_registration.dom_id == registration.dom_id
       end
 
       raise ArgumentError,
-        "component #{component_name.inspect} is already rendered in this solid_object scope"
+        "component #{registration.component_name.inspect} with key " \
+          "#{registration.component_key.inspect} is already rendered in this solid_object scope"
+    end
+
+    # @rbs (key: untyped, locals: Hash[untyped, untyped], refresh: String | Symbol) -> void
+    def validate_static_options!(key:, locals:, refresh:)
+      return if key.nil? && locals.empty? && refresh.to_s == "replace"
+
+      raise ArgumentError,
+        "key, locals, and refresh require an observable component"
     end
 
     # @rbs () -> Proc | ComponentPathResolver

@@ -473,13 +473,20 @@ emits:
 - Stable child target IDs for values and components
 - A signed actor token used by the channel subscription
 - Signed component registrations containing a conventional component name,
-  explicit observable dependencies, the initial actor incarnation/revision,
-  and a same-origin engine refresh path
+  optional string or integer key, JSON locals, explicit observable
+  dependencies, refresh strategy, the initial actor incarnation/revision, and
+  a same-origin engine refresh path
 
 ```erb
-<%= solid_object current_cart do |cart| %>
-  Cart items: <%= cart.items_count %>
-  <%= cart.component :summary, observes: %i[items checkout_status] %>
+<%= solid_object @room do |room| %>
+  Present: <%= room.presence %>
+  <% @players.each do |player| %>
+    <%= room.component :player,
+      key: player.id,
+      observes: :players,
+      locals: { player_id: player.id },
+      refresh: :morph %>
+  <% end %>
 <% end %>
 ```
 
@@ -487,9 +494,11 @@ The signed token proves integrity, not authorization. `ActorChannel#subscribed` 
 
 Scalar observable calls remain direct escaped Turbo replacements. A reactive
 component resolves only `actors/<actor_class>/_<component>`, receives its
-declared observables as frozen Ruby values, and cannot read raw state or a
-dependency it did not declare. A static initial-only component can still use a
-server-selected explicit partial; a reactive component cannot.
+declared observables and signed locals as frozen Ruby values, and cannot read
+raw state or a dependency it did not declare. Repeated component names use a
+keyed digest in the DOM identity, subscription revision map, and duplicate
+check. A static initial-only component can still use a server-selected
+explicit partial; a reactive component cannot.
 
 Broadcast replacements happen after the actor transaction commits because only
 a committed broadcast outbox row can be delivered. Multiple scalar values and
@@ -502,24 +511,29 @@ dependencies do not send their values to the browser, and the stream never
 contains personalized component HTML. For each subscription, `ActorChannel`
 matches the changed observable to registered component dependencies. It
 coalesces multiple dependencies at the same message sequence and drops older
-revision pairs. A component invalidation replaces its stable target with a
-Turbo Frame whose source is the signed engine endpoint.
+revision pairs independently for every component name and key pair. A default
+component invalidation replaces its stable target with a Turbo Frame whose
+source is the signed engine endpoint. A morph invalidation appends a temporary
+gem-owned refresh element carrying the same signed URL.
 
 The browser then makes an ordinary cookie-bearing HTTP request. The engine
 controller derives a request-specific context through
 `component_authorization_context`, calls `authorize_query` for the component
-name and every declared dependency, renders the host partial from a new
-committed snapshot, and returns `private, no-store` HTML. Subscribers to the
-same actor can therefore receive different HTML without sharing it through
-Cable or the database.
+name and every declared dependency with the signed key and locals as
+authorization arguments, renders the host partial from a new committed
+snapshot, and returns `private, no-store` HTML. Subscribers to the same actor
+can therefore receive different HTML without sharing it through Cable or the
+database.
 
 Each channel subscription transmits current scalar replacements and compares
 each component's signed initial revision against the latest committed
 `(instance_id, state_revision)` pair, including after reconnect. Missing a
 broadcast therefore creates temporary staleness, not permanent divergence.
 The instance primary key distinguishes destroy-and-recreate incarnations.
-Replacing the full frame on each newer invalidation detaches an older in-flight
-frame, preventing its slower response from replacing the current generation.
+Replace refreshes detach an older in-flight frame. Morph refreshes abort a
+superseded fetch for the same target, re-read the current DOM target after the
+response arrives, compare monotonic revision pairs, and apply authorized HTML
+through Turbo's scoped morph operation only when it is newer.
 
 ## Authorization
 
@@ -540,8 +554,10 @@ No controller, channel, or administrative command treats an actor ID, message ID
 
 Initial component rendering, Cable subscription, and request-time component
 refresh deliberately use different authorization contexts. Signed component
-tokens constrain actor identity, component convention, dependencies, revision,
-and same-origin refresh path but never grant access.
+tokens constrain actor identity, component convention, optional key and
+locals, dependencies, refresh method, revision, and same-origin refresh path
+but never grant access. Keys and locals are browser-visible integrity-protected
+inputs, not encrypted capabilities.
 
 Actor IDs are bounded UTF-8 strings and never become constant names, SQL identifiers, file paths, or raw stream names.
 
