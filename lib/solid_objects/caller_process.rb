@@ -52,19 +52,21 @@ module SolidObjects
     def reusable_registry?
       return false unless registry&.process_record
 
-      registry.process_record.reload.shutdown_state == "running"
+      SolidObjects.database_adapter.with_lock_retry do
+        registry.process_record.reload.shutdown_state == "running"
+      end
     rescue ActiveRecord::RecordNotFound
       false
     end
 
     # @rbs () -> ProcessRegistry
     def register
-      @registry = ProcessRegistry.new
-      registry.register(
+      process_registry = ProcessRegistry.new
+      process_registry.register(
         kind: "caller",
         metadata: { execution: "synchronous" }
       )
-      registry
+      @registry = process_registry
     end
 
     # @rbs () -> void

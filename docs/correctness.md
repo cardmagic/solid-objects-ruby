@@ -155,10 +155,13 @@ Timeout raises `SolidObjects::SyncTimeout` but does not cancel the message.
 The exception reports actor identity, message ID and sequence, durable status,
 an earlier mailbox blocker, and activation-owner metadata without exposing
 arguments. Its `message_reference` can reauthorize and wait for the eventual
-result. Adapter lock/query deadlines cover the durable enqueue and coordination
-transactions. If enqueue cannot commit, `SyncEnqueueTimeout` is raised and no
-message reference exists. MySQL lock waits have one-second InnoDB granularity.
-Ruby handlers that already started are not preempted.
+result. Adapter lock/query deadlines cover the durable enqueue, caller-process
+registration and heartbeat, activation coordination, and result observation.
+SQLite retries busy coordination operations only within the original call
+deadline and reports `waiting_on=database_contention` when the database cannot
+be inspected at timeout. If enqueue cannot commit, `SyncEnqueueTimeout` is
+raised and no message reference exists. MySQL lock waits have one-second InnoDB
+granularity. Ruby handlers that already started are not preempted.
 
 A synchronous call made while the Solid Objects connection already has an open
 transaction raises `SolidObjects::SyncInsideTransaction` before the message is

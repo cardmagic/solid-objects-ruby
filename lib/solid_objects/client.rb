@@ -65,27 +65,33 @@ module SolidObjects
 
     # @rbs (MessageReference, timeout: Numeric, ?authorization_context: untyped) -> untyped
     def wait(message_reference, timeout:, authorization_context: nil)
-      message = Message.find(message_reference.id)
-      validate_message_reference!(message_reference, message)
-      reference = Reference.new(
-        actor_type: message.actor_type,
-        actor_id: message.actor_id
-      )
-      actor_class = SolidObjects.registry.fetch(reference.actor_type)
-      query = actor_class.definition.queries.key?(message.message_name.to_sym)
-      actor_message = actor_class.definition.messages.key?(message.message_name.to_sym)
-      unless query || actor_message
-        raise UnknownMessage, "unknown message #{message.message_name.inspect}"
+      SyncDeadline.with(timeout:) do
+        message = SolidObjects.database_adapter.with_lock_retry do
+          Message.find(message_reference.id)
+        end
+        validate_message_reference!(message_reference, message)
+        reference = Reference.new(
+          actor_type: message.actor_type,
+          actor_id: message.actor_id
+        )
+        actor_class = SolidObjects.registry.fetch(reference.actor_type)
+        query = actor_class.definition.queries.key?(message.message_name.to_sym)
+        actor_message = actor_class.definition.messages.key?(message.message_name.to_sym)
+        unless query || actor_message
+          raise UnknownMessage, "unknown message #{message.message_name.inspect}"
+        end
+        authorize!(
+          query ? SolidObjects.configuration.authorize_query : SolidObjects.configuration.authorize_message,
+          reference,
+          message.message_name,
+          message.arguments,
+          authorization_context:
+        )
+        reject_sync_inside_transaction!(reference, message.message_name)
+        SynchronousInvocation.new.call(message_reference, timeout:)
       end
-      authorize!(
-        query ? SolidObjects.configuration.authorize_query : SolidObjects.configuration.authorize_message,
-        reference,
-        message.message_name,
-        message.arguments,
-        authorization_context:
-      )
-      reject_sync_inside_transaction!(reference, message.message_name)
-      SynchronousInvocation.new.call(message_reference, timeout:)
+    rescue DatabaseDeadlineExceeded
+      raise SyncDiagnostics.new.database_contention_for(message_reference, timeout:)
     end
 
     # @rbs (Reference, ?authorization_context: untyped) -> StateSnapshot

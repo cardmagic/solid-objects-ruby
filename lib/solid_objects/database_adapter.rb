@@ -53,6 +53,16 @@ module SolidObjects
     end
 
     # @rbs () { () -> untyped } -> untyped
+    def with_lock_retry
+      yield
+    end
+
+    # @rbs () { () -> untyped } -> untyped
+    def with_lock_probe
+      yield
+    end
+
+    # @rbs () { () -> untyped } -> untyped
     def transaction(&block)
       raise DatabaseDeadlineExceeded, "synchronous invocation deadline expired" if SyncDeadline.expired?
 

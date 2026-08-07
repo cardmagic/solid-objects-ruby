@@ -80,18 +80,21 @@ module SolidObjects
 
     # @rbs (?kind: String, ?metadata: Hash[String | Symbol, untyped]) -> Process
     def register(kind: "worker", metadata: {})
-      now = SolidObjects.database_adapter.database_now
-      @process_record = Process.create!(
-        id: SecureRandom.uuid,
-        kind:,
-        hostname: Socket.gethostname,
-        pid: ::Process.pid,
-        started_at: now,
-        last_heartbeat_at: now,
-        metadata: Serialization.dump(default_metadata.merge(metadata))
-      )
+      process_record = SolidObjects.database_adapter.with_lock_retry do
+        now = SolidObjects.database_adapter.database_now
+        Process.create!(
+          id: SecureRandom.uuid,
+          kind:,
+          hostname: Socket.gethostname,
+          pid: ::Process.pid,
+          started_at: now,
+          last_heartbeat_at: now,
+          metadata: Serialization.dump(default_metadata.merge(metadata))
+        )
+      end
+      @process_record = process_record
       @last_heartbeat_at = monotonic_now
-      @process_record
+      process_record
     end
 
     # @rbs () -> bool
@@ -99,9 +102,13 @@ module SolidObjects
       return false unless process_record
       return false if heartbeat_recent?
 
-      process_record.update(
-        last_heartbeat_at: SolidObjects.database_adapter.database_now
-      ).tap { @last_heartbeat_at = monotonic_now }
+      updated = SolidObjects.database_adapter.with_lock_retry do
+        process_record.update(
+          last_heartbeat_at: SolidObjects.database_adapter.database_now
+        )
+      end
+      @last_heartbeat_at = monotonic_now if updated
+      updated
     end
 
     # @rbs () -> bool

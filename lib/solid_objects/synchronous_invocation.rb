@@ -22,33 +22,49 @@ module SolidObjects
     # @rbs (MessageReference, timeout: Numeric) -> untyped
     def call_before_deadline(message_reference, timeout:)
       deadline = monotonic_now + SyncDeadline.remaining
+      message = nil
 
       loop do
+        unless (deadline - monotonic_now).positive?
+          final_message = load_message_at_deadline(message_reference)
+          return completed_result(final_message) if final_message&.completed? || final_message&.dead?
+
+          raise final_message ?
+            diagnose_timeout(final_message, timeout:) :
+            contention_timeout(message, message_reference, timeout:)
+        end
+
         message = load_message(message_reference)
         return completed_result(message) if message.completed? || message.dead?
-
-        remaining = deadline - monotonic_now
-        unless remaining.positive?
-          message = load_message(message_reference)
-          return completed_result(message) if message.completed? || message.dead?
-
-          raise SyncDiagnostics.new.call(message, timeout:)
-        end
 
         processed = assist(message, deadline:)
         remaining = deadline - monotonic_now
         wait(remaining) if processed.zero? && remaining.positive?
       end
     rescue DatabaseDeadlineExceeded
-      message = load_message(message_reference)
-      return completed_result(message) if message.completed? || message.dead?
-
-      raise SyncDiagnostics.new.call(message, timeout:)
+      raise message ?
+        diagnose_timeout(message, timeout:) :
+        contention_timeout(message, message_reference, timeout:)
     end
 
     # @rbs (MessageReference) -> Message
     def load_message(message_reference)
-      Message.uncached { Message.find(message_reference.id) }
+      SolidObjects.database_adapter.with_lock_retry do
+        Message.uncached do
+          Message.includes(:dead_letter).find(message_reference.id)
+        end
+      end
+    end
+
+    # @rbs (MessageReference) -> Message?
+    def load_message_at_deadline(message_reference)
+      SolidObjects.database_adapter.with_lock_probe do
+        Message.uncached do
+          Message.includes(:dead_letter).find(message_reference.id)
+        end
+      end
+    rescue DatabaseDeadlineExceeded
+      nil
     end
 
     # @rbs (Message) -> untyped
@@ -102,6 +118,22 @@ module SolidObjects
       SolidObjects.wake_up.wait(
         timeout: [ remaining, SolidObjects.configuration.sync_polling_interval ].min
       )
+    end
+
+    # @rbs (Message, timeout: Numeric) -> SyncTimeout
+    def diagnose_timeout(message, timeout:)
+      SolidObjects.database_adapter.with_lock_probe do
+        SyncDiagnostics.new.call(message, timeout:)
+      end
+    rescue DatabaseDeadlineExceeded
+      SyncDiagnostics.new.database_contention(message, timeout:)
+    end
+
+    # @rbs (Message?, MessageReference, timeout: Numeric) -> SyncTimeout
+    def contention_timeout(message, message_reference, timeout:)
+      return SyncDiagnostics.new.database_contention(message, timeout:) if message
+
+      SyncDiagnostics.new.database_contention_for(message_reference, timeout:)
     end
 
     # @rbs () -> Float

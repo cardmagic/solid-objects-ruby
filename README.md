@@ -588,9 +588,9 @@ polling as the fallback. A timeout never cancels the durable invocation.
 durable status, mailbox blocker, and activation-owner diagnostics without
 including message arguments. The configured timeout also bounds adapter
 database lock waits from the enqueue attempt through result observation.
-PostgreSQL uses transaction lock and statement timeouts, SQLite uses its busy
-timeout, and MySQL uses its execution timeout plus InnoDB's one-second minimum
-lock-wait granularity.
+PostgreSQL uses transaction lock and statement timeouts, SQLite retries busy
+coordination operations only until the original call deadline, and MySQL uses
+its execution timeout plus InnoDB's one-second minimum lock-wait granularity.
 
 The durable call can finish after its original caller gives up. Reauthorize and
 recover its eventual result through the durable message identity:
@@ -895,6 +895,11 @@ The supervisor stops new claims, drains active loops, releases cached leases,
 and marks process rows stopped on graceful shutdown. A hard-killed worker's
 claimed turn is recovered after its process heartbeat or activation lease
 becomes stale.
+
+Before any role starts, the CLI loads actors from the host application's
+`app/actors` directories through Rails' main autoloader. This works when
+development eager loading is disabled and does not require actor references in
+an initializer.
 
 See the [operations guide](docs/operations.md) for monitoring, reconciliation,
 shutdown, retention, and backup guidance.

@@ -23,6 +23,12 @@ Start all configured roles:
 bundle exec solid_objects start
 ```
 
+The command loads the host application's `app/actors` directories before
+starting any runtime role, even when Rails eager loading is disabled. Actors in
+the conventional directory do not need initializer references. The targeted
+loader participates in Rails preparation callbacks so a development reload can
+replace a registered actor class without loading unrelated application code.
+
 Inspect process records and clean stale ownership:
 
 ```bash

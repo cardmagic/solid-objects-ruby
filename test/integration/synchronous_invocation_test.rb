@@ -105,6 +105,21 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     end
   end
 
+  class LockRetryActor < SolidObjects::Actor
+    actor_type "synchronous-lock-retry"
+
+    class << self
+      attr_accessor :executions
+    end
+
+    attribute :value, default: 0
+
+    def increment
+      self.class.executions += 1
+      self.value += 1
+    end
+  end
+
   class BlockingWakeUp
     # @rbs @waiting: Thread::Queue
     # @rbs @release: Thread::Queue
@@ -133,6 +148,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     BlockingActor.release = Queue.new
     DeadlineActor.reached = Queue.new
     DeadlineActor.continue = Queue.new
+    LockRetryActor.executions = 0
   end
 
   test "direct actor method durably executes without a worker" do
@@ -456,6 +472,63 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     blocker&.join
   end
 
+  test "sync bounds SQLite contention while registering its caller process" do
+    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+
+    message_reference = SolidObjects::Mailbox.new.enqueue(
+      LockRetryActor.ref("registration"),
+      :increment,
+      {},
+      kind: "sync"
+    )
+    lock = hold_sqlite_write_lock
+
+    error, elapsed = invoke_with_immediate_sqlite_lock_failure(message_reference)
+
+    assert_instance_of SolidObjects::SyncTimeout, error
+    assert_equal message_reference.id, error.message_id
+    assert_operator elapsed, :<, 0.5
+    assert_equal 0, LockRetryActor.executions
+
+    release_sqlite_write_lock(lock)
+    lock = nil
+
+    assert_equal 1, message_reference.wait(timeout: 1)
+    assert_equal 1, LockRetryActor.executions
+  ensure
+    release_sqlite_write_lock(lock) if lock
+  end
+
+  test "sync bounds SQLite contention while reusing and heartbeating its caller process" do
+    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+
+    SolidObjects.configuration.process_heartbeat_interval = 0
+    process_record = SolidObjects.caller_process.process_registry.process_record
+    message_reference = SolidObjects::Mailbox.new.enqueue(
+      LockRetryActor.ref("heartbeat"),
+      :increment,
+      {},
+      kind: "sync"
+    )
+    lock = hold_sqlite_write_lock
+
+    error, elapsed = invoke_with_immediate_sqlite_lock_failure(message_reference)
+
+    assert_instance_of SolidObjects::SyncTimeout, error
+    assert_equal message_reference.id, error.message_id
+    assert_operator elapsed, :<, 0.5
+    assert_equal 0, LockRetryActor.executions
+
+    release_sqlite_write_lock(lock)
+    lock = nil
+
+    assert_equal process_record.id, SolidObjects.caller_process.process_registry.process_record.id
+    assert_equal 1, message_reference.wait(timeout: 1)
+    assert_equal 1, LockRetryActor.executions
+  ensure
+    release_sqlite_write_lock(lock) if lock
+  end
+
   test "concurrent sync calls for one actor execute sequentially" do
     wake_up = BlockingWakeUp.new
     SolidObjects.configuration.wake_up_adapter = wake_up
@@ -648,6 +721,59 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
 
   def monotonic_now
     ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+  end
+
+  def hold_sqlite_write_lock
+    locked = Queue.new
+    release = Queue.new
+    thread = Thread.new do
+      SolidObjects::Record.connection_pool.with_connection do
+        SolidObjects::Record.transaction do
+          SolidObjects::Process.create!(
+            id: SecureRandom.uuid,
+            kind: "lock-holder",
+            hostname: "test-host",
+            pid: ::Process.pid,
+            started_at: Time.current,
+            last_heartbeat_at: Time.current,
+            metadata: {}
+          )
+          locked << true
+          release.pop
+        end
+      end
+    end
+    Timeout.timeout(2) { locked.pop }
+    [ thread, release ]
+  end
+
+  def release_sqlite_write_lock(lock)
+    thread, release = lock
+    release << true
+    thread.join
+  end
+
+  def invoke_with_immediate_sqlite_lock_failure(message_reference)
+    result = Queue.new
+    invocation = Thread.new do
+      error = nil
+      elapsed = nil
+      SolidObjects::Record.connection_pool.with_connection do |connection|
+        previous_timeout = connection.select_value("PRAGMA busy_timeout").to_i
+        connection.execute("PRAGMA busy_timeout = 0")
+        started_at = monotonic_now
+        error = capture_exception do
+          SolidObjects::SynchronousInvocation.new.call(message_reference, timeout: 0.1)
+        end
+        elapsed = monotonic_now - started_at
+      ensure
+        connection.execute("PRAGMA busy_timeout = #{previous_timeout}")
+      end
+      result << [ error, elapsed ]
+    end
+    captured = Timeout.timeout(2) { result.pop }
+    invocation.join
+    captured
   end
 
   def actor_instance(actor_id)
