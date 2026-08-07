@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - 2026-08-06
 
 - Add dependency-driven live ERB components with request-time authorization,
   conventional partial resolution, revision fencing, refresh coalescing, and

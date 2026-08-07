@@ -1037,7 +1037,7 @@ See the [development guide](docs/development.md) and
 
 ## Status
 
-Implemented and tested in 0.3:
+Implemented and tested in 0.4:
 
 - Rails engine, install generator, migrations, and `solid_objects` executable;
 - actor registry, references, JSON state, and state migrations;
