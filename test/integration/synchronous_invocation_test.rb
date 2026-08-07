@@ -2,6 +2,7 @@
 
 require "database_test_helper"
 require "solid_objects/mailbox"
+require "solid_objects/synchronous_invocation"
 require "timeout"
 
 class SynchronousInvocationTest < ActiveSupport::TestCase
@@ -483,11 +484,13 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     )
     lock = hold_sqlite_write_lock
 
-    error, elapsed = invoke_with_immediate_sqlite_lock_failure(message_reference)
+    error, elapsed, attempts = invoke_with_immediate_sqlite_lock_failure(message_reference)
 
     assert_instance_of SolidObjects::SyncTimeout, error
     assert_equal message_reference.id, error.message_id
     assert_operator elapsed, :<, 0.5
+    assert_operator attempts, :>, 1
+    assert_operator attempts, :<, 200
     assert_equal 0, LockRetryActor.executions
 
     release_sqlite_write_lock(lock)
@@ -512,11 +515,13 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     )
     lock = hold_sqlite_write_lock
 
-    error, elapsed = invoke_with_immediate_sqlite_lock_failure(message_reference)
+    error, elapsed, attempts = invoke_with_immediate_sqlite_lock_failure(message_reference)
 
     assert_instance_of SolidObjects::SyncTimeout, error
     assert_equal message_reference.id, error.message_id
     assert_operator elapsed, :<, 0.5
+    assert_operator attempts, :>, 1
+    assert_operator attempts, :<, 200
     assert_equal 0, LockRetryActor.executions
 
     release_sqlite_write_lock(lock)
@@ -758,6 +763,10 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     invocation = Thread.new do
       error = nil
       elapsed = nil
+      attempts = 0
+      subscription = ActiveSupport::Notifications.subscribe("sql.active_record") do |event|
+        attempts += 1 if process_write?(event.payload)
+      end
       SolidObjects::Record.connection_pool.with_connection do |connection|
         previous_timeout = connection.select_value("PRAGMA busy_timeout").to_i
         connection.execute("PRAGMA busy_timeout = 0")
@@ -768,12 +777,18 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
         elapsed = monotonic_now - started_at
       ensure
         connection.execute("PRAGMA busy_timeout = #{previous_timeout}")
+        ActiveSupport::Notifications.unsubscribe(subscription)
       end
-      result << [ error, elapsed ]
+      result << [ error, elapsed, attempts ]
     end
     captured = Timeout.timeout(2) { result.pop }
     invocation.join
     captured
+  end
+
+  def process_write?(payload)
+    payload.fetch(:sql).match?(/\A(?:INSERT|UPDATE)/) &&
+      payload.fetch(:sql).include?(SolidObjects::Process.table_name)
   end
 
   def actor_instance(actor_id)

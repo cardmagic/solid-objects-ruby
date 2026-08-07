@@ -3,6 +3,12 @@
 module SolidObjects
   module DatabaseAdapters
     class Sqlite < DatabaseAdapter
+      LOCK_RETRY_INTERVAL: ::Float
+
+      LOCK_RETRY_MUTEX: untyped
+
+      LOCK_RETRY_CONDITION: untyped
+
       # @rbs () -> String
       def current_time_expression: () -> String
 
@@ -24,7 +30,7 @@ module SolidObjects
       def deadline_error?: (Exception) -> bool
 
       # @rbs () -> void
-      def yield_before_retry: () -> void
+      def wait_before_retry: () -> void
     end
   end
 end

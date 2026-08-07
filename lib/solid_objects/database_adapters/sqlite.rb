@@ -3,6 +3,10 @@
 module SolidObjects
   module DatabaseAdapters
     class Sqlite < DatabaseAdapter
+      LOCK_RETRY_INTERVAL = 0.001
+      LOCK_RETRY_MUTEX = Thread::Mutex.new
+      LOCK_RETRY_CONDITION = Thread::ConditionVariable.new
+
       # @rbs () -> String
       def current_time_expression
         "STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')"
@@ -27,7 +31,7 @@ module SolidObjects
       rescue DatabaseDeadlineExceeded
         raise if SyncDeadline.expired?
 
-        yield_before_retry
+        wait_before_retry
         retry
       rescue => error
         raise unless deadline_error?(error)
@@ -38,7 +42,7 @@ module SolidObjects
             cause: error
         end
 
-        yield_before_retry
+        wait_before_retry
         retry
       end
 
@@ -84,8 +88,13 @@ module SolidObjects
       end
 
       # @rbs () -> void
-      def yield_before_retry
-        Thread.pass
+      def wait_before_retry
+        LOCK_RETRY_MUTEX.synchronize do
+          LOCK_RETRY_CONDITION.wait(
+            LOCK_RETRY_MUTEX,
+            [ LOCK_RETRY_INTERVAL, SyncDeadline.remaining ].min
+          )
+        end
       end
     end
   end
