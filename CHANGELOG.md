@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3 - 2026-08-07
+
+- Bound SQLite caller-process registration, reuse, heartbeat, and synchronous
+  result observation retries by the original invocation deadline.
+- Load host application actors from `app/actors` before CLI workers start,
+  including development environments with eager loading disabled.
+
 ## 0.4.2 - 2026-08-07
 
 - Decode Action Cable broadcast payloads before parsing observable invalidations

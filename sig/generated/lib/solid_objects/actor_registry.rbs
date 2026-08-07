@@ -32,5 +32,8 @@ module SolidObjects
 
     # @rbs (untyped) -> void
     def validate_actor_class!: (untyped) -> void
+
+    # @rbs (Class, Class) -> bool
+    def reload_of?: (Class, Class) -> bool
   end
 end

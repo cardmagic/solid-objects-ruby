@@ -13,7 +13,9 @@ module SolidObjects
     # @rbs (lease: Lease) -> void
     def initialize(lease:)
       @lease = lease
-      instance = Instance.find(lease.instance_id)
+      instance = SolidObjects.database_adapter.with_lock_retry do
+        Instance.find(lease.instance_id)
+      end
       @actor_class = SolidObjects.registry.fetch(instance.actor_type)
       @actor = build_actor(instance)
       @last_used_at = monotonic_now
@@ -74,10 +76,12 @@ module SolidObjects
 
     # @rbs () -> void
     def yield_ready_messages
-      now = SolidObjects.database_adapter.database_now
-      ReadyMessage
-        .where(instance_id: lease.instance_id, available_at: ..now)
-        .update_all(available_at: now)
+      SolidObjects.database_adapter.transaction do
+        now = SolidObjects.database_adapter.database_now
+        ReadyMessage
+          .where(instance_id: lease.instance_id, available_at: ..now)
+          .update_all(available_at: now)
+      end
     end
 
     # @rbs (Hash[String, untyped]) -> void

@@ -23,6 +23,31 @@ class ActorRegistryTest < ActiveSupport::TestCase
     end
   end
 
+  test "replaces a reloaded actor class with the same name" do
+    actor_name = "ReloadedRegistryActor"
+    Object.const_set(actor_name, Class.new(SolidObjects::Actor))
+    original_actor = Object.const_get(actor_name)
+    SolidObjects.register_actor("reloadable", original_actor)
+    Object.send(:remove_const, actor_name)
+    Object.const_set(actor_name, Class.new(SolidObjects::Actor))
+    reloaded_actor = Object.const_get(actor_name)
+
+    SolidObjects.register_actor("reloadable", reloaded_actor)
+
+    assert_equal reloaded_actor, SolidObjects.registry.fetch("reloadable")
+  ensure
+    Object.send(:remove_const, actor_name) if actor_name && Object.const_defined?(actor_name, false)
+  end
+
+  test "rejects distinct anonymous actors for the same actor type" do
+    registry = SolidObjects::ActorRegistry.new
+    registry.register("anonymous", Class.new(SolidObjects::Actor))
+
+    assert_raises(SolidObjects::InvalidActor) do
+      registry.register("anonymous", Class.new(SolidObjects::Actor))
+    end
+  end
+
   test "rejects classes that are not actors" do
     assert_raises(SolidObjects::InvalidActor) do
       SolidObjects.register_actor("not-an-actor", String)

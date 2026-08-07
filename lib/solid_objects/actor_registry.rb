@@ -18,7 +18,7 @@ module SolidObjects
 
       mutex.synchronize do
         existing = actors[actor_type]
-        if existing && existing != actor_class
+        if existing && existing != actor_class && !reload_of?(existing, actor_class)
           raise InvalidActor, "#{actor_type.inspect} is already registered by #{existing.name}"
         end
 
@@ -60,6 +60,11 @@ module SolidObjects
       return if actor_class.is_a?(Class) && actor_class < Actor
 
       raise InvalidActor, "registered actor must inherit from SolidObjects::Actor"
+    end
+
+    # @rbs (Class, Class) -> bool
+    def reload_of?(existing, candidate)
+      !existing.name.nil? && existing.name == candidate.name
     end
   end
 end

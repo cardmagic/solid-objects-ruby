@@ -1,6 +1,7 @@
 # rbs_inline: enabled
 
 require "thor"
+require "solid_objects/application_actor_loader"
 
 module SolidObjects
   class CLI < Thor
@@ -133,6 +134,7 @@ module SolidObjects
       end
 
       require path
+      ApplicationActorLoader.new.install
     end
 
     # @rbs (Symbol, Integer) -> Integer

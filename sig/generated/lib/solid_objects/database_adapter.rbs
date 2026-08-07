@@ -5,9 +5,9 @@ module SolidObjects
     # @rbs (untyped) -> DatabaseAdapter
     def self.for: (untyped) -> DatabaseAdapter
 
-    @connection_pool: untyped
-
     @fixed_connection: untyped
+
+    @connection_pool: untyped
 
     # @rbs (untyped) -> void
     def initialize: (untyped) -> void
@@ -23,6 +23,12 @@ module SolidObjects
 
     # @rbs () -> Time
     def database_now: () -> Time
+
+    # @rbs () { () -> untyped } -> untyped
+    def with_lock_retry: () { () -> untyped } -> untyped
+
+    # @rbs () { () -> untyped } -> untyped
+    def with_lock_probe: () { () -> untyped } -> untyped
 
     # @rbs () { () -> untyped } -> untyped
     def transaction: () { () -> untyped } -> untyped

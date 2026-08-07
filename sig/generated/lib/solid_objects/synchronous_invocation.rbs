@@ -13,6 +13,9 @@ module SolidObjects
     # @rbs (MessageReference) -> Message
     def load_message: (MessageReference) -> Message
 
+    # @rbs (MessageReference) -> Message?
+    def load_message_at_deadline: (MessageReference) -> Message?
+
     # @rbs (Message) -> untyped
     def completed_result: (Message) -> untyped
 
@@ -24,6 +27,12 @@ module SolidObjects
 
     # @rbs (Numeric) -> void
     def wait: (Numeric) -> void
+
+    # @rbs (Message, timeout: Numeric) -> SyncTimeout
+    def diagnose_timeout: (Message, timeout: Numeric) -> SyncTimeout
+
+    # @rbs (Message?, MessageReference, timeout: Numeric) -> SyncTimeout
+    def contention_timeout: (Message?, MessageReference, timeout: Numeric) -> SyncTimeout
 
     # @rbs () -> Float
     def monotonic_now: () -> Float

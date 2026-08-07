@@ -5,7 +5,16 @@ module SolidObjects
     # @rbs (Message, timeout: Numeric) -> SyncTimeout
     def call: (Message, timeout: Numeric) -> SyncTimeout
 
+    # @rbs (Message, timeout: Numeric) -> SyncTimeout
+    def database_contention: (Message, timeout: Numeric) -> SyncTimeout
+
+    # @rbs (MessageReference, timeout: Numeric) -> SyncTimeout
+    def database_contention_for: (MessageReference, timeout: Numeric) -> SyncTimeout
+
     private
+
+    # @rbs (Message, timeout: Numeric, status: String, waiting_on: String, activation: Hash[String, untyped], blocker: Hash[String, untyped]?) -> SyncTimeout
+    def build_error: (Message, timeout: Numeric, status: String, waiting_on: String, activation: Hash[String, untyped], blocker: Hash[String, untyped]?) -> SyncTimeout
 
     # @rbs (Message) -> String
     def message_status: (Message) -> String

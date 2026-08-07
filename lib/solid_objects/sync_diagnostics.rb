@@ -10,6 +10,62 @@ module SolidObjects
       status = message_status(message)
       waiting_on = waiting_reason(message, instance, blocker)
       activation = activation_details(instance)
+      build_error(
+        message,
+        timeout:,
+        status:,
+        waiting_on:,
+        activation:,
+        blocker: blocker_details(blocker)
+      )
+    end
+
+    # @rbs (Message, timeout: Numeric) -> SyncTimeout
+    def database_contention(message, timeout:)
+      build_error(
+        message,
+        timeout:,
+        status: "unknown",
+        waiting_on: "database_contention",
+        activation: {},
+        blocker: nil
+      )
+    end
+
+    # @rbs (MessageReference, timeout: Numeric) -> SyncTimeout
+    def database_contention_for(message_reference, timeout:)
+      error = SyncTimeout.new(
+        timeout:,
+        actor_type: message_reference.actor_type,
+        actor_id: message_reference.actor_id,
+        message_name: "unknown",
+        message_id: message_reference.id,
+        request_id: message_reference.request_id,
+        sequence: message_reference.sequence,
+        status: "unknown",
+        waiting_on: "database_contention",
+        activation: {},
+        blocker: nil
+      )
+      SolidObjects.instrument(
+        :"sync.timeout",
+        message_id: message_reference.id,
+        request_id: message_reference.request_id,
+        actor_type: message_reference.actor_type,
+        actor_id: message_reference.actor_id,
+        sequence: message_reference.sequence,
+        status: "unknown",
+        waiting_on: "database_contention",
+        activation_owner_id: nil,
+        activation_generation: nil
+      )
+      error
+    end
+
+    private
+
+    # @rbs (Message, timeout: Numeric, status: String, waiting_on: String, activation: Hash[String, untyped], blocker: Hash[String, untyped]?) -> SyncTimeout
+    def build_error(message, timeout:, status:, waiting_on:, activation:, blocker:)
       error = SyncTimeout.new(
         timeout:,
         actor_type: message.actor_type,
@@ -21,7 +77,7 @@ module SolidObjects
         status:,
         waiting_on:,
         activation:,
-        blocker: blocker_details(blocker)
+        blocker:
       )
       SolidObjects.instrument(
         :"sync.timeout",
@@ -37,8 +93,6 @@ module SolidObjects
       )
       error
     end
-
-    private
 
     # @rbs (Message) -> String
     def message_status(message)
