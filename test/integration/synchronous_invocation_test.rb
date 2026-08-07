@@ -806,7 +806,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
         attempts += 1 if process_write?(event.payload)
       end
       SolidObjects::Record.connection_pool.with_connection do |connection|
-        with_immediate_sqlite_lock_failure(connection) do
+        suspend_sqlite_busy_wait(connection) do
           started_at = monotonic_now
           error = capture_exception do
             SolidObjects::SynchronousInvocation.new.call(message_reference, timeout: 0.1)
@@ -821,25 +821,6 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     captured = Timeout.timeout(2) { result.pop }
     invocation.join
     captured
-  end
-
-  def with_immediate_sqlite_lock_failure(connection)
-    database_adapter = SolidObjects.database_adapter
-    database_adapter.define_singleton_method(:configured_busy_handler_timeout) { |_connection| 0 }
-    connection.raw_connection.busy_handler_timeout = 0
-    yield
-  ensure
-    database_adapter.singleton_class.send(:remove_method, :configured_busy_handler_timeout)
-    connection.raw_connection.busy_handler_timeout = configured_busy_handler_timeout
-  end
-
-  def configured_busy_handler_timeout
-    SolidObjects::Record
-      .connection_pool
-      .db_config
-      .configuration_hash
-      .fetch(:timeout, 5_000)
-      .to_i
   end
 
   def process_write?(payload)

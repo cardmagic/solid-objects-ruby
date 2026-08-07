@@ -52,7 +52,7 @@ class DoctorTest < ActiveSupport::TestCase
     skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
     lock = hold_sqlite_write_lock
 
-    report = without_sqlite_busy_wait { SolidObjects::Doctor.new.call }
+    report = with_immediate_sqlite_lock_failure { SolidObjects::Doctor.new.call }
 
     refute report.healthy?
     assert_equal :fail, report.check(:sync_round_trip).status
@@ -169,16 +169,6 @@ class DoctorTest < ActiveSupport::TestCase
     end
     Timeout.timeout(2) { locked.pop }
     [ thread, release ]
-  end
-
-  def without_sqlite_busy_wait
-    SolidObjects::Record.connection_pool.with_connection do |connection|
-      previous_timeout = connection.select_value("PRAGMA busy_timeout").to_i
-      connection.execute("PRAGMA busy_timeout = 0")
-      yield
-    ensure
-      connection.execute("PRAGMA busy_timeout = #{previous_timeout}") if previous_timeout
-    end
   end
 
   def release_sqlite_write_lock(lock)
