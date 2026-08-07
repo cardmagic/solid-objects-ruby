@@ -35,6 +35,15 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     end
   end
 
+  class CapturingActorChannel < SolidObjects::ActorChannel
+    attr_reader :stream_callback, :stream_coder
+
+    def stream_from(_broadcasting, callback = nil, coder: nil, &block)
+      @stream_callback = callback || block
+      @stream_coder = coder
+    end
+  end
+
   setup do
     SolidObjects.reset!
     ChannelActor.ensure_registered!
@@ -111,6 +120,71 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     )
 
     assert_equal 1, component_refreshes(reference, :summary).length
+  ensure
+    worker&.stop
+  end
+
+  test "decodes Action Cable broadcasts before reactive processing" do
+    reference = ChannelActor.ref("actor-1")
+    SolidObjects.configuration.authorize_subscription = ->(**) { true }
+    connection = ActionCable::Channel::ConnectionStub.new
+    channel = CapturingActorChannel.new(
+      connection,
+      "actor-channel",
+      {
+        token: SolidObjects::StreamToken.generate(
+          reference,
+          observables: %w[missing]
+        ),
+        components: JSON.generate(
+          [
+            component_token(
+              reference,
+              component_name: "summary",
+              dependencies: %w[missing],
+              revision: 0
+            )
+          ]
+        )
+      }.with_indifferent_access
+    )
+    channel.subscribe_to_channel
+
+    assert_equal ActiveSupport::JSON, channel.stream_coder
+    connection.transmissions.clear
+
+    reference.async(:update_missing)
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    broadcast = SolidObjects::Broadcast.find_by!(observable_name: "missing")
+    SolidObjects::ActionCableBroadcastAdapter.new.call(broadcast)
+    stream_name = SolidObjects::StreamName.for(reference)
+    encoded_stream = ActionCable.server.pubsub.broadcasts(stream_name).sole
+    handler = channel.__send__(
+      :stream_handler,
+      stream_name,
+      channel.stream_callback,
+      coder: channel.stream_coder
+    )
+
+    handler.call(encoded_stream)
+
+    channel_transmissions = connection.transmissions.filter_map do |transmission|
+      transmission["message"]
+    end
+    scalar_target = SolidObjects::DomIdentity.observable(reference, :missing)
+    scalar_update = channel_transmissions.find do |transmission|
+      transmission.include?(scalar_target) &&
+        transmission.include?(">1</span>")
+    end
+    assert scalar_update
+    assert_equal 1,
+      component_refreshes(
+        reference,
+        :summary,
+        messages: channel_transmissions
+      ).length
+    refute channel_transmissions.any? { |transmission| transmission.start_with?("\"") }
   ensure
     worker&.stop
   end
@@ -371,9 +445,9 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     )
   end
 
-  def component_refreshes(reference, component_name)
+  def component_refreshes(reference, component_name, messages: transmissions)
     target = SolidObjects::DomIdentity.component(reference, component_name)
-    transmissions.select do |transmission|
+    messages.select do |transmission|
       transmission.include?(%(target="#{target}")) &&
         transmission.include?("<turbo-frame")
     end

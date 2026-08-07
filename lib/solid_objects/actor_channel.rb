@@ -24,7 +24,7 @@ module SolidObjects
         params["components"],
         reference:
       )
-      stream_from StreamName.for(reference) do |stream|
+      stream_from StreamName.for(reference), coder: ActiveSupport::JSON do |stream|
         receive_broadcast(stream)
       end
       snapshot = ActorSnapshot.new(reference)
