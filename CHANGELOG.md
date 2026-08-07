@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.1 - 2026-08-07
 
 - Load `SolidObjects::ActorChannel` with the gem and pass stream and component
   subscription tokens through Turbo-compatible `data-*` attributes.
