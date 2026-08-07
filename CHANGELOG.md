@@ -8,7 +8,11 @@
   and silently replaces, so the previous save and restore left pooled
   connections with no busy handler at all. Every later writer on that
   connection, inside or outside Solid Objects, then failed immediately with
-  `SQLite3::BusyException` instead of waiting for the lock.
+  `SQLite3::BusyException` instead of waiting for the lock. Suspend the busy
+  wait only when the adapter can identify how to restore it, so an Active
+  Record release that stops exposing the configured timeout loosens
+  synchronous deadline bounds instead of stripping lock waiting from a shared
+  pooled connection.
 
 - Run the doctor round-trip probe on a dedicated caller process, and accept an
   explicit process registry in `SynchronousInvocation`, so the probe can no

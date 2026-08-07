@@ -67,34 +67,37 @@ module SolidObjects
       def with_transaction_deadline(connection)
         return yield unless SyncDeadline.active?
 
-        busy_wait = suspend_busy_wait(connection)
+        busy_wait = restorable_busy_wait(connection)
+        return yield unless busy_wait
+
         begin
+          connection.execute("PRAGMA busy_timeout = 0")
           yield
         ensure
           restore_busy_wait(connection, busy_wait)
         end
       end
 
-      # @rbs (untyped) -> Hash[Symbol, untyped]
-      def suspend_busy_wait(connection)
-        busy_wait = {
-          pragma_timeout: connection.select_value("PRAGMA busy_timeout").to_i,
-          handler_timeout: configured_busy_handler_timeout(connection)
-        }
-        connection.execute("PRAGMA busy_timeout = 0")
-        busy_wait
+      # @rbs (untyped) -> Hash[Symbol, untyped]?
+      def restorable_busy_wait(connection)
+        pragma_timeout = connection.select_value("PRAGMA busy_timeout").to_i
+        return { pragma_timeout: } if pragma_timeout.positive?
+
+        handler_timeout = configured_busy_handler_timeout(connection)
+        return nil unless handler_timeout
+
+        { pragma_timeout:, handler_timeout: }
       end
 
       # @rbs (untyped, Hash[Symbol, untyped]) -> void
       def restore_busy_wait(connection, busy_wait)
-        handler_timeout = busy_wait.fetch(:handler_timeout)
-        pragma_timeout = busy_wait.fetch(:pragma_timeout)
-        if handler_timeout && pragma_timeout.zero?
+        handler_timeout = busy_wait[:handler_timeout]
+        if handler_timeout
           connection.raw_connection.busy_handler_timeout = handler_timeout
           return
         end
 
-        connection.execute("PRAGMA busy_timeout = #{pragma_timeout}")
+        connection.execute("PRAGMA busy_timeout = #{busy_wait.fetch(:pragma_timeout)}")
       end
 
       # @rbs (untyped) -> Integer?

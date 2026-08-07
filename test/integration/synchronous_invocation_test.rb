@@ -502,6 +502,36 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     release_sqlite_write_lock(lock) if lock
   end
 
+  test "sync discovers the configured SQLite busy wait it has to restore" do
+    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+
+    SolidObjects::Record.connection_pool.with_connection do |connection|
+      discovered = SolidObjects
+        .database_adapter
+        .send(:configured_busy_handler_timeout, connection)
+
+      assert_equal configured_sqlite_busy_handler_timeout, discovered,
+        "the adapter can no longer read the configured busy wait, so it stops " \
+        "suspending lock waits and synchronous deadlines lose their bound"
+    end
+  end
+
+  test "sync leaves an unrestorable busy wait alone" do
+    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    database_adapter = SolidObjects.database_adapter
+    database_adapter.define_singleton_method(:configured_busy_handler_timeout) { |_connection| nil }
+
+    SolidObjects::Record.connection_pool.with_connection do
+      CounterActor.ref("unrestorable").increment
+
+      assert_nothing_raised do
+        write_while_write_lock_is_briefly_held
+      end
+    end
+  ensure
+    database_adapter&.singleton_class&.send(:remove_method, :configured_busy_handler_timeout)
+  end
+
   test "sync restores the SQLite busy handler it suspended for the deadline" do
     skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
 
