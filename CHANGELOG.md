@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.2 - 2026-08-07
 
 - Decode Action Cable broadcast payloads before parsing observable invalidations
   so scalar updates and component refreshes transmit as raw Turbo Stream HTML.
