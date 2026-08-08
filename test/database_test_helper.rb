@@ -56,6 +56,31 @@ class ActiveSupport::TestCase
     SolidObjects::Process.delete_all
     SolidObjectsTestDomainRecord.delete_all
   end
+
+  def with_immediate_sqlite_lock_failure(&block)
+    SolidObjects::Record.connection_pool.with_connection do |connection|
+      suspend_sqlite_busy_wait(connection, &block)
+    end
+  end
+
+  def suspend_sqlite_busy_wait(connection)
+    database_adapter = SolidObjects.database_adapter
+    database_adapter.define_singleton_method(:configured_busy_handler_timeout) { |_connection| 0 }
+    connection.raw_connection.busy_handler_timeout = 0
+    yield
+  ensure
+    database_adapter.singleton_class.send(:remove_method, :configured_busy_handler_timeout)
+    connection.raw_connection.busy_handler_timeout = configured_sqlite_busy_handler_timeout
+  end
+
+  def configured_sqlite_busy_handler_timeout
+    SolidObjects::Record
+      .connection_pool
+      .db_config
+      .configuration_hash
+      .fetch(:timeout, 5_000)
+      .to_i
+  end
 end
 
 Minitest.after_run do

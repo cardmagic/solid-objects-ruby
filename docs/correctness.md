@@ -167,7 +167,21 @@ result. Adapter lock/query deadlines cover the durable enqueue, caller-process
 registration and heartbeat, activation coordination, and result observation.
 SQLite retries busy coordination operations only within the original call
 deadline and reports `waiting_on=database_contention` when the database cannot
-be inspected at timeout. If enqueue cannot commit, `SyncEnqueueTimeout` is
+be inspected at timeout. To keep those retries in Ruby, the SQLite adapter
+suspends the connection's busy wait for the duration of each deadline-bound
+transaction and restores it afterwards. Restoration reinstalls the Ruby busy
+handler Rails configures from the sqlite3 `timeout` setting, which
+`PRAGMA busy_timeout` neither reports nor preserves, so a synchronous call
+leaves the connection's lock waiting behaviour exactly as it found it for
+later writers inside and outside Solid Objects.
+
+The adapter suspends the busy wait only when it can identify how to restore
+it. When a future Active Record release stops exposing the configured
+timeout, the adapter leaves the connection untouched: synchronous deadlines
+lose their tight bound and wait as long as the configured busy wait allows,
+rather than stripping lock waiting from a pooled connection the rest of the
+application shares. A test asserts the timeout stays discoverable so the
+looser bound cannot be adopted silently. If enqueue cannot commit, `SyncEnqueueTimeout` is
 raised and no message reference exists. MySQL lock waits have one-second InnoDB
 granularity. Ruby handlers that already started are not preempted.
 

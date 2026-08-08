@@ -26,6 +26,15 @@ module SolidObjects
       # @rbs (untyped) { () -> untyped } -> untyped
       def with_transaction_deadline: (untyped) { () -> untyped } -> untyped
 
+      # @rbs (untyped) -> Hash[Symbol, untyped]?
+      def restorable_busy_wait: (untyped) -> Hash[Symbol, untyped]?
+
+      # @rbs (untyped, Hash[Symbol, untyped]) -> void
+      def restore_busy_wait: (untyped, Hash[Symbol, untyped]) -> void
+
+      # @rbs (untyped) -> Integer?
+      def configured_busy_handler_timeout: (untyped) -> Integer?
+
       # @rbs (Exception) -> bool
       def deadline_error?: (Exception) -> bool
 

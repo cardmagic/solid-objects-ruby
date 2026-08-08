@@ -292,7 +292,95 @@ class ComponentsControllerTest < ActionController::TestCase
     assert_includes @response.body, %(data-solid-objects-refresh="morph")
   end
 
+  test "instruments an authorized component refresh without its locals" do
+    reference = RoomActor.ref("general")
+    reference.replace_messages(messages: [ { id: "1", body: "First" } ])
+    token = component_token(
+      reference,
+      component_name: "player",
+      component_key: "alice",
+      dependencies: %w[status],
+      locals: { player_id: "alice", label: "You" },
+      refresh_method: "morph"
+    )
+    event = capture_component_event { render_component(token, viewer: "alice") }
+
+    assert_response :success
+    assert_equal "component-room", event.payload.fetch(:actor_type)
+    assert_equal "general", event.payload.fetch(:actor_id)
+    assert_equal "player", event.payload.fetch(:component_name)
+    assert_equal "alice", event.payload.fetch(:component_key)
+    assert_equal %w[status], event.payload.fetch(:dependencies)
+    assert_equal "morph", event.payload.fetch(:refresh_method)
+    assert_equal "rendered", event.payload.fetch(:outcome)
+    assert_equal(
+      SolidObjects::Instance.find_by(actor_type: "component-room", actor_id: "general").state_revision,
+      event.payload.fetch(:revision)
+    )
+    assert event.payload.fetch(:instance_id)
+    assert event.duration
+    refute event.payload.key?(:locals)
+    refute event.payload.key?(:token)
+  end
+
+  test "instruments a denied component refresh" do
+    reference = RoomActor.ref("general")
+    SolidObjects.configuration.authorize_query = ->(**) { false }
+    token = component_token(
+      reference,
+      component_name: "messages",
+      dependencies: %w[recent_messages]
+    )
+
+    event = capture_component_event { render_component(token, viewer: "mallory") }
+
+    assert_response :forbidden
+    assert_equal "unauthorized", event.payload.fetch(:outcome)
+    assert_equal "messages", event.payload.fetch(:component_name)
+  end
+
+  test "instruments a superseded component refresh" do
+    reference = RoomActor.ref("general")
+    token = component_token(
+      reference,
+      component_name: "messages",
+      dependencies: %w[recent_messages]
+    )
+    registration = SolidObjects::ComponentRegistration.from_token(token)
+    @request.headers["HTTP_X_VIEWER"] = "alice"
+
+    event = capture_component_event do
+      get :show, params: {
+        token:,
+        instance_id: registration.instance_id + 1,
+        revision: registration.revision
+      }
+    end
+
+    assert_response :conflict
+    assert_equal "conflict", event.payload.fetch(:outcome)
+  end
+
+  test "instruments a rejected component token" do
+    event = capture_component_event { render_component("malformed", viewer: "alice") }
+
+    assert_response :bad_request
+    assert_equal "invalid_token", event.payload.fetch(:outcome)
+    refute event.payload.key?(:component_name)
+  end
+
   private
+
+  def capture_component_event
+    event = nil
+    subscription = ActiveSupport::Notifications.subscribe(
+      "solid_objects.component.refreshed"
+    ) { |notification| event = notification }
+    yield
+    event
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
+  end
 
   def component_token(
     reference,

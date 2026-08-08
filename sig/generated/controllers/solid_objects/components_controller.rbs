@@ -7,6 +7,12 @@ module SolidObjects
 
     private
 
+    # @rbs (Hash[Symbol, untyped]) -> void
+    def refresh: (Hash[Symbol, untyped]) -> void
+
+    # @rbs (ComponentRegistration) -> Hash[Symbol, untyped]
+    def registration_payload: (ComponentRegistration) -> Hash[Symbol, untyped]
+
     # @rbs () -> Array[Integer]
     def requested_revision_key: () -> Array[Integer]
 

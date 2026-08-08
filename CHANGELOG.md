@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.5.1 - 2026-08-07
+
+- Restore the SQLite busy wait that a synchronous invocation suspends for its
+  deadline. Rails installs the busy wait as a Ruby busy handler through the
+  sqlite3 `timeout` configuration, which `PRAGMA busy_timeout` reports as zero
+  and silently replaces, so the previous save and restore left pooled
+  connections with no busy handler at all. Every later writer on that
+  connection, inside or outside Solid Objects, then failed immediately with
+  `SQLite3::BusyException` instead of waiting for the lock. Suspend the busy
+  wait only when the adapter can identify how to restore it, so an Active
+  Record release that stops exposing the configured timeout loosens
+  synchronous deadline bounds instead of stripping lock waiting from a shared
+  pooled connection.
+
+- Run the doctor round-trip probe on a dedicated caller process, and accept an
+  explicit process registry in `SynchronousInvocation`, so the probe can no
+  longer stop and delete a shared application caller process, release its
+  activations, and unclaim its messages.
+- Report doctor probe cleanup failures as a failed or warned check instead of
+  raising a database lock error out of the command and leaking the probe
+  caller process.
+- Instrument component refreshes with actor identity, component name, key,
+  dependencies, refresh method, revision, and outcome, excluding locals.
+
 ## 0.5.0 - 2026-08-07
 
 - Add repeatable reactive components with signed string or integer keys and

@@ -6,6 +6,13 @@ require "solid_objects/sync_diagnostics"
 
 module SolidObjects
   class SynchronousInvocation
+    # @rbs @dedicated_process_registry: ProcessRegistry?
+
+    # @rbs (?process_registry: ProcessRegistry?) -> void
+    def initialize(process_registry: nil)
+      @dedicated_process_registry = process_registry
+    end
+
     # @rbs (MessageReference, timeout: Numeric) -> untyped
     def call(message_reference, timeout:)
       return call_before_deadline(message_reference, timeout:) if SyncDeadline.active?
@@ -92,9 +99,17 @@ module SolidObjects
       )
     end
 
+    # @rbs () -> ProcessRegistry
+    def process_registry
+      dedicated_registry = @dedicated_process_registry
+      return SolidObjects.caller_process.process_registry unless dedicated_registry
+
+      dedicated_registry.tap(&:heartbeat)
+    end
+
     # @rbs (Message, deadline: Float) -> Integer
     def assist(message, deadline:)
-      process_registry = SolidObjects.caller_process.process_registry
+      process_registry = self.process_registry
       activation = ActivationManager
         .new(owner_id: process_registry.process_record.id)
         .claim(instance_id: message.instance_id)

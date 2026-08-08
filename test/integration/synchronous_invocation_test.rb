@@ -502,6 +502,48 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     release_sqlite_write_lock(lock) if lock
   end
 
+  test "sync discovers the configured SQLite busy wait it has to restore" do
+    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+
+    SolidObjects::Record.connection_pool.with_connection do |connection|
+      discovered = SolidObjects
+        .database_adapter
+        .send(:configured_busy_handler_timeout, connection)
+
+      assert_equal configured_sqlite_busy_handler_timeout, discovered,
+        "the adapter can no longer read the configured busy wait, so it stops " \
+        "suspending lock waits and synchronous deadlines lose their bound"
+    end
+  end
+
+  test "sync leaves an unrestorable busy wait alone" do
+    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    database_adapter = SolidObjects.database_adapter
+    database_adapter.define_singleton_method(:configured_busy_handler_timeout) { |_connection| nil }
+
+    SolidObjects::Record.connection_pool.with_connection do
+      CounterActor.ref("unrestorable").increment
+
+      assert_nothing_raised do
+        write_while_write_lock_is_briefly_held
+      end
+    end
+  ensure
+    database_adapter&.singleton_class&.send(:remove_method, :configured_busy_handler_timeout)
+  end
+
+  test "sync restores the SQLite busy handler it suspended for the deadline" do
+    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+
+    SolidObjects::Record.connection_pool.with_connection do
+      CounterActor.ref("busy-handler").increment
+
+      assert_nothing_raised do
+        write_while_write_lock_is_briefly_held
+      end
+    end
+  end
+
   test "sync bounds SQLite contention while reusing and heartbeating its caller process" do
     skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
 
@@ -758,6 +800,32 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     thread.join
   end
 
+  BRIEF_LOCK_HOLD = 0.2
+
+  def write_while_write_lock_is_briefly_held
+    lock = hold_sqlite_write_lock
+    releaser = Thread.new do
+      mutex = Thread::Mutex.new
+      mutex.synchronize { Thread::ConditionVariable.new.wait(mutex, BRIEF_LOCK_HOLD) }
+      release_sqlite_write_lock(lock)
+      lock = nil
+    end
+
+    SolidObjects::Process.create!(
+      id: SecureRandom.uuid,
+      kind: "busy-handler-probe",
+      hostname: "test-host",
+      pid: ::Process.pid,
+      started_at: Time.current,
+      last_heartbeat_at: Time.current,
+      metadata: {}
+    )
+    releaser.join
+  ensure
+    releaser&.join
+    release_sqlite_write_lock(lock) if lock
+  end
+
   def invoke_with_immediate_sqlite_lock_failure(message_reference)
     result = Queue.new
     invocation = Thread.new do
@@ -768,15 +836,14 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
         attempts += 1 if process_write?(event.payload)
       end
       SolidObjects::Record.connection_pool.with_connection do |connection|
-        previous_timeout = connection.select_value("PRAGMA busy_timeout").to_i
-        connection.execute("PRAGMA busy_timeout = 0")
-        started_at = monotonic_now
-        error = capture_exception do
-          SolidObjects::SynchronousInvocation.new.call(message_reference, timeout: 0.1)
+        suspend_sqlite_busy_wait(connection) do
+          started_at = monotonic_now
+          error = capture_exception do
+            SolidObjects::SynchronousInvocation.new.call(message_reference, timeout: 0.1)
+          end
+          elapsed = monotonic_now - started_at
         end
-        elapsed = monotonic_now - started_at
       ensure
-        connection.execute("PRAGMA busy_timeout = #{previous_timeout}")
         ActiveSupport::Notifications.unsubscribe(subscription)
       end
       result << [ error, elapsed, attempts ]

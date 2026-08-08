@@ -15,6 +15,14 @@ so the schema check compares the required shape instead of a fixed timestamp.
 Warnings such as an all-deny neutral policy do not fail the command because a
 context-aware production policy may correctly deny the probe.
 
+The round-trip probe runs on its own dedicated caller process rather than the
+shared application caller process, and removes that record together with its
+temporary actor when it finishes. Running the doctor inside a process that
+already serves synchronous calls therefore leaves the application caller
+process, its activations, and its claimed messages untouched, including when an
+application call overlaps the probe. A database busy enough to block cleanup
+reports a failed or warned check rather than raising out of the command.
+
 ## Runtime
 
 Start all configured roles:
@@ -147,10 +155,20 @@ transaction rejection, commit-action start/completion/failure, effect and
 broadcast enqueue/completion, reminder enqueue, actor destruction/expiration,
 retention pruning, process cleanup, and supervisor lifecycle.
 
+`solid_objects.component.refreshed` covers every authorized component refresh
+request. Its payload carries the actor identity, `component_name`,
+`component_key`, declared `dependencies`, `refresh_method`, the rendered
+`instance_id` and `revision`, and an `outcome` of `rendered`, `conflict`,
+`unauthorized`, `unknown_component`, or `invalid_token`. Use it to watch
+refresh rate per key, authorization denials, superseded requests, and render
+duration. A rejected token reports only the outcome, since no signed identity
+was recovered.
+
 Payloads contain stable runtime identifiers, actor identity, sequence,
 attempts, ownership generations, and safe exception summaries where relevant.
-Arguments, actor state, results, and outbox payloads are excluded. The bundled
-log subscriber turns the same notifications into structured logger hashes.
+Arguments, component locals, actor state, results, and outbox payloads are
+excluded. The bundled log subscriber turns the same notifications into
+structured logger hashes.
 
 ## Retention and backups
 

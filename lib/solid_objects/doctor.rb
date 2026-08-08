@@ -215,25 +215,63 @@ module SolidObjects
     # @rbs () -> Check
     def check_sync_round_trip
       actor_id = SecureRandom.uuid
+      probe_registry = ProcessRegistry.new
+      check = run_sync_probe(actor_id, probe_registry)
+      leftovers = remove_probe_records(actor_id:, probe_registry:)
+      return check if leftovers.empty? || check.failed?
+
+      warn_check(
+        :sync_round_trip,
+        "#{check.message}; could not remove the #{leftovers.join(" and ")}"
+      )
+    end
+
+    # @rbs (String, ProcessRegistry) -> Check
+    def run_sync_probe(actor_id, probe_registry)
+      probe_registry.register(kind: "caller", metadata: { execution: "doctor" })
       value = SecureRandom.hex(8)
-      process_registry = SolidObjects.caller_process.process_registry
-      reference = ProbeActor.ref(actor_id)
       message_reference = Mailbox.new.enqueue(
-        reference,
+        ProbeActor.ref(actor_id),
         :ping,
         { value: },
         kind: "sync"
       )
-      result = SynchronousInvocation.new.call(message_reference, timeout: 5.seconds)
+      result = SynchronousInvocation
+        .new(process_registry: probe_registry)
+        .call(message_reference, timeout: 5.seconds)
       raise Error, "unexpected round-trip result" unless result == value
 
       pass(:sync_round_trip, "durable synchronous actor call completed without a worker")
     rescue => error
       fail_check(:sync_round_trip, "#{error.class}: #{error.message}")
-    ensure
-      Instance.where(actor_type: ProbeActor.actor_type, actor_id:).delete_all if actor_id
-      process_registry&.stop
-      process_registry&.process_record&.delete
+    end
+
+    # @rbs (actor_id: String, probe_registry: ProcessRegistry) -> Array[String]
+    def remove_probe_records(actor_id:, probe_registry:)
+      leftovers = []
+      leftovers << "probe actor" unless delete_probe_actor(actor_id)
+      leftovers << "probe caller process" unless delete_probe_caller_process(probe_registry)
+      leftovers
+    end
+
+    # @rbs (String) -> bool
+    def delete_probe_actor(actor_id)
+      Instance.where(actor_type: ProbeActor.actor_type, actor_id:).delete_all
+      true
+    rescue
+      false
+    end
+
+    # @rbs (ProcessRegistry) -> bool
+    def delete_probe_caller_process(probe_registry)
+      process_record = probe_registry.process_record
+      return true unless process_record
+
+      probe_registry.stop
+      process_record.delete
+      true
+    rescue
+      false
     end
 
     # @rbs (Check, Check) -> bool
