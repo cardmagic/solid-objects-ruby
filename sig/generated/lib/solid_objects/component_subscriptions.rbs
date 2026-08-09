@@ -31,6 +31,9 @@ module SolidObjects
 
     attr_reader revisions: untyped
 
+    # @rbs (ComponentRegistration, Integer, Integer) -> void
+    def record_revision: (ComponentRegistration, Integer, Integer) -> void
+
     # @rbs (ComponentRegistration, Integer, Integer) -> String
     def refresh: (ComponentRegistration, Integer, Integer) -> String
 

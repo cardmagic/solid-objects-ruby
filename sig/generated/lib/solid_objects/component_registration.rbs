@@ -16,6 +16,8 @@ module SolidObjects
 
     @dependencies: Array[String]
 
+    @batch: String?
+
     @component_key: String | Integer?
 
     @component_name: String
@@ -27,6 +29,8 @@ module SolidObjects
     attr_reader component_name: untyped
 
     attr_reader component_key: untyped
+
+    attr_reader batch: untyped
 
     attr_reader dependencies: untyped
 
@@ -68,6 +72,9 @@ module SolidObjects
 
     # @rbs () -> Hash[String, untyped]
     def authorization_arguments: () -> Hash[String, untyped]
+
+    # @rbs (Array[ComponentRegistration], Integer, Integer) -> String
+    def batch_refresh_url: (Array[ComponentRegistration], Integer, Integer) -> String
 
     # @rbs (Integer, Integer) -> String
     def refresh_url: (Integer, Integer) -> String

@@ -54,6 +54,18 @@ module SolidObjects
       %(<turbo-stream action="replace" target="#{target}"><template><turbo-frame id="#{target}" src="#{source}" data-solid-objects-revision="#{revision_value}" data-solid-objects-refresh="replace"></turbo-frame></template></turbo-stream>)
     end
 
+    # @rbs (Array[ComponentRegistration], Integer, Integer) -> String
+    def batch_refresh(registrations, instance_id, revision)
+      first = registrations.first
+      scope = DomIdentity.scope(first.reference)
+      batch = ERB::Util.html_escape(first.batch)
+      source = ERB::Util.html_escape(
+        first.batch_refresh_url(registrations, instance_id, revision)
+      )
+      targets = ERB::Util.html_escape(registrations.map(&:dom_id).join(" "))
+      %(<turbo-stream action="append" target="#{scope}"><template><solid-objects-batch-refresh data-batch="#{batch}" data-revision="#{instance_id}:#{revision}" data-targets="#{targets}" data-source="#{source}"></solid-objects-batch-refresh></template></turbo-stream>)
+    end
+
     # @rbs (Hash[String, untyped]) -> String
     def state_payload(payload)
       reference = Reference.new(

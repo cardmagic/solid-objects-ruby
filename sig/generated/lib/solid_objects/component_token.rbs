@@ -12,6 +12,8 @@ module SolidObjects
 
     MAXIMUM_COMPONENT_KEY_BYTES: ::Integer
 
+    MAXIMUM_BATCH_BYTES: ::Integer
+
     REFRESH_METHODS: untyped
 
     RESERVED_LOCALS: untyped
@@ -35,6 +37,9 @@ module SolidObjects
 
     # @rbs (untyped) -> void
     def self?.validate_component_key!: (untyped) -> void
+
+    # @rbs (untyped) -> void
+    def self?.validate_batch!: (untyped) -> void
 
     # @rbs (Array[untyped]) -> void
     def self?.validate_dependencies!: (Array[untyped]) -> void

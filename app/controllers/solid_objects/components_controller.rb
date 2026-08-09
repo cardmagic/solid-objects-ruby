@@ -6,12 +6,96 @@ module SolidObjects
   class ComponentsController < ActionController::Base
     protect_from_forgery with: :exception
 
+    BATCH_LIMIT = 50
+
     # @rbs () -> void
     def show
       SolidObjects.instrument(:"component.refreshed") { |payload| refresh(payload) }
     end
 
+    # @rbs () -> void
+    def batch
+      SolidObjects.instrument(:"component.batch_refreshed") { |payload| refresh_batch(payload) }
+    end
+
     private
+
+    # @rbs (Hash[Symbol, untyped]) -> void
+    def refresh_batch(payload)
+      tokens = Array(params.require(:tokens))
+      raise ActionController::ParameterMissing, :tokens if tokens.empty?
+      raise ArgumentError if tokens.length > BATCH_LIMIT
+
+      registrations = tokens.map { |token| ComponentRegistration.from_token(token) }
+      validate_single_batch!(registrations)
+      requested_revision = requested_revision_key
+      snapshot = ActorSnapshot.new(registrations.first.reference)
+      payload.merge!(
+        actor_type: snapshot.reference.actor_type,
+        actor_id: snapshot.reference.actor_id,
+        batch: registrations.first.batch,
+        components: registrations.map(&:component_name),
+        instance_id: snapshot.instance_id,
+        revision: snapshot.revision
+      )
+      if newer_than_snapshot?(requested_revision, snapshot)
+        payload[:outcome] = "conflict"
+        return head :conflict
+      end
+
+      authorization_context = SolidObjects
+        .configuration
+        .component_authorization_context
+        .call(controller: self)
+      frames = registrations.map do |registration|
+        rendered = ComponentRenderer.new(
+          snapshot:,
+          registration:,
+          view_context: component_view_context,
+          authorization_context:
+        ).call
+        {
+          "target" => registration.dom_id,
+          "revision" => "#{snapshot.instance_id}:#{snapshot.revision}",
+          "refresh_method" => registration.refresh_method,
+          "html" => component_frame(registration, snapshot, rendered)
+        }
+      end
+      response.headers["Cache-Control"] = "private, no-store"
+      payload[:outcome] = "rendered"
+      render json: {
+        "actor_type" => snapshot.reference.actor_type,
+        "actor_id" => snapshot.reference.actor_id,
+        "batch" => registrations.first.batch,
+        "instance_id" => snapshot.instance_id,
+        "revision" => snapshot.revision,
+        "frames" => frames
+      }
+    rescue Unauthorized
+      payload[:outcome] = "unauthorized"
+      head :forbidden
+    rescue UnknownComponent
+      payload[:outcome] = "unknown_component"
+      head :not_found
+    rescue ActionController::ParameterMissing,
+      ArgumentError,
+      InvalidComponentToken
+      payload[:outcome] = "invalid_token"
+      head :bad_request
+    end
+
+    # @rbs (Array[ComponentRegistration]) -> void
+    def validate_single_batch!(registrations)
+      first = registrations.first
+      raise ArgumentError unless first.batch
+      return if registrations.all? do |registration|
+        registration.batch == first.batch &&
+          registration.reference.actor_type == first.reference.actor_type &&
+          registration.reference.actor_id == first.reference.actor_id
+      end
+
+      raise ArgumentError
+    end
 
     # @rbs (Hash[Symbol, untyped]) -> void
     def refresh(payload)

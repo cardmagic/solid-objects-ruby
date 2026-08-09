@@ -37,18 +37,19 @@ module SolidObjects
       )
     end
 
-    # @rbs (Symbol | String, ?observes: Symbol | String | Array[Symbol | String]?, ?partial: String?, ?key: untyped, ?locals: Hash[untyped, untyped], ?refresh: String | Symbol) -> untyped
+    # @rbs (Symbol | String, ?observes: Symbol | String | Array[Symbol | String]?, ?partial: String?, ?key: untyped, ?locals: Hash[untyped, untyped], ?refresh: String | Symbol, ?batch: untyped) -> untyped
     def component(
       name,
       observes: nil,
       partial: nil,
       key: nil,
       locals: {},
-      refresh: :replace
+      refresh: :replace,
+      batch: nil
     )
       component_name = normalized_component_name(name)
       unless observes
-        validate_static_options!(key:, locals:, refresh:)
+        validate_static_options!(key:, locals:, refresh:, batch:)
         return static_component(component_name, partial:)
       end
       if partial
@@ -67,7 +68,8 @@ module SolidObjects
         locals:,
         refresh_method: refresh,
         snapshot:,
-        refresh_path:
+        refresh_path:,
+        batch: batch&.to_s
       )
       ensure_unique_component!(registration)
       rendered = ComponentRenderer.new(
@@ -96,6 +98,11 @@ module SolidObjects
     # @rbs () -> Array[String]
     def scalar_observable_names
       observable_names.dup
+    end
+
+    # @rbs () -> bool
+    def batched_components?
+      component_registrations.any?(&:batch)
     end
 
     # @rbs () -> bool
@@ -212,9 +219,9 @@ module SolidObjects
           "#{registration.component_key.inspect} is already rendered in this solid_object scope"
     end
 
-    # @rbs (key: untyped, locals: Hash[untyped, untyped], refresh: String | Symbol) -> void
-    def validate_static_options!(key:, locals:, refresh:)
-      return if key.nil? && locals.empty? && refresh.to_s == "replace"
+    # @rbs (key: untyped, locals: Hash[untyped, untyped], refresh: String | Symbol, batch: untyped) -> void
+    def validate_static_options!(key:, locals:, refresh:, batch:)
+      return if key.nil? && locals.empty? && refresh.to_s == "replace" && batch.nil?
 
       raise ArgumentError,
         "key, locals, and refresh require an observable component"

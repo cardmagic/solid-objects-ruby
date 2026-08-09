@@ -2,10 +2,21 @@
 
 module SolidObjects
   class ComponentsController < ActionController::Base
+    BATCH_LIMIT: ::Integer
+
     # @rbs () -> void
     def show: () -> void
 
+    # @rbs () -> void
+    def batch: () -> void
+
     private
+
+    # @rbs (Hash[Symbol, untyped]) -> void
+    def refresh_batch: (Hash[Symbol, untyped]) -> void
+
+    # @rbs (Array[ComponentRegistration]) -> void
+    def validate_single_batch!: (Array[ComponentRegistration]) -> void
 
     # @rbs (Hash[Symbol, untyped]) -> void
     def refresh: (Hash[Symbol, untyped]) -> void
