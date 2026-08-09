@@ -1,0 +1,12 @@
+{
+  "name": "solid_objects",
+  "private": true,
+  "type": "module",
+  "description": "Browser modules for the Solid Objects Rails engine",
+  "scripts": {
+    "test": "node --test test/javascript/*.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
+}

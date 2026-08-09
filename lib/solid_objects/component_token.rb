@@ -9,6 +9,7 @@ module SolidObjects
     MAXIMUM_DEPENDENCIES = 50
     MAXIMUM_LOCALS = 50
     MAXIMUM_COMPONENT_KEY_BYTES = 512
+    MAXIMUM_BATCH_BYTES = 64
     REFRESH_METHODS = %w[replace morph].freeze
     RESERVED_LOCALS = %w[actor authorization_context component_key].freeze
     RUBY_KEYWORDS = %w[
@@ -19,7 +20,7 @@ module SolidObjects
 
     module_function
 
-    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String, ?component_key: untyped, ?locals: Hash[untyped, untyped], ?refresh_method: String | Symbol) -> String
+    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String, ?component_key: untyped, ?locals: Hash[untyped, untyped], ?refresh_method: String | Symbol, ?batch: untyped) -> String
     def generate(
       reference:,
       component_name:,
@@ -29,13 +30,15 @@ module SolidObjects
       refresh_path:,
       component_key: nil,
       locals: {},
-      refresh_method: "replace"
+      refresh_method: "replace",
+      batch: nil
     )
       payload = {
         "actor_type" => reference.actor_type,
         "actor_id" => reference.actor_id,
         "component_name" => component_name,
         "component_key" => Serialization.dump(component_key),
+        "batch" => batch&.to_s,
         "dependencies" => dependencies,
         "locals" => Serialization.dump(locals),
         "refresh_method" => refresh_method.to_s,
@@ -80,6 +83,7 @@ module SolidObjects
 
       validate_component_name!(payload.fetch("component_name"))
       validate_component_key!(payload["component_key"])
+      validate_batch!(payload["batch"])
       validate_dependencies!(payload.fetch("dependencies"))
       validate_locals!(payload.fetch("locals"))
       validate_refresh_method!(payload.fetch("refresh_method"))
@@ -97,6 +101,7 @@ module SolidObjects
       return unless payload.is_a?(Hash)
 
       payload["component_key"] = nil unless payload.key?("component_key")
+      payload["batch"] = nil unless payload.key?("batch")
       payload["locals"] = {} unless payload.key?("locals")
       payload["refresh_method"] = "replace" unless payload.key?("refresh_method")
     end
@@ -123,6 +128,18 @@ module SolidObjects
       raise InvalidComponentToken, "invalid actor component key"
     end
     private_class_method :validate_component_key!
+
+    # @rbs (untyped) -> void
+    def validate_batch!(batch)
+      return if batch.nil?
+      return if batch.is_a?(String) &&
+        batch.bytesize.positive? &&
+        batch.bytesize <= MAXIMUM_BATCH_BYTES &&
+        batch.match?(/\A[a-zA-Z0-9_]+\z/)
+
+      raise InvalidComponentToken, "invalid actor component batch"
+    end
+    private_class_method :validate_batch!
 
     # @rbs (Array[untyped]) -> void
     def validate_dependencies!(dependencies)

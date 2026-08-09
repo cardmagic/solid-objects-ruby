@@ -48,16 +48,17 @@ module SolidObjects
       observable_name = invalidation.fetch("observable_name")
       instance_id = invalidation.fetch("instance_id")
       revision = invalidation.fetch("revision")
-      registrations.filter_map do |registration|
-        next unless registration.dependencies.include?(observable_name)
-        next unless newer_revision?(
-          registration.dom_id,
-          instance_id,
-          revision
-        )
-
-        refresh(registration, instance_id, revision)
+      changed = registrations.select do |registration|
+        registration.dependencies.include?(observable_name) &&
+          newer_revision?(registration.dom_id, instance_id, revision)
       end
+      batched, individual = changed.partition(&:batch)
+      streams = individual.map { |registration| refresh(registration, instance_id, revision) }
+      batched.group_by(&:batch).each_value do |group|
+        group.each { |registration| record_revision(registration, instance_id, revision) }
+        streams << TurboStreamRenderer.batch_refresh(group, instance_id, revision)
+      end
+      streams
     end
 
     # @rbs (ActorSnapshot) -> Array[String]
@@ -90,9 +91,14 @@ module SolidObjects
 
     attr_reader :registrations, :revisions
 
+    # @rbs (ComponentRegistration, Integer, Integer) -> void
+    def record_revision(registration, instance_id, revision)
+      revisions[registration.dom_id] = [ instance_id, revision ]
+    end
+
     # @rbs (ComponentRegistration, Integer, Integer) -> String
     def refresh(registration, instance_id, revision)
-      revisions[registration.dom_id] = [ instance_id, revision ]
+      record_revision(registration, instance_id, revision)
       TurboStreamRenderer.component_refresh(
         registration,
         instance_id,

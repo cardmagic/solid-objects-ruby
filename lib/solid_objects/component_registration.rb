@@ -7,6 +7,7 @@ module SolidObjects
     # @rbs @reference: Reference
     # @rbs @component_name: String
     # @rbs @component_key: String | Integer?
+    # @rbs @batch: String?
     # @rbs @dependencies: Array[String]
     # @rbs @locals: Hash[String, untyped]
     # @rbs @refresh_method: String
@@ -18,6 +19,7 @@ module SolidObjects
     attr_reader :reference,
       :component_name,
       :component_key,
+      :batch,
       :dependencies,
       :locals,
       :refresh_method,
@@ -26,7 +28,7 @@ module SolidObjects
       :refresh_path,
       :token
 
-    # @rbs (reference: Reference, component_name: String, component_key: String | Integer?, dependencies: Array[String], locals: Hash[String, untyped], refresh_method: String, instance_id: Integer, revision: Integer, refresh_path: String, token: String) -> void
+    # @rbs (reference: Reference, component_name: String, component_key: String | Integer?, dependencies: Array[String], locals: Hash[String, untyped], refresh_method: String, instance_id: Integer, revision: Integer, refresh_path: String, token: String, ?batch: String?) -> void
     def initialize(
       reference:,
       component_name:,
@@ -37,9 +39,11 @@ module SolidObjects
       instance_id:,
       revision:,
       refresh_path:,
-      token:
+      token:,
+      batch: nil
     )
       @reference = reference
+      @batch = batch
       @component_name = component_name
       @component_key = component_key
       @dependencies = dependencies.freeze
@@ -52,7 +56,7 @@ module SolidObjects
     end
 
     class << self
-      # @rbs (reference: Reference, component_name: String, component_key: untyped, dependencies: Array[String], locals: Hash[untyped, untyped], refresh_method: String | Symbol, snapshot: ActorSnapshot, refresh_path: String) -> ComponentRegistration
+      # @rbs (reference: Reference, component_name: String, component_key: untyped, dependencies: Array[String], locals: Hash[untyped, untyped], refresh_method: String | Symbol, snapshot: ActorSnapshot, refresh_path: String, ?batch: String?) -> ComponentRegistration
       def issue(
         reference:,
         component_name:,
@@ -61,7 +65,8 @@ module SolidObjects
         locals:,
         refresh_method:,
         snapshot:,
-        refresh_path:
+        refresh_path:,
+        batch: nil
       )
         token = ComponentToken.generate(
           reference:,
@@ -70,6 +75,7 @@ module SolidObjects
           dependencies:,
           locals:,
           refresh_method:,
+          batch:,
           instance_id: snapshot.instance_id,
           revision: snapshot.revision,
           refresh_path:
@@ -99,6 +105,7 @@ module SolidObjects
           reference:,
           component_name: payload.fetch("component_name"),
           component_key: payload["component_key"],
+          batch: payload["batch"],
           dependencies:,
           locals: payload.fetch("locals"),
           refresh_method: payload.fetch("refresh_method"),
@@ -147,6 +154,18 @@ module SolidObjects
       return locals unless component_key
 
       locals.merge("component_key" => component_key).freeze
+    end
+
+    # @rbs (Array[ComponentRegistration], Integer, Integer) -> String
+    def batch_refresh_url(registrations, instance_id, revision)
+      query = URI.encode_www_form(
+        [
+          [ "instance_id", instance_id ],
+          [ "revision", revision ],
+          *registrations.map { |registration| [ "tokens[]", registration.token ] }
+        ]
+      )
+      "#{refresh_path}/batch?#{query}"
     end
 
     # @rbs (Integer, Integer) -> String

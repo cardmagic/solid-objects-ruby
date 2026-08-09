@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.0 - 2026-08-09
+
+- Add `batch:` to reactive components. Components sharing a batch in one actor
+  scope collapse into a single browser request per revision instead of one
+  request per component. The new `GET /solid_objects/components/batch` endpoint
+  returns HTML frames inside a documented JSON envelope, so Turbo morph and ERB
+  rendering are unchanged while the contract stays machine readable. Duplicate
+  notifications for the same batch and revision coalesce in the browser,
+  unchanged components are never requested, and stale frames cannot overwrite a
+  newer target. Components without `batch:` behave exactly as before.
+- Add a JavaScript test suite for the browser modules, run in CI with Node's
+  test runner and jsdom.
+
 ## 0.6.0 - 2026-08-09
 
 - Add `broadcast_payload`, an actor DSL for sending one personalized JSON state

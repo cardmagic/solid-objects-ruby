@@ -32,6 +32,13 @@ module SolidObjects
           data: { turbo_track: "reload" }
         )
       end
+      batch_client = if actor.batched_components?
+        javascript_include_tag(
+          "solid_objects/component_batch_refresh",
+          type: "module",
+          data: { turbo_track: "reload" }
+        )
+      end
       payload_client = if payload_names
         javascript_include_tag(
           "solid_objects/state_payload",
@@ -42,7 +49,9 @@ module SolidObjects
 
       content_tag(
         :div,
-        safe_join([ refresh_client, payload_client, subscription, content ].compact),
+        safe_join(
+          [ refresh_client, batch_client, payload_client, subscription, content ].compact
+        ),
         id: DomIdentity.scope(reference)
       )
     end

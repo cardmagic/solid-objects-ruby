@@ -110,6 +110,80 @@ applications discover the namespaced engine asset. Applications created with
 explicitly serve the module. Turbo's normal morph rules still apply; use
 `data-turbo-permanent` for elements that must never be changed.
 
+## Batched component refreshes
+
+A component refresh costs one browser request. When one actor mutation changes
+several components, the page pays one request per component. Adding `batch:`
+groups them so a revision costs one request no matter how many components in the
+group changed:
+
+```erb
+<%= actor.component :player, key: 1,
+      observes: :player_one, batch: :playmat, refresh: :morph %>
+
+<%= actor.component :player_controls, key: 1,
+      observes: :player_one_controls, batch: :playmat, refresh: :morph %>
+
+<%= actor.component :library_search, key: 1,
+      observes: :library, batch: :playmat, refresh: :morph %>
+```
+
+Before, one mutation touching all three observables produced three requests:
+
+```
+commit -> 3 invalidations -> 3 refresh elements -> 3 GET /solid_objects/components
+```
+
+After, the three notifications coalesce in the browser into one request:
+
+```
+commit -> 3 invalidations -> 1 GET /solid_objects/components/batch -> 3 frames
+```
+
+### The batch endpoint
+
+`GET /solid_objects/components/batch` takes the signed `tokens[]` of the
+components to render plus the `instance_id` and `revision` the browser holds. It
+returns HTML frames inside a JSON envelope:
+
+```json
+{
+  "actor_type": "playmat_room",
+  "actor_id": "table-1",
+  "batch": "playmat",
+  "instance_id": 12,
+  "revision": 48,
+  "frames": [
+    {
+      "target": "solid-objects-component-...",
+      "revision": "12:48",
+      "refresh_method": "morph",
+      "html": "<turbo-frame id=\"...\" data-solid-objects-revision=\"12:48\">...</turbo-frame>"
+    }
+  ]
+}
+```
+
+**Why frames inside JSON rather than one HTML document or pure JSON state.** HTML
+alone would force the browser to pick frames out of an undocumented document.
+Pure JSON would mean a second renderer and would give up ERB and Turbo morph. A
+JSON envelope of frame descriptors keeps `ComponentRenderer` and Turbo exactly as
+they are while giving the client a documented contract with per-frame revisions.
+
+### What the protocol guarantees
+
+Only components whose dependencies changed are requested; the rest are never
+named in the batch. Duplicate notifications for the same batch and revision merge
+into one request, and a superseded request for the same batch is aborted. Each
+frame carries its own revision and cannot overwrite a target that already holds a
+newer one. Authorization is unchanged: every component in the batch passes the
+same `authorize_query` boundary an individual refresh uses, and the batch name is
+signed into the component token, so a browser cannot invent or widen a group. A
+batch mixing actors or groups is rejected.
+
+Components without `batch:` keep issuing their own request, and a scope can mix
+batched and unbatched components freely.
+
 ## Personalized state payloads
 
 Reactive ERB components cost one browser request per changed component. When a
