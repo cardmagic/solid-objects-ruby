@@ -2,6 +2,10 @@
 
 module SolidObjects
   class DatabaseAdapter
+    TRANSACTION_CLOCK: ::Symbol
+
+    TRANSACTION_CLOCK_SCOPE: ::Symbol
+
     # @rbs (untyped) -> DatabaseAdapter
     def self.for: (untyped) -> DatabaseAdapter
 
@@ -41,6 +45,12 @@ module SolidObjects
     attr_reader connection_pool: untyped
 
     attr_reader fixed_connection: untyped
+
+    # @rbs () { () -> untyped } -> untyped
+    def with_transaction_clock: () { () -> untyped } -> untyped
+
+    # @rbs () -> Time
+    def read_database_now: () -> Time
 
     # @rbs (untyped) { () -> untyped } -> untyped
     def with_transaction_deadline: (untyped) { () -> untyped } -> untyped

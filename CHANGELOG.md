@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Read the database clock once per transaction instead of once per step, and
+  resolve the SQLite busy wait from configuration instead of querying the
+  connection for it. A synchronous call now issues 49 database queries instead
+  of 66, which matters most on PostgreSQL and MySQL where every query is a
+  network round trip.
+- Apply every migration in the benchmark harness. It applied only the initial
+  migration, so the `state_revision` column added in 0.4.0 was missing, every
+  message failed at commit, and the synchronous benchmarks timed out.
+
 ## 0.5.1 - 2026-08-07
 
 - Restore the SQLite busy wait that a synchronous invocation suspends for its

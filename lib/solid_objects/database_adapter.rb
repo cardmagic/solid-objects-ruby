@@ -4,6 +4,9 @@ require "time"
 
 module SolidObjects
   class DatabaseAdapter
+    TRANSACTION_CLOCK = :solid_objects_transaction_clock
+    TRANSACTION_CLOCK_SCOPE = :solid_objects_transaction_clock_scope
+
     class << self
       # @rbs (untyped) -> DatabaseAdapter
       def for(connection)
@@ -46,10 +49,9 @@ module SolidObjects
 
     # @rbs () -> Time
     def database_now
-      value = with_connection do |connection|
-        connection.select_value("SELECT #{current_time_expression}")
-      end
-      value.is_a?(Time) ? value.utc : Time.parse("#{value} UTC").utc
+      return read_database_now unless ActiveSupport::IsolatedExecutionState[TRANSACTION_CLOCK_SCOPE]
+
+      ActiveSupport::IsolatedExecutionState[TRANSACTION_CLOCK] ||= read_database_now
     end
 
     # @rbs () { () -> untyped } -> untyped
@@ -70,7 +72,7 @@ module SolidObjects
         with_transaction_deadline(connection) do
           connection.transaction(requires_new: true) do
             configure_transaction_deadline(connection)
-            block.call
+            with_transaction_clock { block.call }
           end
         end
       end
@@ -90,6 +92,27 @@ module SolidObjects
     private
 
     attr_reader :connection_pool, :fixed_connection
+
+    # @rbs () { () -> untyped } -> untyped
+    def with_transaction_clock
+      return yield if ActiveSupport::IsolatedExecutionState[TRANSACTION_CLOCK_SCOPE]
+
+      ActiveSupport::IsolatedExecutionState[TRANSACTION_CLOCK_SCOPE] = true
+      begin
+        yield
+      ensure
+        ActiveSupport::IsolatedExecutionState[TRANSACTION_CLOCK_SCOPE] = false
+        ActiveSupport::IsolatedExecutionState[TRANSACTION_CLOCK] = nil
+      end
+    end
+
+    # @rbs () -> Time
+    def read_database_now
+      value = with_connection do |connection|
+        connection.select_value("SELECT #{current_time_expression}")
+      end
+      value.is_a?(Time) ? value.utc : Time.parse("#{value} UTC").utc
+    end
 
     # @rbs (untyped) { () -> untyped } -> untyped
     def with_transaction_deadline(_connection)

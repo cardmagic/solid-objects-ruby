@@ -71,7 +71,7 @@ module SolidObjects
         return yield unless busy_wait
 
         begin
-          connection.execute("PRAGMA busy_timeout = 0")
+          suspend_busy_wait(connection, busy_wait)
           yield
         ensure
           restore_busy_wait(connection, busy_wait)
@@ -80,13 +80,18 @@ module SolidObjects
 
       # @rbs (untyped) -> Hash[Symbol, untyped]?
       def restorable_busy_wait(connection)
-        pragma_timeout = connection.select_value("PRAGMA busy_timeout").to_i
-        return { pragma_timeout: } if pragma_timeout.positive?
-
         handler_timeout = configured_busy_handler_timeout(connection)
-        return nil unless handler_timeout
+        return { handler_timeout: } if handler_timeout
 
-        { pragma_timeout:, handler_timeout: }
+        pragma_timeout = connection.select_value("PRAGMA busy_timeout").to_i
+        return nil unless pragma_timeout.positive?
+
+        { pragma_timeout: }
+      end
+
+      # @rbs (untyped, Hash[Symbol, untyped]) -> void
+      def suspend_busy_wait(connection, _busy_wait)
+        connection.execute("PRAGMA busy_timeout = 0")
       end
 
       # @rbs (untyped, Hash[Symbol, untyped]) -> void
