@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.1 - 2026-08-09
 
 - Retry a contended SQLite write outside a synchronous deadline. Asynchronous
   enqueue had no Ruby-level retry budget, so it depended entirely on SQLite's
