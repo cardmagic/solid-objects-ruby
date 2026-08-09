@@ -5,6 +5,8 @@ module SolidObjects
     class Sqlite < DatabaseAdapter
       LOCK_RETRY_INTERVAL: ::Float
 
+      MAXIMUM_BUSY_RETRY_INTERVAL: ::Float
+
       LOCK_RETRY_MUTEX: untyped
 
       LOCK_RETRY_CONDITION: untyped
@@ -14,6 +16,12 @@ module SolidObjects
 
       # @rbs () { () -> untyped } -> untyped
       def transaction: () { () -> untyped } -> untyped
+
+      # A write outside a synchronous deadline has no Ruby-level budget, so it
+      # depends entirely on SQLite's busy handler. Concurrent writers can
+      # exhaust that, which surfaces as a lock error the caller cannot retry.
+      # @rbs () { () -> untyped } -> untyped
+      def with_busy_retry: () { () -> untyped } -> untyped
 
       # @rbs () { () -> untyped } -> untyped
       def with_lock_retry: () { () -> untyped } -> untyped
@@ -37,6 +45,12 @@ module SolidObjects
 
       # @rbs (Exception) -> bool
       def deadline_error?: (Exception) -> bool
+
+      # @rbs (Exception) -> bool
+      def busy_error?: (Exception) -> bool
+
+      # @rbs (Integer) -> void
+      def wait_before_busy_retry: (Integer) -> void
 
       # @rbs () -> void
       def wait_before_retry: () -> void

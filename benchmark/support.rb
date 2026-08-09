@@ -22,6 +22,43 @@ module SolidObjectsBenchmark
     end
   end
 
+  class BenchmarkConnection
+    attr_reader :session_id
+
+    def initialize(session_id)
+      @session_id = session_id
+    end
+  end
+
+  class PlaymatActor < SolidObjects::Actor
+    actor_type "benchmark-playmat"
+
+    attribute :player, default: "unseated"
+    attribute :player_controls, default: -> { [] }
+    attribute :library_search, default: -> { [] }
+    attribute :hands, default: -> { {} }
+
+    observable :player
+    observable :player_controls
+    observable :library_search
+
+    broadcast_payload :playmat_state do |actor, context|
+      {
+        "player" => actor.player,
+        "controls" => actor.player_controls,
+        "library" => actor.library_search,
+        "hand" => actor.hands.fetch(context.session_id, [])
+      }
+    end
+
+    def seat(player:)
+      self.player = player
+      self.player_controls = %w[untap draw]
+      self.library_search = %w[Island Forest]
+      self.hands = hands.merge(player => %w[Island])
+    end
+  end
+
   class << self
     # @rbs () -> Integer
     def count
@@ -189,6 +226,69 @@ module SolidObjectsBenchmark
       worker&.stop
     end
 
+    # Compares how many browser requests one actor mutation costs across the
+    # three delivery paths, and how long the server spends producing them.
+    # @rbs () -> void
+    def component_delivery
+      require "action_controller"
+      require "action_view"
+      require "action_view/testing/resolvers"
+
+      SolidObjects.configuration.stream_signing_secret = "benchmark-secret"
+      SolidObjects.configuration.authorize_query = ->(**) { true }
+      reference = PlaymatActor.ref("table")
+      reference.seat(player: "alice")
+
+      view_context = benchmark_view_context
+      snapshot = SolidObjects::ActorSnapshot.new(reference)
+      registrations = %w[player player_controls library_search].map do |name|
+        SolidObjects::ComponentRegistration.issue(
+          reference:,
+          component_name: name,
+          component_key: nil,
+          dependencies: [ name ],
+          locals: {},
+          refresh_method: "morph",
+          snapshot:,
+          refresh_path: "/solid_objects/components",
+          batch: "playmat"
+        )
+      end
+
+      individual = measure_delivery(count) do
+        registrations.each do |registration|
+          render_component(registration, view_context)
+        end
+      end
+      batched = measure_delivery(count) do
+        current = SolidObjects::ActorSnapshot.new(reference)
+        registrations.each do |registration|
+          render_component(registration, view_context, snapshot: current)
+        end
+      end
+      payload = measure_delivery(count) do
+        SolidObjects::PayloadBroadcast.new(
+          snapshot: SolidObjects::ActorSnapshot.new(reference),
+          name: "playmat_state",
+          authorization_context: BenchmarkConnection.new("alice")
+        ).call
+      end
+
+      puts "three components changing in one mutation, #{count} iterations"
+      puts format(
+        "  individual refreshes: 3 requests, %.3fms per mutation",
+        individual
+      )
+      puts format(
+        "  batched refresh:      1 request,  %.3fms per mutation",
+        batched
+      )
+      puts format(
+        "  state payload:        0 requests, %.3fms per mutation",
+        payload
+      )
+    end
+
     # @rbs () -> void
     def query_count
       CounterActor.ref("queries").async(:increment)
@@ -208,6 +308,37 @@ module SolidObjectsBenchmark
     end
 
     private
+
+    # @rbs (ComponentRegistration, untyped, ?snapshot: ActorSnapshot?) -> untyped
+    def render_component(registration, view_context, snapshot: nil)
+      SolidObjects::ComponentRenderer.new(
+        snapshot: snapshot || SolidObjects::ActorSnapshot.new(registration.reference),
+        registration:,
+        view_context:,
+        authorization_context: nil
+      ).call
+    end
+
+    # @rbs (Integer) { () -> untyped } -> Float
+    def measure_delivery(iterations)
+      yield
+      elapsed = Benchmark.realtime { iterations.times { yield } }
+      (elapsed / iterations) * 1_000
+    end
+
+    # @rbs () -> untyped
+    def benchmark_view_context
+      resolver = ActionView::FixtureResolver.new(
+        "actors/solid_objects_benchmark/playmat_actor/_player.html.erb" => "<p><%= actor.player %></p>",
+        "actors/solid_objects_benchmark/playmat_actor/_player_controls.html.erb" => "<ul><% actor.player_controls.each do |c| %><li><%= c %></li><% end %></ul>",
+        "actors/solid_objects_benchmark/playmat_actor/_library_search.html.erb" => "<ul><% actor.library_search.each do |c| %><li><%= c %></li><% end %></ul>"
+      )
+      ActionView::Base.with_empty_template_cache.new(
+        ActionView::LookupContext.new([ resolver ]),
+        {},
+        nil
+      )
+    end
 
     # @rbs () -> void
     def establish_connection

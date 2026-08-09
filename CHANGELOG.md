@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.1 - 2026-08-09
+
+- Retry a contended SQLite write outside a synchronous deadline. Asynchronous
+  enqueue had no Ruby-level retry budget, so it depended entirely on SQLite's
+  busy handler and raised `SQLite3::BusyException` once concurrent writers
+  exhausted it. Bounded by the new `lock_retry_attempts` setting.
+- Pin every GitHub Actions reference to a commit SHA.
+- Add a benchmark comparing individual, batched, and payload delivery for one
+  mutation that changes three components.
+
 ## 0.7.0 - 2026-08-09
 
 - Add `batch:` to reactive components. Components sharing a batch in one actor

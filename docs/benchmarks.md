@@ -54,6 +54,28 @@ result is why Solid Objects does not publish one latency promise. Network
 topology, adapter behavior, host schema, logging, callbacks, and contention all
 matter.
 
+## Reactive delivery paths
+
+Measured 2026-08-09 on an Apple M5 with 200 iterations, for one actor mutation
+that changes three components.
+
+| Delivery path | Browser requests | Server render time |
+| --- | ---: | ---: |
+| Individual component refreshes | 3 | 0.535 ms |
+| Batched refresh | 1 | 0.249 ms |
+| State payload broadcast | 0 | 0.100 ms |
+
+The request column is the headline. Server render time is small in every path,
+so the win is not faster rendering, it is fewer round trips: each individual
+refresh costs a full HTTP request through the Rails middleware stack, and a
+batch replaces three of those with one. A state payload removes the HTTP leg
+entirely by travelling on the Action Cable connection the page already holds.
+
+These are server-side numbers. They do not include network latency, Action
+Cable delivery, or browser rendering, which dominate wall-clock time in a real
+deployment and make the request-count difference matter more than it appears
+here. End-to-end latency against a deployed application has not been measured.
+
 ## Durable row growth
 
 The storage cost is deterministic even when latency is not:

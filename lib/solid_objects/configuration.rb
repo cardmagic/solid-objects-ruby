@@ -17,6 +17,7 @@ module SolidObjects
     # @rbs @max_result_bytes: Integer
     # @rbs @max_attempts: Integer
     # @rbs @retry_delay: Proc
+    # @rbs @lock_retry_attempts: Integer
     # @rbs @process_heartbeat_interval: Float
     # @rbs @process_alive_threshold: Float
     # @rbs @shutdown_timeout: Float
@@ -57,6 +58,7 @@ module SolidObjects
       :max_result_bytes,
       :max_attempts,
       :retry_delay,
+      :lock_retry_attempts,
       :process_heartbeat_interval,
       :process_alive_threshold,
       :shutdown_timeout,
@@ -99,6 +101,7 @@ module SolidObjects
       @max_result_bytes = 1.megabyte
       @max_attempts = 5
       @retry_delay = ->(attempt) { [ 2**(attempt - 1), 60 ].min.to_f }
+      @lock_retry_attempts = 10
       @process_heartbeat_interval = 15.0
       @process_alive_threshold = 60.0
       @shutdown_timeout = 15.0

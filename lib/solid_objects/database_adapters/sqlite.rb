@@ -4,6 +4,7 @@ module SolidObjects
   module DatabaseAdapters
     class Sqlite < DatabaseAdapter
       LOCK_RETRY_INTERVAL = 0.001
+      MAXIMUM_BUSY_RETRY_INTERVAL = 0.25
       LOCK_RETRY_MUTEX = Thread::Mutex.new
       LOCK_RETRY_CONDITION = Thread::ConditionVariable.new
 
@@ -14,9 +15,28 @@ module SolidObjects
 
       # @rbs () { () -> untyped } -> untyped
       def transaction(&block)
-        return super unless SyncDeadline.active?
+        return with_lock_retry { super } if SyncDeadline.active?
 
-        with_lock_retry { super }
+        with_busy_retry { super }
+      end
+
+      # A write outside a synchronous deadline has no Ruby-level budget, so it
+      # depends entirely on SQLite's busy handler. Concurrent writers can
+      # exhaust that, which surfaces as a lock error the caller cannot retry.
+      # @rbs () { () -> untyped } -> untyped
+      def with_busy_retry
+        attempts = 0
+        begin
+          yield
+        rescue => error
+          raise unless busy_error?(error)
+
+          attempts += 1
+          raise if attempts > SolidObjects.configuration.lock_retry_attempts
+
+          wait_before_busy_retry(attempts)
+          retry
+        end
       end
 
       # @rbs () { () -> untyped } -> untyped
@@ -116,6 +136,11 @@ module SolidObjects
       def deadline_error?(error)
         return false unless SyncDeadline.active?
 
+        busy_error?(error)
+      end
+
+      # @rbs (Exception) -> bool
+      def busy_error?(error)
         cause = error
         while cause
           return true if cause.class.name.match?(/BusyException|BusyError/)
@@ -123,6 +148,16 @@ module SolidObjects
           cause = cause.cause
         end
         false
+      end
+
+      # @rbs (Integer) -> void
+      def wait_before_busy_retry(attempts)
+        LOCK_RETRY_MUTEX.synchronize do
+          LOCK_RETRY_CONDITION.wait(
+            LOCK_RETRY_MUTEX,
+            [ LOCK_RETRY_INTERVAL * (2**(attempts - 1)), MAXIMUM_BUSY_RETRY_INTERVAL ].min
+          )
+        end
       end
 
       # @rbs () -> void
