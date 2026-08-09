@@ -16,9 +16,13 @@ class SolidObjectsBatchRefreshElement extends HTMLElement {
     const batch = this.dataset.batch
     const revision = this.dataset.revision
     const source = this.dataset.source
-    if (!batch || !revision || !source) return this.remove()
+    const scope = this.closest("[id]")?.id
+    if (!batch || !revision || !source || !scope) return this.remove()
 
-    const key = `${batch}:${revision}`
+    // Two actor scopes may reuse a batch name on one page. Keying by scope
+    // keeps their requests from merging or cancelling each other.
+    const group = `${scope}:${batch}`
+    const key = `${group}:${revision}`
     const pending = pendingBatches.get(key)
     if (pending) {
       pending.sources.add(source)
@@ -30,18 +34,18 @@ class SolidObjectsBatchRefreshElement extends HTMLElement {
     pendingBatches.set(key, merged)
     queueMicrotask(() => {
       pendingBatches.delete(key)
-      requestBatch(batch, revision, merged.sources)
+      requestBatch(group, batch, merged.sources)
     })
     this.remove()
   }
 }
 
-async function requestBatch(batch, revision, sources) {
-  const previous = activeBatches.get(batch)
+async function requestBatch(group, batch, sources) {
+  const previous = activeBatches.get(group)
   previous?.abort()
 
   const controller = new AbortController()
-  activeBatches.set(batch, controller)
+  activeBatches.set(group, controller)
 
   try {
     const url = mergedUrl(sources)
@@ -64,7 +68,7 @@ async function requestBatch(batch, revision, sources) {
   } catch (error) {
     if (error.name !== "AbortError") dispatchBatchError(batch, "request_failed")
   } finally {
-    if (activeBatches.get(batch) === controller) activeBatches.delete(batch)
+    if (activeBatches.get(group) === controller) activeBatches.delete(group)
   }
 }
 

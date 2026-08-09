@@ -28,7 +28,7 @@ module SolidObjects
       :refresh_path,
       :token
 
-    # @rbs (reference: Reference, component_name: String, component_key: String | Integer?, dependencies: Array[String], locals: Hash[String, untyped], refresh_method: String, instance_id: Integer, revision: Integer, refresh_path: String, token: String) -> void
+    # @rbs (reference: Reference, component_name: String, component_key: String | Integer?, dependencies: Array[String], locals: Hash[String, untyped], refresh_method: String, instance_id: Integer, revision: Integer, refresh_path: String, token: String, ?batch: String?) -> void
     def initialize(
       reference:,
       component_name:,
@@ -56,7 +56,7 @@ module SolidObjects
     end
 
     class << self
-      # @rbs (reference: Reference, component_name: String, component_key: untyped, dependencies: Array[String], locals: Hash[untyped, untyped], refresh_method: String | Symbol, snapshot: ActorSnapshot, refresh_path: String) -> ComponentRegistration
+      # @rbs (reference: Reference, component_name: String, component_key: untyped, dependencies: Array[String], locals: Hash[untyped, untyped], refresh_method: String | Symbol, snapshot: ActorSnapshot, refresh_path: String, ?batch: String?) -> ComponentRegistration
       def issue(
         reference:,
         component_name:,

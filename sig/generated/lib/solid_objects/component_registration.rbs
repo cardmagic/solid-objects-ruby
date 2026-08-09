@@ -46,11 +46,11 @@ module SolidObjects
 
     attr_reader token: untyped
 
-    # @rbs (reference: Reference, component_name: String, component_key: String | Integer?, dependencies: Array[String], locals: Hash[String, untyped], refresh_method: String, instance_id: Integer, revision: Integer, refresh_path: String, token: String) -> void
-    def initialize: (reference: Reference, component_name: String, component_key: String | Integer?, dependencies: Array[String], locals: Hash[String, untyped], refresh_method: String, instance_id: Integer, revision: Integer, refresh_path: String, token: String) -> void
+    # @rbs (reference: Reference, component_name: String, component_key: String | Integer?, dependencies: Array[String], locals: Hash[String, untyped], refresh_method: String, instance_id: Integer, revision: Integer, refresh_path: String, token: String, ?batch: String?) -> void
+    def initialize: (reference: Reference, component_name: String, component_key: String | Integer?, dependencies: Array[String], locals: Hash[String, untyped], refresh_method: String, instance_id: Integer, revision: Integer, refresh_path: String, token: String, ?batch: String?) -> void
 
-    # @rbs (reference: Reference, component_name: String, component_key: untyped, dependencies: Array[String], locals: Hash[untyped, untyped], refresh_method: String | Symbol, snapshot: ActorSnapshot, refresh_path: String) -> ComponentRegistration
-    def self.issue: (reference: Reference, component_name: String, component_key: untyped, dependencies: Array[String], locals: Hash[untyped, untyped], refresh_method: String | Symbol, snapshot: ActorSnapshot, refresh_path: String) -> ComponentRegistration
+    # @rbs (reference: Reference, component_name: String, component_key: untyped, dependencies: Array[String], locals: Hash[untyped, untyped], refresh_method: String | Symbol, snapshot: ActorSnapshot, refresh_path: String, ?batch: String?) -> ComponentRegistration
+    def self.issue: (reference: Reference, component_name: String, component_key: untyped, dependencies: Array[String], locals: Hash[untyped, untyped], refresh_method: String | Symbol, snapshot: ActorSnapshot, refresh_path: String, ?batch: String?) -> ComponentRegistration
 
     # @rbs (String) -> ComponentRegistration
     def self.from_token: (String) -> ComponentRegistration

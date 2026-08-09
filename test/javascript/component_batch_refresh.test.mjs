@@ -6,6 +6,8 @@ const ENDPOINT = "/solid_objects/components/batch"
 
 let requests
 let responder
+let defaultScope
+let scopeCount = 0
 
 before(async () => {
   const dom = openDocument()
@@ -23,6 +25,7 @@ beforeEach(() => {
   document.querySelectorAll("turbo-stream").forEach((stream) => stream.remove())
   requests = []
   responder = async () => jsonResponse({ frames: [] })
+  defaultScope = scopeNamed(`solid-objects-scope-${(scopeCount += 1)}`)
 })
 
 function jsonResponse(body, { ok = true, status = 200 } = {}) {
@@ -46,14 +49,21 @@ function addTarget(target, revision) {
   return frame
 }
 
-function notify({ batch, revision, targets, tokens }) {
+function scopeNamed(id) {
+  const scope = document.createElement("div")
+  scope.id = id
+  document.body.append(scope)
+  return scope
+}
+
+function notify({ batch, revision, targets, tokens, scope }) {
   const element = document.createElement("solid-objects-batch-refresh")
   element.dataset.batch = batch
   element.dataset.revision = revision
   element.dataset.targets = targets.join(" ")
   const query = tokens.map((token) => `tokens[]=${token}`).join("&")
   element.dataset.source = `${ENDPOINT}?instance_id=1&revision=9&${query}`
-  document.body.append(element)
+  ;(scope ?? defaultScope).append(element)
   return element
 }
 
@@ -168,4 +178,35 @@ test("the notification element removes itself", async () => {
   await nextTick()
 
   assert.equal(element.isConnected, false)
+})
+
+test("two scopes sharing a batch name do not merge requests", async () => {
+  const first = scopeNamed("solid-objects-scope-table-1")
+  const second = scopeNamed("solid-objects-scope-table-2")
+  notify({ batch: "playmat", revision: "1:9", targets: [ "a" ], tokens: [ "t1" ], scope: first })
+  notify({ batch: "playmat", revision: "1:9", targets: [ "b" ], tokens: [ "t2" ], scope: second })
+  await nextTick()
+
+  assert.equal(requests.length, 2)
+  const tokens = requests.map(
+    (request) => new URL(request, "https://example.test/").searchParams.getAll("tokens[]")
+  )
+  assert.deepEqual(tokens, [ [ "t1" ], [ "t2" ] ])
+})
+
+test("one scope does not abort another scope's request", async () => {
+  const first = scopeNamed("solid-objects-scope-table-3")
+  const second = scopeNamed("solid-objects-scope-table-4")
+  const aborted = []
+  responder = async (url) => {
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    return jsonResponse({ frames: [] })
+  }
+  notify({ batch: "playmat", revision: "1:9", targets: [ "a" ], tokens: [ "t1" ], scope: first })
+  await nextTick()
+  notify({ batch: "playmat", revision: "1:10", targets: [ "b" ], tokens: [ "t2" ], scope: second })
+  await new Promise((resolve) => setTimeout(resolve, 20))
+
+  assert.equal(requests.length, 2)
+  assert.deepEqual(aborted, [])
 })

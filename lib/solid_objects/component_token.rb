@@ -20,7 +20,7 @@ module SolidObjects
 
     module_function
 
-    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String, ?component_key: untyped, ?locals: Hash[untyped, untyped], ?refresh_method: String | Symbol) -> String
+    # @rbs (reference: Reference, component_name: String, dependencies: Array[String], instance_id: Integer, revision: Integer, refresh_path: String, ?component_key: untyped, ?locals: Hash[untyped, untyped], ?refresh_method: String | Symbol, ?batch: untyped) -> String
     def generate(
       reference:,
       component_name:,
