@@ -34,8 +34,9 @@
 - SQLite, PostgreSQL, and MySQL integration suites
 - Inline RBS generation/validation, Steep, Standard Ruby, Solid Queue's exact
   RuboCop policy, and a warning-free Brakeman scan
-- A JavaScript suite covering the browser modules, run in CI with Node's test
-  runner and jsdom, with every GitHub Actions reference pinned to a commit SHA
+- A JavaScript suite covering the state payload and batched refresh browser
+  modules, run in CI with Node's test runner and jsdom, with every GitHub
+  Actions reference pinned to a commit SHA
 
 ## Partially implemented
 
@@ -58,6 +59,9 @@
   distributed per-actor rate limits and global admission control do not.
 - Administration: actor and dead-letter views plus policy hooks exist; richer
   filtering, audit records, and bulk-safe tools do not.
+- Browser module coverage: the state payload and batched refresh modules have
+  JavaScript tests; `component_refresh.js`, which drives individual morph
+  refreshes, does not.
 - Outboxes use portable status rows with polling indexes; future versions may
   introduce narrow ready/claimed membership tables for very large outboxes.
 
