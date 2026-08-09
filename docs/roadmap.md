@@ -17,18 +17,25 @@
 - One-shot and recurring reminders with `:latest` or `:all` catch-up
 - Durable observable invalidations, scalar Turbo replacement, keyed ERB
   components, signed component locals, and authorized replace or morph refresh
+- Batched component refreshes: components sharing a signed `batch:` collapse to
+  one browser request per revision, served as HTML frames in a JSON envelope
+- Personalized state payload broadcasts computed per subscriber under that
+  subscriber's authorization context, fenced by actor revision
 - Reconciliation read APIs
 - Installation doctor, authorization reference, fit guide, and legacy-state
   migration cookbook
 - Handler Active Record write isolation, same-database commit actions, ambient
-  transaction rejection, adapter lock/query deadlines, structured sync timeout
-  diagnostics, and result recovery
+  transaction rejection, adapter lock/query deadlines, bounded SQLite lock
+  retries outside those deadlines, structured sync timeout diagnostics, and
+  result recovery
 - Bounded message/process pruning, actor-type opt-in instance expiration,
   graceful caller shutdown, committed state snapshots, and an opt-in Minitest
   helper
 - SQLite, PostgreSQL, and MySQL integration suites
 - Inline RBS generation/validation, Steep, Standard Ruby, Solid Queue's exact
   RuboCop policy, and a warning-free Brakeman scan
+- A JavaScript suite covering the browser modules, run in CI with Node's test
+  runner and jsdom, with every GitHub Actions reference pinned to a commit SHA
 
 ## Partially implemented
 
@@ -36,10 +43,17 @@
   role or run periodic maintenance automatically.
 - Wake-up strategy: in-process signaling plus durable polling and injection are
   implemented; PostgreSQL `LISTEN/NOTIFY` and optional Redis adapters are not.
+  Signaling cannot cross process boundaries, so a commit in a web process does
+  not wake a broadcast executor in a worker process; that delivery waits up to
+  `polling_interval`, 100 ms by default. This is the largest remaining term in
+  reactive update latency, and neither batching nor state payloads reduce it.
 - Realtime: scalar and dependency-driven keyed ERB component replacement or
   morphing, personalized refresh authorization, revision fencing, coalescing,
-  and reconnect convergence are implemented; application-directed Turbo
-  append intents are not.
+  reconnect convergence, batched refreshes, and personalized state payloads are
+  implemented; application-directed Turbo append intents are not. Batch
+  coalescing happens in the browser rather than the broadcast executor, so one
+  commit still sends one Action Cable message per changed observable even
+  though it costs one browser request.
 - Backpressure: mailbox/payload/state/result caps and fair yields exist;
   distributed per-actor rate limits and global admission control do not.
 - Administration: actor and dead-letter views plus policy hooks exist; richer
@@ -51,7 +65,8 @@
 
 1. Add automatic supervisor role replacement and periodic dead-process cleanup.
 2. Add PostgreSQL notification and optional Redis wake-up adapters with latency
-   benchmarks and polling-race tests.
+   benchmarks and polling-race tests, removing the cross-process polling delay
+   rather than shrinking it with a smaller `polling_interval`.
 3. Add result lookup by request ID and broader deadlock retry classification.
 4. Add scheduled retention and stale-process maintenance.
 5. Add database/server-version checks and MySQL InnoDB verification at boot.
@@ -61,7 +76,9 @@
 8. Expand security scanning and run compatibility CI across supported Rails and
    Ruby versions.
 9. Benchmark all workloads under documented hardware/database settings and
-   publish adapter-specific adoption measurements.
+   publish adapter-specific adoption measurements. Throughput, synchronous
+   latency, query counts, and the three reactive delivery paths are measured on
+   SQLite; adapter-specific and end-to-end browser measurements are not.
 
 No production-ready claim should be made until these hardening milestones have
 operational soak evidence.
