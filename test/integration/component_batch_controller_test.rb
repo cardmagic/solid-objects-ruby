@@ -10,6 +10,21 @@ require_relative "../../app/controllers/solid_objects/components_controller"
 class ComponentBatchControllerTest < ActionController::TestCase
   tests SolidObjects::ComponentsController
 
+  class RegistrationAwareResolver
+    attr_reader :received
+
+    def call(controller:, registrations:)
+      @received = registrations
+      controller.request.headers["HTTP_X_VIEWER"]
+    end
+  end
+
+  class ControllerOnlyResolver
+    def call(controller:)
+      controller.request.headers["HTTP_X_VIEWER"]
+    end
+  end
+
   class PlaymatRoom < SolidObjects::Actor
     actor_type "batch-controller-playmat"
 
@@ -206,6 +221,27 @@ class ComponentBatchControllerTest < ActionController::TestCase
 
     assert_response :success
     assert_equal %w[player], received.map(&:component_name)
+  end
+
+  test "a callable object requiring registrations receives them" do
+    resolver = RegistrationAwareResolver.new
+    SolidObjects.configuration.component_authorization_context = resolver
+    registrations = issue(player: %w[player], controls: %w[controls])
+
+    get_batch(registrations)
+
+    assert_response :success
+    assert_equal %w[player controls], resolver.received.map(&:component_name)
+  end
+
+  test "a callable object accepting only controller keeps working" do
+    SolidObjects.configuration.component_authorization_context = ControllerOnlyResolver.new
+    registrations = issue(player: %w[player])
+
+    get_batch(registrations)
+
+    assert_response :success
+    assert_includes json_body.fetch("frames").first.fetch("html"), "data-player"
   end
 
   test "single component refresh still renders HTML" do

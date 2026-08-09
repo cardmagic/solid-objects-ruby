@@ -143,13 +143,21 @@ module SolidObjects
       callable.call(controller: self, registrations:)
     end
 
+    # A lambda answers `parameters` directly; a callable object answers it
+    # through its `call` method.
     # @rbs (untyped) -> bool
     def accepts_registrations?(callable)
-      return false unless callable.respond_to?(:parameters)
-
-      callable.parameters.any? do |type, name|
+      callable_parameters(callable).any? do |type, name|
         type == :keyrest || (%i[key keyreq].include?(type) && name == :registrations)
       end
+    end
+
+    # @rbs (untyped) -> Array[[ Symbol, Symbol ]]
+    def callable_parameters(callable)
+      return callable.parameters if callable.respond_to?(:parameters)
+      return callable.method(:call).parameters if callable.respond_to?(:call)
+
+      []
     end
 
     # @rbs (ComponentRegistration) -> Hash[Symbol, untyped]
