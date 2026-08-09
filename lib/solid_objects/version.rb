@@ -1,5 +1,5 @@
 # rbs_inline: enabled
 
 module SolidObjects
-  VERSION = "0.5.2"
+  VERSION = "0.6.0"
 end

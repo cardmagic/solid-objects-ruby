@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 - 2026-08-09
 
 - Add `broadcast_payload`, an actor DSL for sending one personalized JSON state
   payload over the actor stream a page already has open. The block runs once per
