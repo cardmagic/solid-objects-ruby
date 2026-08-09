@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.2 - 2026-08-09
 
 - Render batched component partials as HTML regardless of the request format.
   The batch endpoint is requested with a JSON `Accept` header, so Rails looked
