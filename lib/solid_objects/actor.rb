@@ -57,6 +57,13 @@ module SolidObjects
         definition.add_observable(name, block)
       end
 
+      # @rbs (Symbol | String) { (untyped, untyped) -> untyped } -> ActorDefinition::Handler
+      def broadcast_payload(name, &block)
+        raise InvalidActor, "payload broadcasts require a block" unless block
+
+        definition.add_payload_broadcast(name, block)
+      end
+
       # @rbs (?Integer) -> Integer
       def state_version(version = nil)
         definition.set_state_version(version) if version

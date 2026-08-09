@@ -2,8 +2,9 @@
 
 module SolidObjects
   module ActorHelper
-    # @rbs (Reference, ?authorization_context: untyped) { (ActorView) -> untyped } -> untyped
-    def solid_object(reference, authorization_context: self, &block)
+    # @rbs (Reference, ?authorization_context: untyped, ?payloads: untyped) { (ActorView) -> untyped } -> untyped
+    def solid_object(reference, authorization_context: self, payloads: nil, &block)
+      payload_names = Array(payloads).map(&:to_s).uniq.presence
       actor = ActorView.new(
         reference:,
         view_context: self,
@@ -13,7 +14,8 @@ module SolidObjects
       subscription_data = {
         token: StreamToken.generate(
           reference,
-          observables: actor.scalar_observable_names
+          observables: actor.scalar_observable_names,
+          payloads: payload_names
         )
       }
       if actor.component_tokens.any?
@@ -30,10 +32,17 @@ module SolidObjects
           data: { turbo_track: "reload" }
         )
       end
+      payload_client = if payload_names
+        javascript_include_tag(
+          "solid_objects/state_payload",
+          type: "module",
+          data: { turbo_track: "reload" }
+        )
+      end
 
       content_tag(
         :div,
-        safe_join([ refresh_client, subscription, content ].compact),
+        safe_join([ refresh_client, payload_client, subscription, content ].compact),
         id: DomIdentity.scope(reference)
       )
     end

@@ -13,8 +13,19 @@ module SolidObjects
 
     attr_reader scalar_observables: untyped
 
+    attr_reader payload_names: untyped
+
     # @rbs (String) -> void
     def receive_broadcast: (String) -> void
+
+    # @rbs (ActorSnapshot) -> void
+    def transmit_state_payloads: (ActorSnapshot) -> void
+
+    # @rbs (ActorSnapshot) -> bool
+    def newer_payload_revision?: (ActorSnapshot) -> bool
+
+    # @rbs () -> void
+    def validate_payload_names!: () -> void
 
     # @rbs (ActorSnapshot) -> void
     def refresh_outdated_components: (ActorSnapshot) -> void

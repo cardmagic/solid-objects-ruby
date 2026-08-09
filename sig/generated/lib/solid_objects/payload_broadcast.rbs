@@ -1,0 +1,33 @@
+# Generated from lib/solid_objects/payload_broadcast.rb with RBS::Inline
+
+module SolidObjects
+  class PayloadBroadcast
+    MAXIMUM_PAYLOAD_BYTES: ::Integer
+
+    @snapshot: ActorSnapshot
+
+    @name: String
+
+    @authorization_context: untyped
+
+    attr_reader name: untyped
+
+    # @rbs (snapshot: ActorSnapshot, name: String, authorization_context: untyped) -> void
+    def initialize: (snapshot: ActorSnapshot, name: String, authorization_context: untyped) -> void
+
+    # @rbs () -> Hash[String, untyped]
+    def call: () -> Hash[String, untyped]
+
+    private
+
+    attr_reader snapshot: untyped
+
+    attr_reader authorization_context: untyped
+
+    # @rbs (ActorDefinition::Handler) -> untyped
+    def rendered_payload: (ActorDefinition::Handler) -> untyped
+
+    # @rbs () -> void
+    def authorize!: () -> void
+  end
+end

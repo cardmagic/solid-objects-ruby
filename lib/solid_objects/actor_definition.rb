@@ -9,6 +9,7 @@ module SolidObjects
     # @rbs @messages: Hash[Symbol, Handler]
     # @rbs @queries: Hash[Symbol, Handler]
     # @rbs @observables: Hash[Symbol, Handler]
+    # @rbs @payload_broadcasts: Hash[Symbol, Handler]
     # @rbs @state_version: Integer
     # @rbs @state_migrations: Array[StateMigration]
     # @rbs @activation_hooks: Array[Proc]
@@ -20,6 +21,7 @@ module SolidObjects
       :messages,
       :queries,
       :observables,
+      :payload_broadcasts,
       :state_version,
       :state_migrations,
       :activation_hooks,
@@ -31,6 +33,7 @@ module SolidObjects
       @messages = {}
       @queries = {}
       @observables = {}
+      @payload_broadcasts = {}
       @state_version = 1
       @state_migrations = []
       @activation_hooks = []
@@ -80,6 +83,21 @@ module SolidObjects
       observable_block = block || -> { state.fetch(observable_name) }
       Handler.new(name: observable_name, block: observable_block).tap do |handler|
         observables[observable_name] = handler
+      end
+    end
+
+    # @rbs (Symbol | String, Proc) -> Handler
+    def add_payload_broadcast(name, block)
+      payload_name = name.to_sym
+      if payload_broadcasts.key?(payload_name)
+        raise InvalidActor, "#{payload_name.inspect} payload broadcast is already defined"
+      end
+      unless payload_name.to_s.match?(/\A[a-zA-Z0-9_]+\z/)
+        raise InvalidActor, "payload broadcast names may contain only letters, digits, and underscores"
+      end
+
+      Handler.new(name: payload_name, block:).tap do |handler|
+        payload_broadcasts[payload_name] = handler
       end
     end
 
@@ -149,6 +167,7 @@ module SolidObjects
         copy.instance_variable_set(:@messages, messages.dup)
         copy.instance_variable_set(:@queries, queries.dup)
         copy.instance_variable_set(:@observables, observables.dup)
+        copy.instance_variable_set(:@payload_broadcasts, payload_broadcasts.dup)
         copy.instance_variable_set(:@state_version, state_version)
         copy.instance_variable_set(:@state_migrations, state_migrations.dup)
         copy.instance_variable_set(:@activation_hooks, activation_hooks.dup)

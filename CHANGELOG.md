@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Add `broadcast_payload`, an actor DSL for sending one personalized JSON state
+  payload over the actor stream a page already has open. The block runs once per
+  subscriber with that subscriber's authorization context, so private state
+  never crosses sessions. Payloads carry actor identity and the monotonic state
+  revision, and both the channel and the browser drop stale revisions. Subscribe
+  with `solid_object room, payloads: :playmat_state` and handle the
+  `solid-objects:payload` DOM event. ERB component refreshes remain the default
+  and are unchanged.
+
 ## 0.5.2 - 2026-08-09
 
 - Read the database clock once per transaction instead of once per step, and
