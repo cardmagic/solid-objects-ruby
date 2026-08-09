@@ -2,7 +2,7 @@
 
 module SolidObjects
   class Configuration
-    @table_name_prefix: String
+    @process_alive_threshold: Float
 
     @shutdown_timeout: Float
 
@@ -48,6 +48,8 @@ module SolidObjects
 
     @authorize_administration: Proc
 
+    @table_name_prefix: String
+
     @polling_interval: Float
 
     @sync_polling_interval: Float
@@ -76,9 +78,9 @@ module SolidObjects
 
     @retry_delay: Proc
 
-    @process_heartbeat_interval: Float
+    @lock_retry_attempts: Integer
 
-    @process_alive_threshold: Float
+    @process_heartbeat_interval: Float
 
     attr_accessor table_name_prefix: untyped
 
@@ -109,6 +111,8 @@ module SolidObjects
     attr_accessor max_attempts: untyped
 
     attr_accessor retry_delay: untyped
+
+    attr_accessor lock_retry_attempts: untyped
 
     attr_accessor process_heartbeat_interval: untyped
 
