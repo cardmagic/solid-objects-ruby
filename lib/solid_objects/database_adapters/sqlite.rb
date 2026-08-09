@@ -80,13 +80,13 @@ module SolidObjects
 
       # @rbs (untyped) -> Hash[Symbol, untyped]?
       def restorable_busy_wait(connection)
-        pragma_timeout = connection.select_value("PRAGMA busy_timeout").to_i
-        return { pragma_timeout: } if pragma_timeout.positive?
-
         handler_timeout = configured_busy_handler_timeout(connection)
-        return nil unless handler_timeout
+        return { handler_timeout: } if handler_timeout
 
-        { pragma_timeout:, handler_timeout: }
+        pragma_timeout = connection.select_value("PRAGMA busy_timeout").to_i
+        return nil unless pragma_timeout.positive?
+
+        { pragma_timeout: }
       end
 
       # @rbs (untyped, Hash[Symbol, untyped]) -> void

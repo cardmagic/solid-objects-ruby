@@ -502,6 +502,56 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     release_sqlite_write_lock(lock) if lock
   end
 
+  test "sync does not re-read the SQLite busy wait it already knows how to restore" do
+    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    CounterActor.ref("pragma-warm").increment
+    statements = []
+    subscription = ActiveSupport::Notifications.subscribe("sql.active_record") do |event|
+      statements << event.payload[:sql]
+    end
+
+    CounterActor.ref("pragma-warm").increment
+
+    ActiveSupport::Notifications.unsubscribe(subscription)
+    assert_empty statements.grep(/\APRAGMA busy_timeout\z/i),
+      "the configured busy wait is known without asking the database for it"
+    refute_empty statements.grep(/\APRAGMA busy_timeout = 0\z/i),
+      "the busy wait must still be suspended for the deadline"
+  end
+
+  test "a transaction reads the database clock once and shares the reading" do
+    readings = []
+    clock_reads = count_clock_reads do
+      SolidObjects.database_adapter.transaction do
+        3.times { readings << SolidObjects.database_adapter.database_now }
+      end
+    end
+
+    assert_equal 1, clock_reads
+    assert_equal 1, readings.uniq.length
+  end
+
+  test "the shared clock reading does not outlive its transaction" do
+    reads = count_clock_reads do
+      2.times do
+        SolidObjects.database_adapter.transaction { SolidObjects.database_adapter.database_now }
+      end
+    end
+
+    assert_equal 2, reads
+    assert_equal 1, count_clock_reads { SolidObjects.database_adapter.database_now }
+  end
+
+  test "sync stops re-reading the database clock for every step" do
+    reference = CounterActor.ref("clock-warm")
+    reference.increment
+
+    clock_reads = count_clock_reads { reference.increment }
+
+    assert_operator clock_reads, :<=, 4,
+      "a synchronous call should read the clock once per transaction, not once per step"
+  end
+
   test "sync discovers the configured SQLite busy wait it has to restore" do
     skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
 
@@ -851,6 +901,17 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     captured = Timeout.timeout(2) { result.pop }
     invocation.join
     captured
+  end
+
+  def count_clock_reads
+    reads = 0
+    subscription = ActiveSupport::Notifications.subscribe("sql.active_record") do |event|
+      reads += 1 if event.payload[:sql].match?(/STRFTIME|CURRENT_TIMESTAMP/i)
+    end
+    yield
+    reads
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
   end
 
   def process_write?(payload)

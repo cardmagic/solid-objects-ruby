@@ -41,6 +41,13 @@ scenario used four worker threads.
 | Synchronous latency | p50 1.8 ms, p95 25.6 ms, p99 156.2 ms |
 | Activation reuse | 98.0%, four activations for 200 messages |
 | Queries for one message turn | 29 |
+| Queries for one synchronous call | 49 |
+
+A synchronous call costs far more queries than a worker turn because the caller
+also registers or heartbeats its caller process, claims the activation, and
+observes the result. Query count, not query time, dominates synchronous latency
+on a networked database: measured locally against SQLite, database time is
+roughly 5% of a call and the remaining 95% is Ruby.
 
 The difference between the SQLite development result and the MySQL adoption
 result is why Solid Objects does not publish one latency promise. Network
