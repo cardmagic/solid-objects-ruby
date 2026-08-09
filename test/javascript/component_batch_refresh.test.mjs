@@ -6,6 +6,7 @@ const ENDPOINT = "/solid_objects/components/batch"
 const ORIGIN = "https://example.test/"
 
 let requests
+let aborted
 let responder
 let recordedErrors
 let defaultScope
@@ -23,7 +24,10 @@ before(async () => {
     return Promise.race([
       responder(url),
       new Promise((_resolve, reject) => {
-        signal?.addEventListener("abort", () => reject(abortError()))
+        signal?.addEventListener("abort", () => {
+          aborted.push(url.toString())
+          reject(abortError())
+        })
       })
     ])
   }
@@ -40,6 +44,7 @@ beforeEach(() => {
   document.body.innerHTML = ""
   document.querySelectorAll("turbo-stream").forEach((stream) => stream.remove())
   requests = []
+  aborted = []
   recordedErrors = []
   // Scope and target identity are page-lifetime state in the module, so each
   // test needs its own names.
@@ -297,4 +302,30 @@ test("a cross-origin source is refused", async () => {
   await settle(40)
 
   assert.equal(requests.length, 0)
+})
+
+test("a newer revision supersedes every concurrent older request", async () => {
+  const targets = [ id("player"), id("controls") ]
+  targets.forEach((target) => addTarget(target, "1:8"))
+  respondPerToken({ delay: 40 })
+
+  notify({ revision: "1:9", tokens: [ targets[0] ] })
+  await nextTick()
+  notify({ revision: "1:9", tokens: [ targets[1] ] })
+  await nextTick()
+  responder = async (url) => {
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    return jsonResponse({
+      frames: tokensIn(url).map((token) => ({
+        target: token,
+        revision: "1:10",
+        html: frameHtml(token, "1:10")
+      }))
+    })
+  }
+  notify({ revision: "1:10", tokens: [ targets[0] ], queryRevision: "10" })
+  await settle(150)
+
+  assert.equal(aborted.length, 2, "both older same-revision requests should be superseded")
+  assert.deepEqual(recordedErrors, [])
 })

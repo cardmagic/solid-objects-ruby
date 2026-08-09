@@ -1,6 +1,7 @@
 const pendingBatches = new Map()
 const activeBatches = new Map()
 const appliedRevisions = new Map()
+let requestSequence = 0
 
 class SolidObjectsBatchRefreshElement extends HTMLElement {
   connectedCallback() {
@@ -49,7 +50,10 @@ async function requestBatch(group, batch, revision, sources) {
   const parsed = parseRevision(revision)
   supersedeOlderRequests(group, parsed)
 
-  const key = `${group}:${revision}`
+  // Same-revision requests run concurrently, so each needs its own entry.
+  // Sharing one key per revision would leave all but the last untracked and
+  // therefore impossible to supersede.
+  const key = `${group}:${revision}:${(requestSequence += 1)}`
   const controller = new AbortController()
   activeBatches.set(key, { controller, group, revision: parsed })
 
