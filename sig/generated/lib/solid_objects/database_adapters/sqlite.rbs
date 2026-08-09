@@ -30,9 +30,6 @@ module SolidObjects
       def restorable_busy_wait: (untyped) -> Hash[Symbol, untyped]?
 
       # @rbs (untyped, Hash[Symbol, untyped]) -> void
-      def suspend_busy_wait: (untyped, Hash[Symbol, untyped]) -> void
-
-      # @rbs (untyped, Hash[Symbol, untyped]) -> void
       def restore_busy_wait: (untyped, Hash[Symbol, untyped]) -> void
 
       # @rbs (untyped) -> Integer?
