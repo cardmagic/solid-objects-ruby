@@ -3,6 +3,7 @@
 module SolidObjects
   class PayloadBroadcast
     MAXIMUM_PAYLOAD_BYTES = 1_048_576
+    REVISION_OBSERVABLE = "solid_objects.revision"
 
     # @rbs @snapshot: ActorSnapshot
     # @rbs @name: String

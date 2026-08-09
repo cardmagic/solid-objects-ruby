@@ -150,6 +150,44 @@ class PayloadBroadcastTest < ActiveSupport::TestCase
     assert_includes element, "Island"
   end
 
+  test "a mutation that changes no observable still invalidates the payload" do
+    reference = RoomActor.ref("table")
+    reference.advance_turn
+    SolidObjects::Broadcast.delete_all
+
+    reference.deal(session_id: "alice", cards: %w[Island])
+
+    broadcast = SolidObjects::Broadcast.order(:id).last
+    refute_nil broadcast, "a payload-only mutation must still reach subscribers"
+    assert_equal SolidObjects::PayloadBroadcast::REVISION_OBSERVABLE,
+      broadcast.observable_name
+  end
+
+  test "the revision invalidation carries no observable value to the browser" do
+    reference = RoomActor.ref("table")
+    reference.advance_turn
+    SolidObjects::Broadcast.delete_all
+    reference.deal(session_id: "alice", cards: %w[Black Lotus])
+
+    stream = SolidObjects::TurboStreamRenderer.observable(
+      SolidObjects::Broadcast.order(:id).last
+    )
+
+    refute_includes stream, "turbo-stream"
+    refute_includes stream, "Black Lotus"
+    refute_nil SolidObjects::TurboStreamRenderer.invalidation(stream)
+  end
+
+  test "a query does not invalidate the payload" do
+    reference = RoomActor.ref("table")
+    reference.deal(session_id: "alice", cards: %w[Island])
+    SolidObjects::Broadcast.delete_all
+
+    reference.turn
+
+    assert_equal 0, SolidObjects::Broadcast.count
+  end
+
   test "actors without a payload broadcast are unaffected" do
     plain = Class.new(SolidObjects::Actor) do
       actor_type "payload-none"

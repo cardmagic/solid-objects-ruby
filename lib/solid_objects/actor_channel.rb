@@ -57,9 +57,12 @@ module SolidObjects
     # @rbs (String) -> void
     def receive_broadcast(stream)
       invalidation = TurboStreamRenderer.invalidation(stream)
-      if !invalidation ||
-          scalar_observables.nil? ||
-          scalar_observables.include?(invalidation.fetch("observable_name"))
+      revision_only = invalidation &&
+        invalidation.fetch("observable_name") == PayloadBroadcast::REVISION_OBSERVABLE
+      if !revision_only &&
+          (!invalidation ||
+            scalar_observables.nil? ||
+            scalar_observables.include?(invalidation.fetch("observable_name")))
         transmit stream
       end
       return unless invalidation

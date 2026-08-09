@@ -9,7 +9,9 @@
   revision, and both the channel and the browser drop stale revisions. Subscribe
   with `solid_object room, payloads: :playmat_state` and handle the
   `solid-objects:payload` DOM event. ERB component refreshes remain the default
-  and are unchanged.
+  and are unchanged. A mutation that changes payload state without changing a
+  declared observable still invalidates subscribers, through a revision-only
+  broadcast that carries no observable value to the browser.
 
 ## 0.5.2 - 2026-08-09
 

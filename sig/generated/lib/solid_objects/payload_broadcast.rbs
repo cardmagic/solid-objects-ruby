@@ -4,6 +4,8 @@ module SolidObjects
   class PayloadBroadcast
     MAXIMUM_PAYLOAD_BYTES: ::Integer
 
+    REVISION_OBSERVABLE: ::String
+
     @snapshot: ActorSnapshot
 
     @name: String

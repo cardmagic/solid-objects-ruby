@@ -27,7 +27,7 @@ module SolidObjects
       result = invoke_actor(message_context)
       ensure_query_did_not_mutate_state!(state_before)
       observable_changes = changed_observables(observables_before, actor.observable_values)
-      complete(result, observable_changes)
+      complete(result, observable_changes, state_changed: actor.state.to_h != state_before)
       true
     rescue LostActivation
       raise
@@ -75,8 +75,8 @@ module SolidObjects
       end
     end
 
-    # @rbs (untyped, Hash[String, untyped]) -> void
-    def complete(result, observable_changes)
+    # @rbs (untyped, Hash[String, untyped], state_changed: bool) -> void
+    def complete(result, observable_changes, state_changed:)
       serialized_state = Serialization.dump(
         actor.state.to_h,
         max_bytes: SolidObjects.configuration.max_state_bytes
@@ -111,7 +111,12 @@ module SolidObjects
         enqueued_effects.concat(
           enqueue_actor_messages(locked_message, instance, outbound_message_intents)
         )
-        enqueue_broadcasts(locked_message, instance, observable_changes)
+        enqueue_broadcasts(
+          locked_message,
+          instance,
+          observable_changes,
+          state_changed:
+        )
         claimed_message.destroy!
       end
 
@@ -249,9 +254,14 @@ module SolidObjects
       end
     end
 
-    # @rbs (Message, Instance, Hash[String, untyped]) -> void
-    def enqueue_broadcasts(locked_message, instance, observable_changes)
-      observable_changes.each do |observable_name, value|
+    # @rbs (Message, Instance, Hash[String, untyped], state_changed: bool) -> void
+    def enqueue_broadcasts(locked_message, instance, observable_changes, state_changed:)
+      broadcasts = observable_changes
+      if broadcasts.empty? && state_changed && payload_broadcasts?
+        broadcasts = { PayloadBroadcast::REVISION_OBSERVABLE => {} }
+      end
+
+      broadcasts.each do |observable_name, value|
         Broadcast.create!(
           message: locked_message,
           instance:,
@@ -264,6 +274,11 @@ module SolidObjects
           available_at: SolidObjects.database_adapter.database_now
         )
       end
+    end
+
+    # @rbs () -> bool
+    def payload_broadcasts?
+      actor.class.definition.payload_broadcasts.any?
     end
 
     # @rbs (Exception) -> void
