@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.1 - 2026-08-09
+## 0.7.0 - 2026-08-09
 
 - Add `batch:` to reactive components. Components sharing a batch in one actor
   scope collapse into a single browser request per revision instead of one
