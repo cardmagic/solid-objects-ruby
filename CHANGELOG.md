@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.2 - 2026-08-09
 
 - Read the database clock once per transaction instead of once per step, and
   resolve the SQLite busy wait from configuration instead of querying the
