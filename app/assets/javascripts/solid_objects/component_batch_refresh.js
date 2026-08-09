@@ -1,5 +1,7 @@
 const pendingBatches = new Map()
 const activeBatches = new Map()
+const appliedRevisions = new Map()
+let requestSequence = 0
 
 class SolidObjectsBatchRefreshElement extends HTMLElement {
   connectedCallback() {
@@ -34,18 +36,26 @@ class SolidObjectsBatchRefreshElement extends HTMLElement {
     pendingBatches.set(key, merged)
     queueMicrotask(() => {
       pendingBatches.delete(key)
-      requestBatch(group, batch, merged.sources)
+      requestBatch(group, batch, revision, merged.sources)
     })
     this.remove()
   }
 }
 
-async function requestBatch(group, batch, sources) {
-  const previous = activeBatches.get(group)
-  previous?.abort()
+// Invalidations for one revision arrive in separate WebSocket messages, so the
+// microtask merge cannot see them all. Requests are tracked per revision and a
+// request is only cancelled by a strictly newer one; same-revision requests run
+// alongside each other and every frame is applied.
+async function requestBatch(group, batch, revision, sources) {
+  const parsed = parseRevision(revision)
+  supersedeOlderRequests(group, parsed)
 
+  // Same-revision requests run concurrently, so each needs its own entry.
+  // Sharing one key per revision would leave all but the last untracked and
+  // therefore impossible to supersede.
+  const key = `${group}:${revision}:${(requestSequence += 1)}`
   const controller = new AbortController()
-  activeBatches.set(group, controller)
+  activeBatches.set(key, { controller, group, revision: parsed })
 
   try {
     const url = mergedUrl(sources)
@@ -68,8 +78,27 @@ async function requestBatch(group, batch, sources) {
   } catch (error) {
     if (error.name !== "AbortError") dispatchBatchError(batch, "request_failed")
   } finally {
-    if (activeBatches.get(group) === controller) activeBatches.delete(group)
+    if (activeBatches.get(key)?.controller === controller) activeBatches.delete(key)
   }
+}
+
+function supersedeOlderRequests(group, revision) {
+  if (!revision) return
+
+  activeBatches.forEach((entry, key) => {
+    if (entry.group !== group) return
+    if (!olderRevision(entry.revision, revision)) return
+
+    entry.controller.abort()
+    activeBatches.delete(key)
+  })
+}
+
+function olderRevision(candidate, current) {
+  if (!candidate || !current) return false
+
+  return candidate[0] < current[0] ||
+    (candidate[0] === current[0] && candidate[1] < current[1])
 }
 
 // Every notification for one batch and revision carries the same endpoint and
@@ -93,6 +122,13 @@ function applyFrame(frame) {
   const target = document.getElementById(frame?.target)
   if (!target || !frame.html) return
   if (!newerRevision(frame.revision, target.dataset.solidObjectsRevision)) return
+  // Concurrent same-revision responses can carry the same frame. The target's
+  // own revision only advances once Turbo applies the stream, so what has
+  // already been applied is tracked here as well.
+  const applied = appliedRevisions.get(frame.target)
+  if (applied && !newerRevision(frame.revision, applied)) return
+
+  appliedRevisions.set(frame.target, frame.revision)
 
   const parsed = new DOMParser().parseFromString(frame.html, "text/html")
   const replacement = parsed.getElementById(frame.target)

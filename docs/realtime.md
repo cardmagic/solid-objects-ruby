@@ -173,8 +173,11 @@ they are while giving the client a documented contract with per-frame revisions.
 ### What the protocol guarantees
 
 Only components whose dependencies changed are requested; the rest are never
-named in the batch. Duplicate notifications for the same batch and revision merge
-into one request, and a superseded request for the same batch is aborted. Each
+named in the batch. Notifications for the same batch and revision that arrive in
+one task merge into a single request. Notifications that arrive in separate
+WebSocket messages issue their own requests and all of their frames are applied,
+because cancelling a same-revision request would drop the components it carried.
+Only a strictly newer revision supersedes an in-flight request. Each
 frame carries its own revision and cannot overwrite a target that already holds a
 newer one. Authorization is unchanged: every component in the batch passes the
 same `authorize_query` boundary an individual refresh uses, and the batch name is
