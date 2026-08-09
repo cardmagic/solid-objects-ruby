@@ -43,6 +43,12 @@ module SolidObjects
   class UnknownComponent < Error
   end
 
+  class UnknownPayloadBroadcast < Error
+  end
+
+  class InvalidPayloadBroadcast < Error
+  end
+
   class UnknownComponentDependency < Error
   end
 

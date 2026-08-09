@@ -110,6 +110,93 @@ applications discover the namespaced engine asset. Applications created with
 explicitly serve the module. Turbo's normal morph rules still apply; use
 `data-turbo-permanent` for elements that must never be changed.
 
+## Personalized state payloads
+
+Reactive ERB components cost one browser request per changed component. When a
+single actor mutation changes several components, an application pays several
+round trips for one logical update. A payload broadcast collapses that into one
+message on the stream the page already has open.
+
+Declare the payload on the actor. The block receives the actor and the
+subscriber's authorization context, and it runs **once per subscriber**, so two
+sessions watching the same actor never see each other's private state:
+
+```ruby
+class PlaymatRoom < SolidObjects::Actor
+  actor_type "playmat_room"
+
+  attribute :hands, default: -> { {} }
+  attribute :turn, default: 1
+
+  observable :turn
+
+  broadcast_payload :playmat_state do |room, authorization_context|
+    {
+      "turn" => room.turn,
+      "hand" => room.hands.fetch(authorization_context.session_id, [])
+    }
+  end
+end
+```
+
+Subscribe the scope to it:
+
+```erb
+<%= solid_object room, payloads: :playmat_state do |actor| %>
+  <div data-playmat></div>
+<% end %>
+```
+
+Handle it with any JavaScript. The gem dispatches a DOM event and requires no
+framework:
+
+```javascript
+document.addEventListener("solid-objects:payload", (event) => {
+  const { name, revision, payload } = event.detail
+  if (name !== "playmat_state") return
+
+  renderPlaymat(payload)
+})
+```
+
+### What the protocol guarantees
+
+The payload travels as a Turbo Stream element on the existing actor stream, so
+applications do not run a second WebSocket system. Each message carries the
+actor identity plus the `instance_id` and monotonic `state_revision` that fence
+component refreshes, and both the channel and the browser drop a payload that
+is not newer than the last one delivered for that scope and name. A reconnecting
+client receives the current payload on subscribe.
+
+Authorization is the same `authorize_query` boundary that components use, called
+with the payload name and the subscriber's Cable connection. A subscriber that
+fails the check is skipped rather than served a partial payload, and the payload
+name is signed into the stream token, so a browser cannot ask for a payload the
+server did not offer.
+
+Payload blocks read committed actor state through the same snapshot components
+use. They cannot write application records, and the return value must be a JSON
+object or array so the wire format stays inspectable.
+
+### mtg-playmat before and after
+
+Before, one mutation that touched three observables produced three refresh
+elements and three HTTP requests:
+
+```
+commit -> 3 Action Cable messages -> 3 GET /solid_objects/components -> 3 renders
+```
+
+After, the same mutation delivers one personalized payload and the page renders
+once:
+
+```
+commit -> 1 Action Cable message -> 0 HTTP requests -> 1 render
+```
+
+Components remain the default. An actor with no `broadcast_payload` and a scope
+with no `payloads:` option behave exactly as before.
+
 ## Authorization
 
 The HTML contains a signed actor identity token. Signing prevents modification;

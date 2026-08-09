@@ -15,6 +15,9 @@ module SolidObjects
     # @rbs (ComponentRegistration, Integer, Integer) -> String
     def self?.component_refresh: (ComponentRegistration, Integer, Integer) -> String
 
+    # @rbs (Hash[String, untyped]) -> String
+    def self?.state_payload: (Hash[String, untyped]) -> String
+
     # @rbs (String) -> Hash[String, untyped]?
     def self?.invalidation: (String) -> Hash[String, untyped]?
 

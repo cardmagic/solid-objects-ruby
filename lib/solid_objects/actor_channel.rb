@@ -19,7 +19,9 @@ module SolidObjects
 
       @reference = Reference.new(actor_type:, actor_id:)
       @scalar_observables = identity["observables"]
+      @payload_names = identity["payloads"]
       validate_scalar_observables!
+      validate_payload_names!
       @component_subscriptions = ComponentSubscriptions.parse(
         params["components"],
         reference:
@@ -36,6 +38,7 @@ module SolidObjects
         )
       end
       refresh_outdated_components(snapshot)
+      transmit_state_payloads(snapshot)
     rescue KeyError,
       JSON::ParserError,
       InvalidStreamToken,
@@ -46,14 +49,20 @@ module SolidObjects
 
     private
 
-    attr_reader :reference, :component_subscriptions, :scalar_observables
+    attr_reader :reference,
+      :component_subscriptions,
+      :scalar_observables,
+      :payload_names
 
     # @rbs (String) -> void
     def receive_broadcast(stream)
       invalidation = TurboStreamRenderer.invalidation(stream)
-      if !invalidation ||
-          scalar_observables.nil? ||
-          scalar_observables.include?(invalidation.fetch("observable_name"))
+      revision_only = invalidation &&
+        invalidation.fetch("observable_name") == PayloadBroadcast::REVISION_OBSERVABLE
+      if !revision_only &&
+          (!invalidation ||
+            scalar_observables.nil? ||
+            scalar_observables.include?(invalidation.fetch("observable_name")))
         transmit stream
       end
       return unless invalidation
@@ -61,6 +70,48 @@ module SolidObjects
       component_subscriptions
         .refreshes_for(invalidation)
         .each { |refresh| transmit refresh }
+      transmit_state_payloads(ActorSnapshot.new(reference))
+    end
+
+    # @rbs (ActorSnapshot) -> void
+    def transmit_state_payloads(snapshot)
+      return if payload_names.nil? || payload_names.empty?
+      return unless newer_payload_revision?(snapshot)
+
+      payload_names.each do |name|
+        payload = PayloadBroadcast.new(
+          snapshot:,
+          name:,
+          authorization_context: connection
+        ).call
+        transmit TurboStreamRenderer.state_payload(payload)
+      rescue Unauthorized
+        next
+      end
+      @payload_revision = [ snapshot.instance_id, snapshot.revision ]
+    end
+
+    # @rbs (ActorSnapshot) -> bool
+    def newer_payload_revision?(snapshot)
+      current = @payload_revision
+      return true unless current
+
+      (current <=> [ snapshot.instance_id, snapshot.revision ]) == -1
+    end
+
+    # @rbs () -> void
+    def validate_payload_names!
+      return unless payload_names
+
+      broadcasts = SolidObjects
+        .registry
+        .fetch(reference.actor_type)
+        .definition
+        .payload_broadcasts
+      unknown = payload_names.find { |name| !broadcasts.key?(name.to_sym) }
+      return unless unknown
+
+      raise InvalidStreamToken, "unknown payload broadcast #{unknown.inspect}"
     end
 
     # @rbs (ActorSnapshot) -> void

@@ -16,11 +16,15 @@ module SolidObjects
         actor_type: broadcast.instance.actor_type,
         actor_id: broadcast.instance.actor_id
       )
-      stream = observable_value(
-        reference,
-        broadcast.observable_name,
-        broadcast.value
-      )
+      stream = if broadcast.observable_name == PayloadBroadcast::REVISION_OBSERVABLE
+        ""
+      else
+        observable_value(
+          reference,
+          broadcast.observable_name,
+          broadcast.value
+        )
+      end
       metadata = Base64.urlsafe_encode64(
         JSON.generate(
           "instance_id" => broadcast.instance_id,
@@ -48,6 +52,19 @@ module SolidObjects
       )
       revision_value = "#{instance_id}:#{revision}"
       %(<turbo-stream action="replace" target="#{target}"><template><turbo-frame id="#{target}" src="#{source}" data-solid-objects-revision="#{revision_value}" data-solid-objects-refresh="replace"></turbo-frame></template></turbo-stream>)
+    end
+
+    # @rbs (Hash[String, untyped]) -> String
+    def state_payload(payload)
+      reference = Reference.new(
+        actor_type: payload.fetch("actor_type"),
+        actor_id: payload.fetch("actor_id")
+      )
+      scope = DomIdentity.scope(reference)
+      name = ERB::Util.html_escape(payload.fetch("name"))
+      revision = "#{payload.fetch("instance_id")}:#{payload.fetch("revision")}"
+      body = ERB::Util.html_escape(JSON.generate(payload.fetch("payload")))
+      %(<turbo-stream action="append" target="#{scope}"><template><solid-objects-payload data-name="#{name}" data-revision="#{revision}">#{body}</solid-objects-payload></template></turbo-stream>)
     end
 
     # @rbs (String) -> Hash[String, untyped]?

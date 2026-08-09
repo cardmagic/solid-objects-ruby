@@ -2,7 +2,7 @@
 
 module SolidObjects
   module ActorHelper
-    # @rbs (Reference, ?authorization_context: untyped) { (ActorView) -> untyped } -> untyped
-    def solid_object: (Reference, ?authorization_context: untyped) { (ActorView) -> untyped } -> untyped
+    # @rbs (Reference, ?authorization_context: untyped, ?payloads: untyped) { (ActorView) -> untyped } -> untyped
+    def solid_object: (Reference, ?authorization_context: untyped, ?payloads: untyped) { (ActorView) -> untyped } -> untyped
   end
 end

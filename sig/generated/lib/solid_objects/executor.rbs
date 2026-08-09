@@ -30,8 +30,8 @@ module SolidObjects
     # @rbs (Hash[String, untyped], Hash[String, untyped]) -> Hash[String, untyped]
     def changed_observables: (Hash[String, untyped], Hash[String, untyped]) -> Hash[String, untyped]
 
-    # @rbs (untyped, Hash[String, untyped]) -> void
-    def complete: (untyped, Hash[String, untyped]) -> void
+    # @rbs (untyped, Hash[String, untyped], state_changed: bool) -> void
+    def complete: (untyped, Hash[String, untyped], state_changed: bool) -> void
 
     # @rbs (Array[Actor::CommitActionIntent]) -> void
     def execute_commit_actions: (Array[Actor::CommitActionIntent]) -> void
@@ -51,8 +51,11 @@ module SolidObjects
     # @rbs (Message, Instance, Array[Actor::OutboundMessageIntent]) -> Array[Effect]
     def enqueue_actor_messages: (Message, Instance, Array[Actor::OutboundMessageIntent]) -> Array[Effect]
 
-    # @rbs (Message, Instance, Hash[String, untyped]) -> void
-    def enqueue_broadcasts: (Message, Instance, Hash[String, untyped]) -> void
+    # @rbs (Message, Instance, Hash[String, untyped], state_changed: bool) -> void
+    def enqueue_broadcasts: (Message, Instance, Hash[String, untyped], state_changed: bool) -> void
+
+    # @rbs () -> bool
+    def payload_broadcasts?: () -> bool
 
     # @rbs (Exception) -> void
     def fail_message: (Exception) -> void

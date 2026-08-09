@@ -9,13 +9,14 @@ module SolidObjects
 
     module_function
 
-    # @rbs (Reference, ?observables: Array[String]?) -> String
-    def generate(reference, observables: nil)
+    # @rbs (Reference, ?observables: Array[String]?, ?payloads: Array[String]?) -> String
+    def generate(reference, observables: nil, payloads: nil)
       identity = {
         "actor_type" => reference.actor_type,
         "actor_id" => reference.actor_id
       }
       identity["observables"] = observables if observables
+      identity["payloads"] = payloads if payloads
       validate_identity!(identity)
       verifier.generate(identity, purpose: PURPOSE)
     end
@@ -36,21 +37,27 @@ module SolidObjects
         raise InvalidStreamToken, "invalid actor stream token"
       end
 
-      observables = identity["observables"]
-      return identity unless observables
+      validate_names!(identity["observables"], "observables")
+      validate_names!(identity["payloads"], "payloads")
+      identity
+    end
 
-      valid = observables.is_a?(Array) &&
-        observables.length <= MAXIMUM_OBSERVABLES &&
-        observables.uniq.length == observables.length &&
-        observables.all? do |observable|
-          observable.is_a?(String) &&
-            observable.match?(/\A[a-zA-Z0-9_]+\z/)
+    # @rbs (untyped, String) -> void
+    def validate_names!(names, label)
+      return unless names
+
+      valid = names.is_a?(Array) &&
+        names.length <= MAXIMUM_OBSERVABLES &&
+        names.uniq.length == names.length &&
+        names.all? do |name|
+          name.is_a?(String) && name.match?(/\A[a-zA-Z0-9_]+\z/)
         end
-      return identity if valid
+      return if valid
 
-      raise InvalidStreamToken, "invalid actor stream observables"
+      raise InvalidStreamToken, "invalid actor stream #{label}"
     end
     private_class_method :validate_identity!
+    private_class_method :validate_names!
 
     # @rbs () -> ActiveSupport::MessageVerifier
     def verifier

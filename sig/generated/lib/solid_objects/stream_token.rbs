@@ -6,14 +6,17 @@ module SolidObjects
 
     MAXIMUM_OBSERVABLES: ::Integer
 
-    # @rbs (Reference, ?observables: Array[String]?) -> String
-    def self?.generate: (Reference, ?observables: Array[String]?) -> String
+    # @rbs (Reference, ?observables: Array[String]?, ?payloads: Array[String]?) -> String
+    def self?.generate: (Reference, ?observables: Array[String]?, ?payloads: Array[String]?) -> String
 
     # @rbs (String) -> Hash[String, untyped]
     def self?.verify: (String) -> Hash[String, untyped]
 
     # @rbs (Hash[String, untyped]) -> Hash[String, untyped]
     def self?.validate_identity!: (Hash[String, untyped]) -> Hash[String, untyped]
+
+    # @rbs (untyped, String) -> void
+    def self?.validate_names!: (untyped, String) -> void
 
     # @rbs () -> ActiveSupport::MessageVerifier
     def self?.verifier: () -> ActiveSupport::MessageVerifier
