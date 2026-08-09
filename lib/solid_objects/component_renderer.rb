@@ -32,6 +32,7 @@ module SolidObjects
       )
       view_context.render(
         partial: default_partial,
+        formats: [ :html ],
         locals: registration.locals.transform_keys(&:to_sym).merge(
           actor:,
           authorization_context:,

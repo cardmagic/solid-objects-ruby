@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.2 - 2026-08-09
+
+- Render batched component partials as HTML regardless of the request format.
+  The batch endpoint is requested with a JSON `Accept` header, so Rails looked
+  for JSON templates, raised `ActionView::MissingTemplate`, and the batch
+  returned 404 for applications whose components are ordinary
+  `.html.erb` partials. The outer response is still JSON. Single-component
+  refresh was never affected and is unchanged.
+- Pass `registrations:` to `component_authorization_context`: one registration
+  for a single refresh, all of them for a batch, so applications no longer have
+  to inspect `params[:tokens]`. Callbacks accepting only `controller:` keep
+  working unchanged.
+
 ## 0.7.1 - 2026-08-09
 
 - Retry a contended SQLite write outside a synchronous deadline. Asynchronous

@@ -290,6 +290,20 @@ commonly resolve it to `Current.user`:
 configuration.component_authorization_context = ->(controller:) { Current.user }
 ```
 
+A callback may also accept `registrations:`, which receives one registration for
+a single component refresh and every registration in the group for a batch
+refresh. This avoids decoding `params[:tokens]` by hand when a policy depends on
+which components were requested:
+
+```ruby
+configuration.component_authorization_context = lambda do |controller:, registrations:|
+  Current.user if registrations.all? { |registration| registration.component_key == controller.session[:seat] }
+end
+```
+
+Callbacks that accept only `controller:` continue to work; the extra keyword is
+passed only to callables that declare it.
+
 The three contexts are intentionally different:
 
 | Boundary | Authorization context |

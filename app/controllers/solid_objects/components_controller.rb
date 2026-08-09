@@ -43,10 +43,7 @@ module SolidObjects
         return head :conflict
       end
 
-      authorization_context = SolidObjects
-        .configuration
-        .component_authorization_context
-        .call(controller: self)
+      authorization_context = component_authorization_context(registrations)
       frames = registrations.map do |registration|
         rendered = ComponentRenderer.new(
           snapshot:,
@@ -112,10 +109,7 @@ module SolidObjects
         return head :conflict
       end
 
-      authorization_context = SolidObjects
-        .configuration
-        .component_authorization_context
-        .call(controller: self)
+      authorization_context = component_authorization_context([ registration ])
       rendered = ComponentRenderer.new(
         snapshot:,
         registration:,
@@ -136,6 +130,34 @@ module SolidObjects
       InvalidComponentToken
       payload[:outcome] = "invalid_token"
       head :bad_request
+    end
+
+    # Callbacks written before batching accept only `controller:`. Those keep
+    # working; a callback that also accepts `registrations:` receives one
+    # registration for a single refresh and all of them for a batch.
+    # @rbs (Array[ComponentRegistration]) -> untyped
+    def component_authorization_context(registrations)
+      callable = SolidObjects.configuration.component_authorization_context
+      return callable.call(controller: self) unless accepts_registrations?(callable)
+
+      callable.call(controller: self, registrations:)
+    end
+
+    # A lambda answers `parameters` directly; a callable object answers it
+    # through its `call` method.
+    # @rbs (untyped) -> bool
+    def accepts_registrations?(callable)
+      callable_parameters(callable).any? do |type, name|
+        type == :keyrest || (%i[key keyreq].include?(type) && name == :registrations)
+      end
+    end
+
+    # @rbs (untyped) -> Array[[ Symbol, Symbol ]]
+    def callable_parameters(callable)
+      return callable.parameters if callable.respond_to?(:parameters)
+      return callable.method(:call).parameters if callable.respond_to?(:call)
+
+      []
     end
 
     # @rbs (ComponentRegistration) -> Hash[Symbol, untyped]

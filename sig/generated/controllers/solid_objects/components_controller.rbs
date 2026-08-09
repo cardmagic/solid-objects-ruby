@@ -21,6 +21,20 @@ module SolidObjects
     # @rbs (Hash[Symbol, untyped]) -> void
     def refresh: (Hash[Symbol, untyped]) -> void
 
+    # Callbacks written before batching accept only `controller:`. Those keep
+    # working; a callback that also accepts `registrations:` receives one
+    # registration for a single refresh and all of them for a batch.
+    # @rbs (Array[ComponentRegistration]) -> untyped
+    def component_authorization_context: (Array[ComponentRegistration]) -> untyped
+
+    # A lambda answers `parameters` directly; a callable object answers it
+    # through its `call` method.
+    # @rbs (untyped) -> bool
+    def accepts_registrations?: (untyped) -> bool
+
+    # @rbs (untyped) -> Array[[ Symbol, Symbol ]]
+    def callable_parameters: (untyped) -> Array[[ Symbol, Symbol ]]
+
     # @rbs (ComponentRegistration) -> Hash[Symbol, untyped]
     def registration_payload: (ComponentRegistration) -> Hash[Symbol, untyped]
 
