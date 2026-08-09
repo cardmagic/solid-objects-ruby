@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.3 - 2026-08-09
+
+- Coordinate batched component refreshes by revision as well as scope and batch
+  name. Invalidations for one revision arrive as separate WebSocket messages, so
+  the microtask merge could not see them all, and each request aborted the one
+  before it. Only the last component updated. Same-revision requests now run
+  alongside each other and every frame is applied; only a strictly newer
+  revision supersedes an in-flight request. Frames already applied at a revision
+  are not applied twice.
+
 ## 0.7.2 - 2026-08-09
 
 - Render batched component partials as HTML regardless of the request format.
