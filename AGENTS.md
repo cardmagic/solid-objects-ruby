@@ -28,6 +28,16 @@ Write Minitest files as `test/**/*_test.rb`. Start behavioral changes with a foc
 
 Use concise imperative subjects, preferably under 50 characters; use prefixes such as `fix:`, `ci:`, or `chore:`. Pull requests should explain API, correctness, security, migration, and compatibility effects; list exact validation commands; link issues; and include screenshots for UI or reactive ERB changes. Never bypass hooks or add AI attribution.
 
+Update `docs/roadmap.md` in the same pull request whenever the change alters
+what the project claims about itself. That includes completing or advancing a
+numbered milestone, moving an entry between "Implemented and tested" and
+"Partially implemented", and discovering a limitation worth recording, such as a
+capability that turns out to be opt-in, adapter-specific, or measured rather
+than assumed. Prefer correcting a stale entry over only appending a new one: an
+inaccurate claim misleads more than a missing one. State what was measured and
+what was not, so a reader can tell evidence from intent. A change that only
+fixes a defect, adjusts tooling, or edits prose does not need a roadmap edit.
+
 ## Release Workflow
 
 Update the version, `CHANGELOG.md`, and `Gemfile.lock`; run `bundle exec rake`; then commit and push `main`. Publish by pushing an annotated version tag:
