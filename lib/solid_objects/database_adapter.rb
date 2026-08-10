@@ -47,12 +47,15 @@ module SolidObjects
       end
     end
 
-    # @rbs () -> Array[String]
-    def unsupported_server_reasons
+    # One observed version decides both the status and the message. Reading it
+    # again could let a transient failure replace an already determined result.
+    # @rbs (?Gem::Version?) -> Array[String]
+    def unsupported_server_reasons(observed = nil)
+      observed ||= server_version
       reasons = []
       minimum = minimum_server_version
-      if minimum && server_version < minimum
-        reasons << "#{self.class.name.demodulize} #{server_version} is older than " \
+      if minimum && observed < minimum
+        reasons << "#{self.class.name.demodulize} #{observed} is older than " \
           "Solid Objects requires, which is #{minimum}"
       end
       reasons.concat(additional_server_reasons)

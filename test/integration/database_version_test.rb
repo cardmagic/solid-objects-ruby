@@ -25,6 +25,22 @@ class DatabaseVersionTest < ActiveSupport::TestCase
     restore(adapter, :with_connection)
   end
 
+  test "the observed version is read once for status and message" do
+    adapter = SolidObjects.database_adapter
+    reads = 0
+    real = adapter.method(:server_version)
+    adapter.define_singleton_method(:server_version) {
+      reads += 1
+      real.call
+    }
+
+    SolidObjects::Doctor.new.call.check(:database_server)
+
+    assert_equal 1, reads, "the doctor should observe the server version once"
+  ensure
+    restore(adapter, :server_version)
+  end
+
   test "a supported server passes verification" do
     assert_empty SolidObjects.database_adapter.unsupported_server_reasons
   end
@@ -60,7 +76,7 @@ class DatabaseVersionTest < ActiveSupport::TestCase
 
   test "the doctor warns about an unsupported server" do
     adapter = SolidObjects.database_adapter
-    adapter.define_singleton_method(:unsupported_server_reasons) { [ "too old" ] }
+    adapter.define_singleton_method(:unsupported_server_reasons) { |_observed = nil| [ "too old" ] }
 
     check = SolidObjects::Doctor.new.call.check(:database_server)
 
@@ -72,7 +88,7 @@ class DatabaseVersionTest < ActiveSupport::TestCase
 
   test "an unsupported server does not fail the report" do
     adapter = SolidObjects.database_adapter
-    adapter.define_singleton_method(:unsupported_server_reasons) { [ "too old" ] }
+    adapter.define_singleton_method(:unsupported_server_reasons) { |_observed = nil| [ "too old" ] }
 
     assert SolidObjects::Doctor.new.call.healthy?
   ensure

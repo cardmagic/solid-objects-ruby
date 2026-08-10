@@ -25,8 +25,10 @@ module SolidObjects
     # @rbs () -> Gem::Version
     def server_version: () -> Gem::Version
 
-    # @rbs () -> Array[String]
-    def unsupported_server_reasons: () -> Array[String]
+    # One observed version decides both the status and the message. Reading it
+    # again could let a transient failure replace an already determined result.
+    # @rbs (?Gem::Version?) -> Array[String]
+    def unsupported_server_reasons: (?Gem::Version?) -> Array[String]
 
     # @rbs () -> Array[String]
     def additional_server_reasons: () -> Array[String]

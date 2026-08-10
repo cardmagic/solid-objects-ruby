@@ -195,12 +195,13 @@ module SolidObjects
     # @rbs () -> Check
     def check_database_server
       adapter = SolidObjects.database_adapter
-      reasons = adapter.unsupported_server_reasons
+      observed = adapter.server_version
+      reasons = adapter.unsupported_server_reasons(observed)
       return warn_check(:database_server, reasons.join("; ")) unless reasons.empty?
 
       pass(
         :database_server,
-        "#{adapter.class.name.demodulize} #{adapter.server_version} meets the tested minimum"
+        "#{adapter.class.name.demodulize} #{observed} meets the tested minimum"
       )
     rescue => error
       warn_check(:database_server, "#{error.class}: #{error.message}")
