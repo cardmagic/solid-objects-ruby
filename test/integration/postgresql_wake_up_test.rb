@@ -103,6 +103,31 @@ class PostgresqlWakeUpTest < ActiveSupport::TestCase
     SolidObjects.instance_variable_set(:@wake_up, nil)
   end
 
+  test "a failing component shutdown still releases listener connections" do
+    SolidObjects.configuration.wake_up_adapter = @adapter
+    SolidObjects.instance_variable_set(:@wake_up, nil)
+    @adapter.listen
+    supervisor = SolidObjects::Supervisor.new(
+      worker_count: 1,
+      effect_worker_count: 0,
+      broadcast_worker_count: 0,
+      reminder_scheduler_count: 0
+    )
+    supervisor.start
+    supervisor.send(:components).each do |component|
+      component.define_singleton_method(:stop) { raise "boom" }
+      component.define_singleton_method(:stopped?) { false }
+    end
+
+    assert_raises(RuntimeError) { supervisor.stop }
+
+    refute @adapter.send(:connections).any?,
+      "a failed shutdown must still release connections opened outside the pool"
+  ensure
+    SolidObjects.configuration.wake_up_adapter = nil
+    SolidObjects.instance_variable_set(:@wake_up, nil)
+  end
+
   test "the helper selects notifications on PostgreSQL" do
     assert_instance_of(
       SolidObjects::WakeUpAdapters::Postgresql,

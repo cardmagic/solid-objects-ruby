@@ -44,12 +44,17 @@ module SolidObjects
     def stop
       return unless @started
 
-      components.each(&:request_shutdown)
-      join_until_timeout
-      components.reject(&:stopped?).each(&:stop)
-      release_wake_up
-      @started = false
-      SolidObjects.instrument(:"supervisor.stopped", component_count: components.length)
+      begin
+        components.each(&:request_shutdown)
+        join_until_timeout
+        components.reject(&:stopped?).each(&:stop)
+      ensure
+        # Connections held outside the pool must be released even when a
+        # component fails to stop, or they accumulate across restarts.
+        release_wake_up
+        @started = false
+        SolidObjects.instrument(:"supervisor.stopped", component_count: components.length)
+      end
     end
 
     private
