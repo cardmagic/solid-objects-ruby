@@ -82,17 +82,25 @@ module SolidObjects
       retry if @started
     end
 
+    # A role that raises runs its own shutdown cleanup on the way out, so a
+    # crashed component reports itself stopped exactly like one that was asked
+    # to stop. While the supervisor is still running, a dead thread can only
+    # mean a crash, so replacement keys on the supervisor rather than on the
+    # component. The crashed instance has already released its process record,
+    # so a fresh one takes its place.
     # @rbs () -> void
     def replace_dead_roles
       components.each_with_index do |component, index|
         thread = threads[index]
         next if thread&.alive?
-        next if component.stopped?
+        break unless @started
 
-        threads[index] = supervise(component)
+        replacement = component.class.new
+        components[index] = replacement
+        threads[index] = supervise(replacement)
         SolidObjects.instrument(
           :"supervisor.role_replaced",
-          role: component.class.name,
+          role: replacement.class.name,
           error_class: thread_error(thread)
         )
       end

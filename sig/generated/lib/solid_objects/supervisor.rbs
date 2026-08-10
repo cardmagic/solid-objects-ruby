@@ -36,6 +36,12 @@ module SolidObjects
     # @rbs () -> void
     def monitor_loop: () -> void
 
+    # A role that raises runs its own shutdown cleanup on the way out, so a
+    # crashed component reports itself stopped exactly like one that was asked
+    # to stop. While the supervisor is still running, a dead thread can only
+    # mean a crash, so replacement keys on the supervisor rather than on the
+    # component. The crashed instance has already released its process record,
+    # so a fresh one takes its place.
     # @rbs () -> void
     def replace_dead_roles: () -> void
 

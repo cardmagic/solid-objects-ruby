@@ -6,20 +6,29 @@ require "timeout"
 class SupervisorReplacementTest < ActiveSupport::TestCase
   # A component that crashes on its first run and records every run after.
   class CrashingRole
+    class << self
+      attr_accessor :shared_runs, :shared_crashes
+    end
+
     attr_reader :runs
 
-    def initialize(crashes: 1)
+    def initialize(crashes: self.class.shared_crashes || 1)
       @crashes = crashes
-      @runs = Queue.new
+      self.class.shared_runs ||= Queue.new
+      @runs = self.class.shared_runs
       @stopped = false
       @shutdown = false
     end
 
+    # Mirrors Worker and ReminderScheduler, which run their shutdown cleanup in
+    # an ensure and therefore report themselves stopped after a crash too.
     def run
       @runs << monotonic_now
       raise "role crashed" if @runs.size <= @crashes
 
       sleep 0.01 until @shutdown
+    ensure
+      stop
     end
 
     def request_shutdown = @shutdown = true
@@ -34,10 +43,14 @@ class SupervisorReplacementTest < ActiveSupport::TestCase
   end
 
   class HealthyRole < CrashingRole
-    def initialize = super(crashes: 0)
+    def initialize(**) = super(crashes: 0)
   end
 
   setup do
+    [ CrashingRole, HealthyRole ].each do |role|
+      role.shared_runs = nil
+      role.shared_crashes = nil
+    end
     SolidObjects.configuration.supervisor_monitor_interval = 0.02
     SolidObjects.configuration.dead_process_cleanup_interval = 0.05
   end
@@ -56,7 +69,8 @@ class SupervisorReplacementTest < ActiveSupport::TestCase
   end
 
   test "keeps replacing a role that keeps crashing" do
-    role = CrashingRole.new(crashes: 3)
+    CrashingRole.shared_crashes = 3
+    role = CrashingRole.new
     @supervisor = supervisor_for(role)
 
     @supervisor.start
@@ -135,6 +149,8 @@ class SupervisorReplacementTest < ActiveSupport::TestCase
 
   private
 
+  # Every instance of a role shares one run log, so replacement instances are
+  # observable the way the supervisor creates them.
   def supervisor_for(*roles)
     supervisor = SolidObjects::Supervisor.new(
       worker_count: 0,

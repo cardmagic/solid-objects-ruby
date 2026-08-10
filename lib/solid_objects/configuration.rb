@@ -144,6 +144,10 @@ module SolidObjects
         raise ArgumentError, "table_name_prefix must contain lowercase letters, digits, and underscores"
       end
 
+      unless supervisor_monitor_interval.positive?
+        raise ArgumentError, "supervisor_monitor_interval must be positive"
+      end
+
       unless lease_duration > lease_renewal_interval
         raise ArgumentError, "lease_duration must be greater than lease_renewal_interval"
       end
