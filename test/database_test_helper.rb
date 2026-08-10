@@ -57,6 +57,13 @@ class ActiveSupport::TestCase
     SolidObjectsTestDomainRecord.delete_all
   end
 
+  # Skips keyed to a client name silently lose their coverage the moment a
+  # different client for the same database is used, and a skipped test looks
+  # exactly like a passing one in the summary line.
+  def database_family
+    SolidObjects::DatabaseAdapter.family(SolidObjects::Record.connection)
+  end
+
   def with_immediate_sqlite_lock_failure(&block)
     SolidObjects::Record.connection_pool.with_connection do |connection|
       suspend_sqlite_busy_wait(connection, &block)

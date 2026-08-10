@@ -171,7 +171,7 @@ class PostgresqlWakeUpTest < ActiveSupport::TestCase
   private
 
   def postgresql?
-    SolidObjects::Record.connection.adapter_name.match?(/postgres/i)
+    database_family == :postgresql
   end
 
   def monotonic_now

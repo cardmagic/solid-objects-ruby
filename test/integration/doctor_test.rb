@@ -49,7 +49,7 @@ class DoctorTest < ActiveSupport::TestCase
   end
 
   test "reports a failed round trip instead of raising while the database stays locked" do
-    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    skip unless database_family == :sqlite
     lock = hold_sqlite_write_lock
 
     report = with_immediate_sqlite_lock_failure { SolidObjects::Doctor.new.call }

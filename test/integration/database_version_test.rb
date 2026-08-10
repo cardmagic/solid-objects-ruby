@@ -16,7 +16,7 @@ class DatabaseVersionTest < ActiveSupport::TestCase
   end
 
   test "an old PostgreSQL server is still detected" do
-    skip unless SolidObjects::Record.connection.adapter_name.match?(/postgres/i)
+    skip unless database_family == :postgresql
     adapter = SolidObjects.database_adapter
     adapter.define_singleton_method(:with_connection) { |&block| block.call(Struct.new(:database_version).new(90_600)) }
 
@@ -96,13 +96,13 @@ class DatabaseVersionTest < ActiveSupport::TestCase
   end
 
   test "MySQL verifies that Solid Objects tables use InnoDB" do
-    skip unless SolidObjects::Record.connection.adapter_name.match?(/mysql/i)
+    skip unless database_family == :mysql
 
     assert_empty SolidObjects.database_adapter.unsupported_server_reasons
   end
 
   test "MySQL reports a non-transactional storage engine" do
-    skip unless SolidObjects::Record.connection.adapter_name.match?(/mysql/i)
+    skip unless database_family == :mysql
     adapter = SolidObjects.database_adapter
     adapter.define_singleton_method(:non_innodb_tables) { [ "solid_objects_messages" ] }
 

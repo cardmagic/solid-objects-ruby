@@ -92,7 +92,7 @@ class EnqueueLockRetryTest < ActiveSupport::TestCase
   private
 
   def sqlite?
-    SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    database_family == :sqlite
   end
 
   # Holds the write lock long enough that an enqueue must wait, then releases

@@ -45,7 +45,9 @@
   shutdown is requested, and dead process records plus expired message and
   process history are pruned on their own intervals without an application
   scheduling its own job
-- SQLite, PostgreSQL, and MySQL integration suites
+- SQLite, PostgreSQL, and MySQL integration suites, with MySQL run against both
+  the `mysql2` and `trilogy` clients because an adapter name, a connection
+  collation, and an error code name all differ between them
 - Opt-in cross-process wake-up on PostgreSQL through `WakeUpAdapters.for`, with
   a listening connection per waiting thread and release on supervisor shutdown
 - Opt-in cross-process wake-up on Redis, the option for MySQL applications,

@@ -7,15 +7,35 @@ module SolidObjects
     TRANSACTION_CLOCK = :solid_objects_transaction_clock
     TRANSACTION_CLOCK_SCOPE = :solid_objects_transaction_clock_scope
 
+    # An adapter name is a client name, not a protocol name. Trilogy reports
+    # "Trilogy" while speaking MySQL, so a pattern that only knows the mysql2
+    # gem rejects a database Solid Objects fully supports. Every decision that
+    # depends on the database goes through this one table, so a client cannot
+    # be accepted in one place and rejected in another.
+    FAMILIES = {
+      postgresql: /postgres/i,
+      mysql: /mysql|trilogy/i,
+      sqlite: /sqlite/i
+    }.freeze
+
     class << self
+      # @rbs (untyped) -> Symbol?
+      def family(connection)
+        adapter_name = connection.adapter_name
+        FAMILIES.each do |family, pattern|
+          return family if adapter_name.match?(pattern)
+        end
+        nil
+      end
+
       # @rbs (untyped) -> DatabaseAdapter
       def for(connection)
-        case connection.adapter_name
-        when /postgres/i
+        case family(connection)
+        when :postgresql
           DatabaseAdapters::Postgresql.new(connection)
-        when /mysql/i
+        when :mysql
           DatabaseAdapters::Mysql.new(connection)
-        when /sqlite/i
+        when :sqlite
           DatabaseAdapters::Sqlite.new(connection)
         else
           raise UnsupportedDatabase, "unsupported database adapter #{connection.adapter_name.inspect}"

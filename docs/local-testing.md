@@ -48,9 +48,16 @@ docker run -d --name so-redis -p 6380:6379 redis:7-alpine
 SOLID_OBJECTS_DATABASE_URL=mysql2://solid_objects:solid_objects@127.0.0.1:3307/solid_objects_test \
   bundle exec rake test
 
+SOLID_OBJECTS_DATABASE_URL=trilogy://solid_objects:solid_objects@127.0.0.1:3307/solid_objects_test \
+  bundle exec rake test
+
 SOLID_OBJECTS_REDIS_URL=redis://127.0.0.1:6380/15 \
   bundle exec rake test TEST=test/integration/redis_wake_up_test.rb
 ```
+
+Run both MySQL clients. They report different adapter names, negotiate
+different connection collations, and name the same error code differently, so a
+pass on one says nothing about the other. Recreate the database between them.
 
 Stop them with `docker rm -f so-mysql so-redis`.
 

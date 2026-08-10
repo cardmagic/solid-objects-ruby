@@ -3,6 +3,8 @@
 module SolidObjects
   module DatabaseAdapters
     class Mysql < DatabaseAdapter
+      MAXIMUM_EXECUTION_TIME_EXCEEDED = 3024
+
       # @rbs () -> bool
       def supports_skip_locked?
         true
@@ -78,18 +80,32 @@ module SolidObjects
         end
       end
 
+      # A deadline is enforced by asking the server to interrupt the statement,
+      # so recognising that interruption is what turns it back into a timeout
+      # the caller asked for. Active Record classifies it for every client, and
+      # the raw code is the fallback: mysql2 names it `error_number` and
+      # Trilogy names it `error_code`, so both are read.
       # @rbs (Exception) -> bool
       def deadline_error?(error)
         return false unless SyncDeadline.active?
         return true if error.is_a?(ActiveRecord::LockWaitTimeout)
+        return true if error.is_a?(ActiveRecord::StatementTimeout)
 
         cause = error
         while cause
-          return true if cause.respond_to?(:error_number) && cause.error_number == 3024
+          return true if error_code(cause) == MAXIMUM_EXECUTION_TIME_EXCEEDED
 
           cause = cause.cause
         end
         false
+      end
+
+      # @rbs (Exception) -> Integer?
+      def error_code(error)
+        return error.error_number if error.respond_to?(:error_number)
+        return error.error_code if error.respond_to?(:error_code)
+
+        nil
       end
     end
   end
