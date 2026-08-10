@@ -85,8 +85,8 @@
 5. Add Turbo append intents and expand reconnect coverage in a full browser.
 6. Add distributed rate limits, global admission hooks, and cache-capacity
    eviction.
-7. Expand security scanning and run compatibility CI across supported Rails and
-   Ruby versions.
+7. Expand security scanning. Compatibility CI across supported Rails and Ruby
+   versions is implemented; Ruby 4.0 is not yet in the matrix.
 8. Benchmark all workloads under documented hardware/database settings and
    publish adapter-specific adoption measurements. Throughput, synchronous
    latency, query counts, and the three reactive delivery paths are measured on
