@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.10.2 - 2026-08-10
+
+- Load the mailbox when the gem is required. `SolidObjects::Mailbox` was
+  reachable only through the caller path, which loads it as a side effect of
+  `SolidObjects.client`. The reminder scheduler and the effect executor enqueue
+  through it directly and run in `solid_objects start`, a process that never
+  calls the client, so both raised
+  `NameError: uninitialized constant SolidObjects::ReminderScheduler::Mailbox`.
+  Reminders never fired and effect result messages never delivered, while the
+  supervisor replaced the dying role over and over. Nothing caught it because
+  every test process has already loaded the constant through some other path.
+- Add a load contract test that asks a fresh process what `require
+  "solid_objects"` actually defines, and fails when a file stops being loaded
+  unless it is listed as deliberately deferred with a reason. This is the class
+  of bug that only appears in the standalone worker.
+- Run a due reminder through a real `solid_objects start` worker in the test
+  suite, rather than only in process.
+
 ## 0.10.1 - 2026-08-10
 
 - Support Trilogy. Adapter selection matched the client name rather than the

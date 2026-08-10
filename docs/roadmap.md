@@ -18,7 +18,11 @@
   status, which works on all three adapters; a future version may add narrow
   ready/claimed membership tables for very large outboxes, as messages already
   have
-- One-shot and recurring reminders with `:latest` or `:all` catch-up
+- One-shot and recurring reminders with `:latest` or `:all` catch-up, exercised
+  through a real `solid_objects start` worker as well as in process. They were
+  listed here while broken in that worker: the scheduler reached a constant the
+  caller path happened to load, so reminders never fired in production and
+  every in-process test still passed
 - Durable observable invalidations, scalar Turbo replacement, keyed ERB
   components, signed component locals, and authorized replace or morph refresh
 - Batched component refreshes: components sharing a signed `batch:` collapse to
