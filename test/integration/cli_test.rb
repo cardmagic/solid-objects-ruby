@@ -44,6 +44,29 @@ class CLITest < ActiveSupport::TestCase
     assert_raises(SolidObjects::Unauthorized) { command.prune_messages }
   end
 
+  # Deny-by-default means an unconfigured host hits this on its first CLI
+  # command, so it is the most likely thing a new adopter ever sees.
+  test "a denied command reports the policy rather than a backtrace" do
+    Dir.mktmpdir("solid-objects-cli") do |directory|
+      dummy_root = File.expand_path("../dummy", __dir__)
+      _output, error_output, status = Open3.capture3(
+        {
+          "BUNDLE_GEMFILE" => File.expand_path("../../Gemfile", __dir__),
+          "RAILS_ENV" => "test",
+          "SOLID_OBJECTS_DUMMY_DATABASE" => File.join(directory, "dummy.sqlite3")
+        },
+        "bundle", "exec", "solid_objects", "status",
+        chdir: dummy_root
+      )
+
+      refute status.success?, "a denied command must exit non-zero"
+      assert_match(/authorize_administration/, error_output,
+        "the message should name the setting that grants access")
+      refute_match(/lib\/solid_objects\/cli\.rb:\d+/, error_output,
+        "a policy decision is not a crash and should not print a backtrace")
+    end
+  end
+
   test "start loads and processes application actors when eager loading is disabled" do
     Dir.mktmpdir("solid-objects-cli") do |directory|
       database = File.join(directory, "dummy.sqlite3")

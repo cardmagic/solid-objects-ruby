@@ -13,14 +13,21 @@
 - At-least-once retries, terminal domain rejection, strict poison ordering,
   dead letters, and tail retry
 - Transactional effects with success/failure actor messages
-- Actor-to-actor asynchronous outbox delivery
+- Actor-to-actor asynchronous outbox delivery. Effects and broadcasts use
+  portable status rows with polling indexes and database check constraints on
+  status, which works on all three adapters; a future version may add narrow
+  ready/claimed membership tables for very large outboxes, as messages already
+  have
 - One-shot and recurring reminders with `:latest` or `:all` catch-up
 - Durable observable invalidations, scalar Turbo replacement, keyed ERB
   components, signed component locals, and authorized replace or morph refresh
 - Batched component refreshes: components sharing a signed `batch:` collapse to
   one browser request per revision, served as HTML frames in a JSON envelope
 - Personalized state payload broadcasts computed per subscriber under that
-  subscriber's authorization context, fenced by actor revision
+  subscriber's authorization context, fenced by actor revision, resolved through
+  `payload_authorization_context` so the block and `authorize_query` see the
+  same subject a controller render passes, and confined so one failing payload
+  cannot reject the subscription or stop its siblings
 - Reconciliation read APIs
 - Installation doctor, authorization reference, fit guide, and legacy-state
   migration cookbook
@@ -59,17 +66,20 @@
 
 ## Partially implemented
 
-- Wake-up strategy: in-process signaling, durable polling, injection, and an
-  opt-in PostgreSQL notification adapter are implemented; a Redis adapter is
-  not. In-process signaling cannot cross process boundaries, so without the
-  adapter a commit in a web process does not wake a broadcast executor in a
-  worker process and that delivery waits up to `polling_interval`, 100 ms by
-  default. `WakeUpAdapters.for` removes that delay on PostgreSQL, measured at
-  103.7 ms to 2.9 ms at p50. It is opt-in rather than automatic: it opens a
-  connection per waiting thread outside the pool, and `LISTEN` does not survive
-  a transaction-pooling proxy such as PgBouncer. MySQL has no notification
-  primitive, so MySQL applications keep polling unless they configure the Redis
-  adapter.
+- Wake-up strategy: in-process signaling, durable polling, injection, and
+  cross-process adapters for PostgreSQL and Redis are implemented and tested.
+  What is not done is making any of them automatic. In-process signaling cannot
+  cross process boundaries, so by default a commit in a web process does not
+  wake a broadcast executor in a worker process and that delivery waits up to
+  `polling_interval`, 100 ms. An adapter removes that floor, measured at 103.7 ms
+  to 2.9 ms at p50 on PostgreSQL and 103.8 ms to 5.7 ms on Redis, but each stays
+  opt-in for a reason: the PostgreSQL adapter opens a connection per waiting
+  thread outside the pool and `LISTEN` does not survive a transaction-pooling
+  proxy such as PgBouncer, and Redis is not a dependency of this gem.
+  `WakeUpAdapters.for` selects notifications on PostgreSQL and the in-process
+  default elsewhere; it never selects Redis. An application that configures
+  nothing keeps polling, and MySQL applications keep polling unless they
+  configure Redis explicitly.
 - Realtime: scalar and dependency-driven keyed ERB component replacement or
   morphing, personalized refresh authorization, revision fencing, coalescing,
   reconnect convergence, batched refreshes, and personalized state payloads are
@@ -88,8 +98,6 @@
   distributed per-actor rate limits and global admission control do not.
 - Administration: actor and dead-letter views plus policy hooks exist; richer
   filtering, audit records, and bulk-safe tools do not.
-- Outboxes use portable status rows with polling indexes; future versions may
-  introduce narrow ready/claimed membership tables for very large outboxes.
 
 ## Next milestones
 

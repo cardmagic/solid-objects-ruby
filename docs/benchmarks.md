@@ -40,8 +40,25 @@ scenario used four worker threads.
 | Process, four workers | 556.5 messages/s |
 | Synchronous latency | p50 1.8 ms, p95 25.6 ms, p99 156.2 ms |
 | Activation reuse | 98.0%, four activations for 200 messages |
-| Queries for one message turn | 29 |
-| Queries for one synchronous call | 49 |
+
+Query counts are a property of the code rather than the host, so they are
+tracked separately. Re-measured 2026-08-10 against 0.10.0 on SQLite with
+`bundle exec ruby benchmark/query_count.rb`, which is deterministic across runs:
+
+| Scenario | Queries |
+| --- | ---: |
+| One message turn | 26 |
+| The caller of one synchronous call | 49 |
+| One synchronous call, caller plus the turn it waits on | 75 |
+
+A worker turn fell from the 29 recorded earlier. The caller count is unchanged
+at 49, and the combined figure is new: a synchronous call is a caller and a
+worker turn, and only the sum says what the database actually serves.
+
+Counting is scoped to the measuring thread. A worker loop polls whether or not
+a call is in flight, so a process-wide count folds however many polls happened
+to land inside the window into the result. That is also why the caller and the
+turn are measured separately rather than by watching both threads at once.
 
 A synchronous call costs far more queries than a worker turn because the caller
 also registers or heartbeats its caller process, claims the activation, and
