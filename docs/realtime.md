@@ -320,9 +320,15 @@ place that state could leak into logs.
 
 A revision with a failed payload does not advance the delivery watermark, so a
 transient failure is retried on the next broadcast rather than being recorded as
-delivered. A payload the subscriber cannot query is skipped rather than served
-partially; that decision is stable, so it settles the revision and the skip is
-silent by design.
+delivered. Retries are driven by broadcasts rather than a timer, so a payload
+that fails persistently retries once per actor mutation and reports each
+attempt. A repeating stream of `payload_broadcast_failed` for one `payload_name`
+therefore means a persistent fault in that block, not a one-off; a single event
+that does not recur was transient and has already been recovered.
+
+A payload the subscriber cannot query is skipped rather than served partially;
+that decision is stable, so it settles the revision and the skip is silent by
+design.
 
 ### mtg-playmat before and after
 
