@@ -15,7 +15,7 @@ module SolidObjects
     #
     # @rbs (?untyped) -> untyped
     def for(connection = Record.connection)
-      return Postgresql.new if connection.adapter_name.match?(/postgres/i)
+      return Postgresql.new if DatabaseAdapter.family(connection) == :postgresql
 
       WakeUp.new
     end

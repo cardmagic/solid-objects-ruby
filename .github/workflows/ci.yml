@@ -94,6 +94,13 @@ jobs:
 
   mysql:
     runs-on: ubuntu-latest
+    # Both clients speak MySQL but report different adapter names, negotiate
+    # different connection collations, and name the same error code
+    # differently, so passing on one proves nothing about the other.
+    strategy:
+      fail-fast: false
+      matrix:
+        client: [ mysql2, trilogy ]
     services:
       mysql:
         image: mysql:8.4
@@ -110,7 +117,7 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     env:
-      SOLID_OBJECTS_DATABASE_URL: mysql2://solid_objects:solid_objects@127.0.0.1:3306/solid_objects_test
+      SOLID_OBJECTS_DATABASE_URL: ${{ matrix.client }}://solid_objects:solid_objects@127.0.0.1:3306/solid_objects_test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1

@@ -956,7 +956,8 @@ shutdown, retention, and backup guidance.
 Solid Objects supports:
 
 - PostgreSQL 14 or newer
-- MySQL 8.0 or newer using InnoDB
+- MySQL 8.0 or newer using InnoDB, through either the `mysql2` or `trilogy`
+  client
 - SQLite 3.35 or newer
 
 PostgreSQL and MySQL use `FOR UPDATE SKIP LOCKED` when claiming hot-table rows.

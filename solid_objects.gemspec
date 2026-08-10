@@ -53,4 +53,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "sqlite3", ">= 2.1"
   spec.add_development_dependency "standard"
   spec.add_development_dependency "steep"
+  spec.add_development_dependency "trilogy", ">= 2.7"
 end

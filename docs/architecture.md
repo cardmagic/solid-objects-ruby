@@ -41,6 +41,10 @@ The host application owns:
 ## Database coordination adapters
 
 Solid Objects supports PostgreSQL 14+, MySQL 8.0+ with InnoDB, and SQLite 3.35+.
+MySQL is reached through either the `mysql2` or `trilogy` client. Adapter names
+are client names rather than protocol names, so every decision that depends on
+the database resolves through `DatabaseAdapter.family` rather than matching an
+adapter name in place.
 
 One adapter capability object is selected from the Active Record connection. It supplies claim locking and database-time expressions. Unsupported adapter families fail when first used. Minimum server-version and storage-engine checks are documented operating requirements; automatic boot-time enforcement and classified contention retries remain hardening work.
 

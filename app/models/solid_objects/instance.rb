@@ -56,7 +56,7 @@ module SolidObjects
         )
         owner_ids = owner_relation
           .except(:select)
-          .select(cast_id)
+          .select(collated(cast_id))
 
         where(actor_type:).where.not(actor_id: owner_ids)
       end
@@ -70,12 +70,39 @@ module SolidObjects
 
       private
 
+      # A cast result carries the connection collation, not the column's, and
+      # MySQL refuses to compare two collations. Which collation a connection
+      # uses is a property of the client rather than the schema: mysql2
+      # negotiates the database default while Trilogy negotiates
+      # utf8mb4_general_ci, so the comparison is pinned to the column's own.
+      # @rbs (untyped) -> untyped
+      def collated(node)
+        collation = owner_id_collation
+        return node unless collation
+
+        Arel::Nodes::InfixOperation.new(
+          "COLLATE",
+          node,
+          Arel::Nodes::SqlLiteral.new(collation)
+        )
+      end
+
+      # @rbs () -> String?
+      def owner_id_collation
+        return nil unless DatabaseAdapter.family(connection) == :mysql
+
+        collation = columns_hash["actor_id"]&.collation
+        return nil unless collation&.match?(/\A[a-zA-Z0-9_]+\z/)
+
+        collation
+      end
+
       # @rbs () -> String
       def owner_id_cast_type
-        case connection.adapter_name
-        when /mysql/i
+        case DatabaseAdapter.family(connection)
+        when :mysql
           "CHAR"
-        when /postgres/i
+        when :postgresql
           "VARCHAR"
         else
           "TEXT"

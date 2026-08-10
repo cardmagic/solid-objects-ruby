@@ -474,7 +474,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync bounds SQLite contention while registering its caller process" do
-    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    skip unless database_family == :sqlite
 
     message_reference = SolidObjects::Mailbox.new.enqueue(
       LockRetryActor.ref("registration"),
@@ -503,7 +503,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync does not re-read the SQLite busy wait it already knows how to restore" do
-    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    skip unless database_family == :sqlite
     CounterActor.ref("pragma-warm").increment
     statements = []
     subscription = ActiveSupport::Notifications.subscribe("sql.active_record") do |event|
@@ -553,7 +553,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "a retry wait whose deadline already expired does not raise" do
-    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    skip unless database_family == :sqlite
     adapter = SolidObjects.database_adapter
 
     SolidObjects::SyncDeadline.with(timeout: -1) do
@@ -562,7 +562,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync discovers the configured SQLite busy wait it has to restore" do
-    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    skip unless database_family == :sqlite
 
     SolidObjects::Record.connection_pool.with_connection do |connection|
       discovered = SolidObjects
@@ -576,7 +576,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync leaves an unrestorable busy wait alone" do
-    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    skip unless database_family == :sqlite
     database_adapter = SolidObjects.database_adapter
     database_adapter.define_singleton_method(:configured_busy_handler_timeout) { |_connection| nil }
 
@@ -592,7 +592,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync restores the SQLite busy handler it suspended for the deadline" do
-    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    skip unless database_family == :sqlite
 
     SolidObjects::Record.connection_pool.with_connection do
       CounterActor.ref("busy-handler").increment
@@ -604,7 +604,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync bounds SQLite contention while reusing and heartbeating its caller process" do
-    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    skip unless database_family == :sqlite
 
     SolidObjects.configuration.process_heartbeat_interval = 0
     process_record = SolidObjects.caller_process.process_registry.process_record

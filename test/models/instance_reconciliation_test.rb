@@ -68,7 +68,48 @@ class InstanceReconciliationTest < ActiveSupport::TestCase
     assert_equal [ orphan.id ], relation.pluck(:id)
   end
 
+  # A cast result carries the connection collation while the column carries the
+  # schema's. MySQL refuses to compare two collations, and which one the
+  # connection uses is a property of the client: mysql2 negotiates the database
+  # default, Trilogy negotiates utf8mb4_general_ci.
+  test "compares owner ids in the column's own collation" do
+    skip unless database_family == :mysql
+
+    sql = SolidObjects::Instance.orphaned(
+      actor_type: "UserNudgeActor",
+      owner: SolidObjects::Process.all
+    ).to_sql
+    collation = SolidObjects::Instance.columns_hash["actor_id"].collation
+
+    assert_includes sql, "COLLATE #{collation}",
+      "the cast must be pinned to the column's collation, not the connection's"
+  end
+
+  # `CAST(x AS TEXT)` is not valid MySQL, so a MySQL client that falls through
+  # to the default produces a SQL error rather than a wrong answer.
+  test "casts owner ids per database family rather than per client name" do
+    expected = {
+      "Mysql2" => "CHAR",
+      "Trilogy" => "CHAR",
+      "PostgreSQL" => "VARCHAR",
+      "SQLite" => "TEXT"
+    }
+
+    expected.each do |adapter_name, cast_type|
+      assert_equal cast_type, cast_type_for(adapter_name),
+        "#{adapter_name} should cast owner ids as #{cast_type}"
+    end
+  end
+
   private
+
+  def cast_type_for(adapter_name)
+    connection = Data.define(:adapter_name).new(adapter_name:)
+    SolidObjects::Instance.define_singleton_method(:connection) { connection }
+    SolidObjects::Instance.send(:owner_id_cast_type)
+  ensure
+    SolidObjects::Instance.singleton_class.send(:remove_method, :connection)
+  end
 
   def create_instance(actor_id, actor_type: "UserNudgeActor", last_used_at: Time.current)
     SolidObjects::Instance.create!(actor_type:, actor_id:, last_used_at:)

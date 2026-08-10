@@ -14,6 +14,17 @@ module SolidObjects
     # @rbs (actor_type: String, actor_ids: Array[String]) -> Hash[String, Hash[String, untyped]]
     def self.states_for: (actor_type: String, actor_ids: Array[String]) -> Hash[String, Hash[String, untyped]]
 
+    # A cast result carries the connection collation, not the column's, and
+    # MySQL refuses to compare two collations. Which collation a connection
+    # uses is a property of the client rather than the schema: mysql2
+    # negotiates the database default while Trilogy negotiates
+    # utf8mb4_general_ci, so the comparison is pinned to the column's own.
+    # @rbs (untyped) -> untyped
+    private def self.collated: (untyped) -> untyped
+
+    # @rbs () -> String?
+    private def self.owner_id_collation: () -> String?
+
     # @rbs () -> String
     private def self.owner_id_cast_type: () -> String
 

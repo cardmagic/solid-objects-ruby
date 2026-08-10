@@ -7,14 +7,11 @@ class DatabaseAdapterTest < ActiveSupport::TestCase
 
   test "selects the coordination adapter for the active database" do
     adapter = SolidObjects::DatabaseAdapter.for(ActiveRecord::Base.connection)
-    expected_class = case ActiveRecord::Base.connection.adapter_name
-    when /postgres/i
-      SolidObjects::DatabaseAdapters::Postgresql
-    when /mysql/i
-      SolidObjects::DatabaseAdapters::Mysql
-    else
-      SolidObjects::DatabaseAdapters::Sqlite
-    end
+    expected_class = {
+      postgresql: SolidObjects::DatabaseAdapters::Postgresql,
+      mysql: SolidObjects::DatabaseAdapters::Mysql,
+      sqlite: SolidObjects::DatabaseAdapters::Sqlite
+    }.fetch(database_family)
 
     assert_instance_of expected_class, adapter
   end
@@ -33,6 +30,35 @@ class DatabaseAdapterTest < ActiveSupport::TestCase
     assert_instance_of SolidObjects::DatabaseAdapters::Mysql, adapter
     assert adapter.supports_skip_locked?
     assert_equal "FOR UPDATE SKIP LOCKED", adapter.claim_lock
+  end
+
+  # Trilogy speaks the MySQL protocol but reports "Trilogy", so a pattern that
+  # only knows the gem name rejects a database that is fully supported.
+  test "selects the MySQL coordination adapter for Trilogy" do
+    adapter = SolidObjects::DatabaseAdapter.for(Connection.new(adapter_name: "Trilogy"))
+
+    assert_instance_of SolidObjects::DatabaseAdapters::Mysql, adapter
+    assert adapter.supports_skip_locked?
+    assert_equal "FOR UPDATE SKIP LOCKED", adapter.claim_lock
+  end
+
+  test "names the family behind every MySQL client" do
+    %w[Mysql2 Trilogy].each do |name|
+      assert_equal :mysql,
+        SolidObjects::DatabaseAdapter.family(Connection.new(adapter_name: name)),
+        "#{name} speaks the MySQL protocol"
+    end
+  end
+
+  test "names the family for PostgreSQL and SQLite" do
+    assert_equal :postgresql,
+      SolidObjects::DatabaseAdapter.family(Connection.new(adapter_name: "PostgreSQL"))
+    assert_equal :sqlite,
+      SolidObjects::DatabaseAdapter.family(Connection.new(adapter_name: "SQLite"))
+  end
+
+  test "names no family for an unsupported adapter" do
+    assert_nil SolidObjects::DatabaseAdapter.family(Connection.new(adapter_name: "Oracle"))
   end
 
   test "rejects unsupported databases" do

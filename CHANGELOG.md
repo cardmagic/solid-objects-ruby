@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.10.1 - 2026-08-10
+
+- Support Trilogy. Adapter selection matched the client name rather than the
+  protocol, and Trilogy reports `"Trilogy"`, so every Solid Objects call raised
+  `UnsupportedDatabase: unsupported database adapter "Trilogy"` on a database
+  the gem fully supports. Adapter names now resolve through one table of
+  families, `DatabaseAdapter.family`, used by adapter selection, owner-id
+  casting, and wake-up adapter selection alike, so a client cannot be accepted
+  in one place and rejected in another.
+- Compare reconciliation owner ids in the column's own collation.
+  `Instance.orphaned` cast owner primary keys to `CHAR`, and a cast result
+  carries the connection collation rather than the column's. MySQL refuses to
+  compare two collations, so the query raised `Illegal mix of collations`
+  whenever the two differed. That is a property of the client rather than the
+  schema: mysql2 negotiates the database default while Trilogy negotiates
+  `utf8mb4_general_ci`. A mysql2 application that set `collation:` in
+  `database.yml` could already hit this.
+- Recognise a statement interruption from any MySQL client. A synchronous
+  deadline is enforced by asking the server to interrupt the statement, and the
+  interruption was matched only through mysql2's `error_number`. Trilogy names
+  it `error_code`, so a deadline surfaced as a raw
+  `ActiveRecord::StatementTimeout` instead of `SyncEnqueueTimeout`. Both names
+  are read, and Active Record's own classification is trusted first.
+- Run the MySQL suite against both mysql2 and Trilogy in CI, and key
+  adapter-specific test skips to the database family rather than the client
+  name, so a Trilogy run no longer silently skips every MySQL test.
+
 ## 0.10.0 - 2026-08-10
 
 - Report a denied CLI command as a policy decision rather than a crash.
