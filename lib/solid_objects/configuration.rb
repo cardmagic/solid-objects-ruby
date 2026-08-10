@@ -40,6 +40,7 @@ module SolidObjects
     # @rbs @wake_up_adapter: untyped
     # @rbs @component_path_resolver: Proc?
     # @rbs @component_authorization_context: Proc
+    # @rbs @payload_authorization_context: Proc
     # @rbs @authorize_message: Proc
     # @rbs @authorize_query: Proc
     # @rbs @authorize_destroy: Proc
@@ -84,6 +85,7 @@ module SolidObjects
       :wake_up_adapter,
       :component_path_resolver,
       :component_authorization_context,
+      :payload_authorization_context,
       :authorize_message,
       :authorize_query,
       :authorize_destroy,
@@ -129,6 +131,7 @@ module SolidObjects
       @wake_up_adapter = nil
       @component_path_resolver = nil
       @component_authorization_context = ->(controller:) { controller }
+      @payload_authorization_context = ->(connection:) { connection }
       @logger = if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
         Rails.logger
       else
@@ -182,6 +185,9 @@ module SolidObjects
       end
       unless component_authorization_context.respond_to?(:call)
         raise ArgumentError, "component_authorization_context must respond to call"
+      end
+      unless payload_authorization_context.respond_to?(:call)
+        raise ArgumentError, "payload_authorization_context must respond to call"
       end
 
       self

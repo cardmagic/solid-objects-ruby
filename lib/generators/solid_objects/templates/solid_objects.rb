@@ -52,6 +52,14 @@ SolidObjects.configure do |configuration|
   # Configure component_authorization_context to return the authenticated
   # principal used for reactive component refreshes.
 
+  # Payloads are delivered over Action Cable, so without a resolver the payload
+  # block and authorize_query receive the Cable connection while a controller
+  # render passes an application object. Resolve both to the same type and the
+  # authorization hook stops having to tell them apart:
+  #
+  # configuration.component_authorization_context = ->(controller:) { controller.current_account }
+  # configuration.payload_authorization_context = ->(connection:) { connection.current_account }
+
   # On hosts where shell access is already an authenticated administrative
   # boundary, this enables only gem commands that pass the CLI context:
   #

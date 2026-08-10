@@ -2,8 +2,6 @@
 
 module SolidObjects
   class Configuration
-    @table_name_prefix: String
-
     @supervisor_monitor_interval: Float
 
     @retention_interval: Float
@@ -42,6 +40,8 @@ module SolidObjects
 
     @component_authorization_context: Proc
 
+    @payload_authorization_context: Proc
+
     @authorize_message: Proc
 
     @authorize_query: Proc
@@ -51,6 +51,8 @@ module SolidObjects
     @authorize_subscription: Proc
 
     @authorize_administration: Proc
+
+    @table_name_prefix: String
 
     @polling_interval: Float
 
@@ -163,6 +165,8 @@ module SolidObjects
     attr_accessor component_path_resolver: untyped
 
     attr_accessor component_authorization_context: untyped
+
+    attr_accessor payload_authorization_context: untyped
 
     attr_accessor authorize_message: untyped
 

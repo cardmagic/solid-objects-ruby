@@ -29,6 +29,19 @@ module SolidObjects
     # @rbs (ActorDefinition::Handler) -> untyped
     def rendered_payload: (ActorDefinition::Handler) -> untyped
 
+    # The block runs against the actor instance, like every other block in the
+    # actor DSL, and still receives the actor and the resolved authorization
+    # context as arguments, so blocks written to the documented signature are
+    # unaffected.
+    # @rbs (ActorDefinition::Handler) -> untyped
+    def evaluated_payload: (ActorDefinition::Handler) -> untyped
+
+    # Distinguishes a block that relied on the old class-level receiver from an
+    # ordinary typo, so the one behaviour change reports itself instead of
+    # surfacing as an unexplained NameError.
+    # @rbs (NameError[untyped]) -> bool
+    def class_level_receiver?: (NameError[untyped]) -> bool
+
     # @rbs () -> void
     def authorize!: () -> void
   end

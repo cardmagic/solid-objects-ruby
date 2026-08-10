@@ -41,13 +41,41 @@ module SolidObjects
     # @rbs (ActorDefinition::Handler) -> untyped
     def rendered_payload(handler)
       payload = Serialization.dump(
-        handler.block.call(snapshot.actor, authorization_context),
+        evaluated_payload(handler),
         max_bytes: MAXIMUM_PAYLOAD_BYTES
       )
       return payload if payload.is_a?(Hash) || payload.is_a?(Array)
 
       raise InvalidPayloadBroadcast,
         "payload broadcast #{name.inspect} must return a JSON object or array"
+    end
+
+    # The block runs against the actor instance, like every other block in the
+    # actor DSL, and still receives the actor and the resolved authorization
+    # context as arguments, so blocks written to the documented signature are
+    # unaffected.
+    # @rbs (ActorDefinition::Handler) -> untyped
+    def evaluated_payload(handler)
+      actor = snapshot.actor
+      actor.instance_exec(actor, authorization_context, &handler.block)
+    rescue NameError => error
+      raise unless class_level_receiver?(error)
+
+      raise InvalidPayloadBroadcast,
+        "payload broadcast #{name.inspect} called #{error.name.inspect} on the " \
+          "actor class. Payload blocks now run against the actor instance, like " \
+          "every other actor block. Call it on the class explicitly."
+    end
+
+    # Distinguishes a block that relied on the old class-level receiver from an
+    # ordinary typo, so the one behaviour change reports itself instead of
+    # surfacing as an unexplained NameError.
+    # @rbs (NameError[untyped]) -> bool
+    def class_level_receiver?(error)
+      error.receiver.equal?(snapshot.actor) &&
+        snapshot.actor_class.respond_to?(error.name)
+    rescue ArgumentError, NameError
+      false
     end
 
     # @rbs () -> void

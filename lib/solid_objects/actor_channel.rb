@@ -78,17 +78,57 @@ module SolidObjects
       return if payload_names.nil? || payload_names.empty?
       return unless newer_payload_revision?(snapshot)
 
-      payload_names.each do |name|
-        payload = PayloadBroadcast.new(
-          snapshot:,
-          name:,
-          authorization_context: connection
-        ).call
-        transmit TurboStreamRenderer.state_payload(payload)
-      rescue Unauthorized
-        next
-      end
+      # The watermark records what the subscriber has, so a revision with a
+      # failed payload must not advance it: dedup would skip every later
+      # attempt at that revision and the actor may not mutate again for a long
+      # time. Every name is still attempted before the decision is made.
+      attempts = payload_names.map { |name| transmit_state_payload(snapshot, name) }
+      return if attempts.any?(false)
+
       @payload_revision = [ snapshot.instance_id, snapshot.revision ]
+    end
+
+    # A payload is one subscriber's view of one name. Letting it raise through
+    # here would reject the subscription or abandon the rest of a broadcast, so
+    # a failure is confined to the payload that caused it and reported. The
+    # exception message is deliberately not instrumented: a payload block reads
+    # actor state, so its message is the one place subscriber state could leak
+    # into logs.
+    #
+    # Returns whether this revision was settled for the name. An unauthorized
+    # payload is settled: the decision is stable, so retrying it would only
+    # re-deliver its authorized siblings.
+    # @rbs (ActorSnapshot, String) -> bool
+    def transmit_state_payload(snapshot, name)
+      payload = PayloadBroadcast.new(
+        snapshot:,
+        name:,
+        authorization_context: payload_authorization_context(name)
+      ).call
+      transmit TurboStreamRenderer.state_payload(payload)
+      true
+    rescue Unauthorized
+      true
+    rescue => error
+      SolidObjects.instrument(
+        :payload_broadcast_failed,
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id,
+        payload_name: name,
+        error_class: error.class.name
+      )
+      false
+    end
+
+    # Resolves the Cable connection to whatever the application uses as an
+    # authorization subject, so a payload block and `authorize_query` see the
+    # same object a controller render would pass.
+    # @rbs (String) -> untyped
+    def payload_authorization_context(name)
+      callable = SolidObjects.configuration.payload_authorization_context
+      return callable.call(connection:) unless CallableKeywords.accepts?(callable, :payload_name)
+
+      callable.call(connection:, payload_name: name)
     end
 
     # @rbs (ActorSnapshot) -> bool

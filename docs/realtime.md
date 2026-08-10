@@ -237,9 +237,11 @@ single actor mutation changes several components, an application pays several
 round trips for one logical update. A payload broadcast collapses that into one
 message on the stream the page already has open.
 
-Declare the payload on the actor. The block receives the actor and the
-subscriber's authorization context, and it runs **once per subscriber**, so two
-sessions watching the same actor never see each other's private state:
+Declare the payload on the actor. The block runs against the actor instance,
+like every other block in the actor DSL, and receives the actor and the
+subscriber's authorization context as arguments. It runs **once per
+subscriber**, so two sessions watching the same actor never see each other's
+private state:
 
 ```ruby
 class PlaymatRoom < SolidObjects::Actor
@@ -256,6 +258,16 @@ class PlaymatRoom < SolidObjects::Actor
       "hand" => room.hands.fetch(authorization_context.session_id, [])
     }
   end
+end
+```
+
+Because the block runs against the actor, an actor instance method is reachable
+without a receiver, so shared logic does not have to be duplicated into the
+block:
+
+```ruby
+broadcast_payload :playmat_state do |_room, authorization|
+  { "turn" => turn, "hand" => hand_for(authorization.session_id) }
 end
 ```
 
@@ -297,6 +309,26 @@ server did not offer.
 Payload blocks read committed actor state through the same snapshot components
 use. They cannot write application records, and the return value must be a JSON
 object or array so the wire format stays inspectable.
+
+A payload is one subscriber's view of one name, so a failure is confined to it.
+A raising block does not reject the subscription, stop the other payload names,
+or stop component refreshes on the same connection. The failure is reported as
+`solid_objects.payload_broadcast_failed` carrying the actor type, actor id,
+payload name, and exception class. The exception message is deliberately not
+included: a payload block reads subscriber state, so its message is the one
+place that state could leak into logs.
+
+A revision with a failed payload does not advance the delivery watermark, so a
+transient failure is retried on the next broadcast rather than being recorded as
+delivered. Retries are driven by broadcasts rather than a timer, so a payload
+that fails persistently retries once per actor mutation and reports each
+attempt. A repeating stream of `payload_broadcast_failed` for one `payload_name`
+therefore means a persistent fault in that block, not a one-off; a single event
+that does not recur was transient and has already been recovered.
+
+A payload the subscriber cannot query is skipped rather than served partially;
+that decision is stable, so it settles the revision and the skip is silent by
+design.
 
 ### mtg-playmat before and after
 
@@ -350,13 +382,31 @@ end
 Callbacks that accept only `controller:` continue to work; the extra keyword is
 passed only to callables that declare it.
 
-The three contexts are intentionally different:
+Payloads have the same resolver, because they are computed inside the channel
+rather than in a controller. Without one, a payload block and its
+`authorize_query` call receive the Cable connection while a controller render
+passes an application object, and the authorization hook has to tell them
+apart. Resolve both to the same type and it does not:
+
+```ruby
+configuration.component_authorization_context = ->(controller:) { controller.current_account }
+configuration.payload_authorization_context = ->(connection:) { connection.current_account }
+```
+
+The resolved value is what the payload block receives as its second argument and
+what `authorize_query` receives as `authorization_context`. A resolver may also
+accept `payload_name:` when the subject depends on which payload was requested.
+The default returns the connection unchanged, so an application that has not
+configured one is unaffected.
+
+The contexts are intentionally different:
 
 | Boundary | Authorization context |
 | --- | --- |
 | Initial Action View render | Explicit `authorization_context:` passed to `solid_object` |
 | Action Cable subscription | The authenticated Cable connection |
 | Component refresh | Value returned by `component_authorization_context` for the engine controller request |
+| State payload | Value returned by `payload_authorization_context` for the Cable connection |
 
 Do not substitute a signed token for any of them. Keys and locals are visible
 to the browser and signed for integrity, not encrypted or authorized. Never
