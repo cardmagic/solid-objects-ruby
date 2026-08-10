@@ -14,7 +14,7 @@ module SolidObjects
 
       FAILED_WAIT_INTERVAL: ::Float
 
-      @connection: untyped
+      @connections: Array[untyped]
 
       @mutex: Thread::Mutex
 
@@ -43,13 +43,27 @@ module SolidObjects
 
       attr_reader mutex: untyped
 
+      attr_reader connections: untyped
+
       # @rbs () -> void
       def notify_channel: () -> void
 
-      # A listening connection is dedicated: `LISTEN` is per connection, and a
-      # blocking wait must not hold a connection the rest of the runtime needs.
+      # A listening connection is dedicated and per thread. `LISTEN` is per
+      # connection, a blocking wait must not hold a connection the rest of the
+      # runtime needs, and one connection cannot serve concurrent waiters: the
+      # supervisor shares one adapter across roles, and a notification consumed
+      # by one waiter would leave the others asleep until their poll expired.
       # @rbs () -> untyped
       def listening_connection: () -> untyped
+
+      # @rbs () -> untyped
+      def open_listening_connection: () -> untyped
+
+      # @rbs () -> Symbol
+      def thread_key: () -> Symbol
+
+      # @rbs (untyped) -> void
+      def disconnect: (untyped) -> void
 
       # @rbs (Numeric) -> void
       def pace_after_failure: (Numeric) -> void

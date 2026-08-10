@@ -15,7 +15,7 @@ module SolidObjects
 
       # @rbs @channel: String
       # @rbs @mutex: Thread::Mutex
-      # @rbs @connection: untyped
+      # @rbs @connections: Array[untyped]
 
       attr_reader :channel
 
@@ -23,7 +23,7 @@ module SolidObjects
       def initialize(channel: CHANNEL)
         @channel = channel
         @mutex = Thread::Mutex.new
-        @connection = nil
+        @connections = []
       end
 
       # @rbs () -> bool
@@ -58,21 +58,19 @@ module SolidObjects
 
       # @rbs () -> bool
       def stop
-        mutex.synchronize do
-          connection = @connection
-          @connection = nil
-          return false unless connection
-
-          connection.disconnect!
-          true
+        open = mutex.synchronize do
+          listening = connections.dup
+          connections.clear
+          listening
         end
-      rescue
-        false
+        Thread.current[thread_key] = nil
+        open.each { |connection| disconnect(connection) }
+        open.any?
       end
 
       private
 
-      attr_reader :mutex
+      attr_reader :mutex, :connections
 
       # @rbs () -> void
       def notify_channel
@@ -81,17 +79,38 @@ module SolidObjects
         end
       end
 
-      # A listening connection is dedicated: `LISTEN` is per connection, and a
-      # blocking wait must not hold a connection the rest of the runtime needs.
+      # A listening connection is dedicated and per thread. `LISTEN` is per
+      # connection, a blocking wait must not hold a connection the rest of the
+      # runtime needs, and one connection cannot serve concurrent waiters: the
+      # supervisor shares one adapter across roles, and a notification consumed
+      # by one waiter would leave the others asleep until their poll expired.
       # @rbs () -> untyped
       def listening_connection
-        mutex.synchronize do
-          return @connection if @connection&.active?
+        connection = Thread.current[thread_key]
+        return connection if connection&.active?
 
-          @connection = Record.connection_pool.send(:new_connection)
-          @connection.execute("LISTEN #{@connection.quote_table_name(channel)}")
-          @connection
-        end
+        open_listening_connection
+      end
+
+      # @rbs () -> untyped
+      def open_listening_connection
+        connection = Record.connection_pool.send(:new_connection)
+        connection.execute("LISTEN #{connection.quote_table_name(channel)}")
+        Thread.current[thread_key] = connection
+        mutex.synchronize { connections << connection }
+        connection
+      end
+
+      # @rbs () -> Symbol
+      def thread_key
+        :"solid_objects_wake_up_#{object_id}"
+      end
+
+      # @rbs (untyped) -> void
+      def disconnect(connection)
+        connection.disconnect!
+      rescue
+        nil
       end
 
       # @rbs (Numeric) -> void

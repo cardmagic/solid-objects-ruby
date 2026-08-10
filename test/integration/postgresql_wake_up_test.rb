@@ -43,28 +43,43 @@ class PostgresqlWakeUpTest < ActiveSupport::TestCase
     assert_operator elapsed, :<, 2.0
   end
 
-  test "every waiter wakes on one signal" do
+  # The supervisor memoizes one adapter and shares it across runtime roles, so
+  # concurrent waiters go through a single adapter instance.
+  test "every waiter on one shared adapter wakes on one signal" do
     waiters = 3
     waiting = Queue.new
     woken = Queue.new
-    adapters = Array.new(waiters) { SolidObjects::WakeUpAdapters::Postgresql.new }
-    threads = adapters.map do |adapter|
+    threads = Array.new(waiters) do
       Thread.new do
-        adapter.listen
+        @adapter.listen
         waiting << true
-        adapter.wait(timeout: 5)
-        woken << true
+        started = monotonic_now
+        @adapter.wait(timeout: 5)
+        woken << monotonic_now - started
       end
     end
     waiters.times { Timeout.timeout(5) { waiting.pop } }
 
     signal_from_another_connection
 
-    waiters.times { Timeout.timeout(5) { woken.pop } }
+    elapsed = waiters.times.map { Timeout.timeout(10) { woken.pop } }
+    threads.each { |thread| thread.join(6) }
+    # Waking on the notification, not falling through to the 5 second timeout.
+    assert_operator elapsed.max, :<, 1.0,
+      "every waiter should wake on the notification, not time out"
+  end
+
+  test "each waiting thread listens on its own connection" do
+    connections = Queue.new
+    threads = Array.new(2) do
+      Thread.new do
+        @adapter.listen
+        connections << Thread.current[:"solid_objects_wake_up_#{@adapter.object_id}"].object_id
+      end
+    end
     threads.each { |thread| thread.join(5) }
-    assert_equal 0, woken.size
-  ensure
-    adapters&.each(&:stop)
+
+    assert_equal 2, connections.size.times.map { connections.pop }.uniq.length
   end
 
   test "signalling never raises into the caller" do
