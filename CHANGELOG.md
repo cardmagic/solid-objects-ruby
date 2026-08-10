@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 - 2026-08-10
 
 - Add a browser test suite running the refresh modules against real Chromium and
   a real Turbo build, covering `component_refresh.js`, which previously had no
