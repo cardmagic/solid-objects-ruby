@@ -7,6 +7,7 @@ module SolidObjects
     # @rbs @monitor: Thread?
     # @rbs @started: bool
     # @rbs @cleaned_up_at: Float
+    # @rbs @lifecycle: Thread::Mutex
 
     # @rbs (?worker_count: Integer, ?effect_worker_count: Integer, ?broadcast_worker_count: Integer, ?reminder_scheduler_count: Integer) -> void
     def initialize(
@@ -25,6 +26,7 @@ module SolidObjects
       @monitor = nil
       @started = false
       @cleaned_up_at = nil
+      @lifecycle = Thread::Mutex.new
     end
 
     # @rbs () -> void
@@ -50,7 +52,10 @@ module SolidObjects
       return unless @started
 
       begin
-        @started = false
+        # Flipping the flag under the same lock replacement takes means a
+        # replacement either completes before shutdown reads the component
+        # list, or never starts.
+        @lifecycle.synchronize { @started = false }
         @monitor&.join(SolidObjects.configuration.supervisor_monitor_interval * 2)
         components.each(&:request_shutdown)
         join_until_timeout
@@ -101,14 +106,20 @@ module SolidObjects
       components.each_with_index do |component, index|
         thread = threads[index]
         next if thread&.alive?
-        break unless @started
 
-        replacement = component.class.new
-        components[index] = replacement
-        threads[index] = supervise(replacement)
+        replaced = @lifecycle.synchronize do
+          next false unless @started
+
+          replacement = component.class.new
+          components[index] = replacement
+          threads[index] = supervise(replacement)
+          replacement
+        end
+        break unless replaced
+
         SolidObjects.instrument(
           :"supervisor.role_replaced",
-          role: replacement.class.name,
+          role: replaced.class.name,
           error_class: thread_error(thread)
         )
       end

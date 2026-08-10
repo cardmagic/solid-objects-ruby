@@ -102,6 +102,21 @@ class SupervisorReplacementTest < ActiveSupport::TestCase
     assert_equal runs_at_stop, role.runs.size
   end
 
+  test "no role outlives shutdown when replacement races it" do
+    10.times do
+      CrashingRole.shared_runs = nil
+      role = CrashingRole.new
+      supervisor = supervisor_for(role)
+      supervisor.start
+      Timeout.timeout(10) { sleep 0.001 until role.runs.size >= 1 }
+
+      supervisor.stop
+
+      live = supervisor.instance_variable_get(:@threads).select(&:alive?)
+      assert_empty live, "a replacement started during shutdown must not survive it"
+    end
+  end
+
   test "instruments a replacement" do
     events = []
     subscription = ActiveSupport::Notifications.subscribe("solid_objects.supervisor.role_replaced") do |event|

@@ -2,6 +2,8 @@
 
 module SolidObjects
   class Supervisor
+    @lifecycle: Thread::Mutex
+
     @cleaned_up_at: Float
 
     @started: bool
