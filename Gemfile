@@ -15,6 +15,7 @@ end
 group :development, :test do
   gem "mysql2", ">= 0.5", require: false
   gem "pg", ">= 1.5", require: false
+  gem "redis", ">= 5.0", require: false
   gem "sqlite3", ">= 2.1", require: false
 end
 

@@ -39,6 +39,9 @@
 - SQLite, PostgreSQL, and MySQL integration suites
 - Opt-in cross-process wake-up on PostgreSQL through `WakeUpAdapters.for`, with
   a listening connection per waiting thread and release on supervisor shutdown
+- Opt-in cross-process wake-up on Redis, the option for MySQL applications,
+  measured at 103.8 ms to 5.7 ms at p50; the `redis` gem stays outside this
+  gem's dependencies
 - Inline RBS generation/validation, Steep, Standard Ruby, Solid Queue's exact
   RuboCop policy, and a warning-free Brakeman scan
 - Compatibility CI across the supported span: Ruby 3.3 and 3.4 against Rails 8.0
@@ -59,7 +62,8 @@
   103.7 ms to 2.9 ms at p50. It is opt-in rather than automatic: it opens a
   connection per waiting thread outside the pool, and `LISTEN` does not survive
   a transaction-pooling proxy such as PgBouncer. MySQL has no notification
-  primitive, so MySQL applications keep polling.
+  primitive, so MySQL applications keep polling unless they configure the Redis
+  adapter.
 - Realtime: scalar and dependency-driven keyed ERB component replacement or
   morphing, personalized refresh authorization, revision fencing, coalescing,
   reconnect convergence, batched refreshes, and personalized state payloads are
@@ -79,17 +83,14 @@
 
 ## Next milestones
 
-1. Add an optional Redis wake-up adapter, which is the remaining cross-process
-   option for MySQL. The PostgreSQL notification adapter, its latency
-   benchmark, and its concurrency tests are implemented.
-2. Add result lookup by request ID and broader deadlock retry classification.
-3. Add scheduled retention and stale-process maintenance.
-4. Add Turbo append intents and expand reconnect coverage in a full browser.
-5. Add distributed rate limits, global admission hooks, and cache-capacity
+1. Add result lookup by request ID and broader deadlock retry classification.
+2. Add scheduled retention and stale-process maintenance.
+3. Add Turbo append intents and expand reconnect coverage in a full browser.
+4. Add distributed rate limits, global admission hooks, and cache-capacity
    eviction.
-6. Expand security scanning. Compatibility CI across supported Rails and Ruby
+5. Expand security scanning. Compatibility CI across supported Rails and Ruby
    versions is implemented; Ruby 4.0 is not yet in the matrix.
-7. Benchmark all workloads under documented hardware/database settings and
+6. Benchmark all workloads under documented hardware/database settings and
    publish adapter-specific adoption measurements. Throughput, synchronous
    latency, query counts, and the three reactive delivery paths are measured on
    SQLite; adapter-specific and end-to-end browser measurements are not.

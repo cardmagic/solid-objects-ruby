@@ -9,6 +9,12 @@
   The doctor reports this as `database_server` and warns rather than failing:
   refusing to run on an untested server would be a worse failure than running
   on one.
+- Add `SolidObjects::WakeUpAdapters::Redis`, an optional cross-process wake-up
+  using Redis publish and subscribe. This is the option for MySQL, which has no
+  notification primitive. Measured cross-process wake-up latency drops from
+  103.8 ms to 5.7 ms at p50. One background subscription per process fans out to
+  every waiting role in memory. The `redis` gem is not a dependency of this gem,
+  and `WakeUpAdapters.for` does not select it, so adopting Redis stays explicit.
 
 ## 0.8.0 - 2026-08-10
 

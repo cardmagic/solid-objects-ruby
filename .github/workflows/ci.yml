@@ -44,6 +44,26 @@ jobs:
       - run: bundle lock --update && bundle install --jobs 4
       - run: bundle exec rake test
 
+  redis:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - run: bundle exec rake test TEST=test/integration/redis_wake_up_test.rb
+
   postgresql:
     runs-on: ubuntu-latest
     services:
@@ -116,6 +136,7 @@ jobs:
       - static
       - javascript
       - compatibility
+      - redis
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -128,8 +128,21 @@ configuration.wake_up_adapter = SolidObjects::WakeUpAdapters.for
 default on SQLite and MySQL, so the same line is safe across adapters. Name
 `SolidObjects::WakeUpAdapters::Postgresql.new` directly to require it.
 
-MySQL has no notification primitive, so MySQL applications keep polling and tune
-`polling_interval`.
+MySQL has no notification primitive. MySQL applications either keep polling and
+tune `polling_interval`, or configure the Redis adapter:
+
+```ruby
+configuration.wake_up_adapter = SolidObjects::WakeUpAdapters::Redis.new(
+  url: ENV["REDIS_URL"]
+)
+```
+
+Measured latency for a cross-process wake-up drops from 103.8 ms to 5.7 ms at
+p50. The `redis` gem is not a dependency of this gem, so applications add it
+themselves. One background subscription per process fans out to every waiting
+role in memory, rather than one connection per thread, and `WakeUpAdapters.for`
+does not select it: Redis is infrastructure this gem otherwise does not require,
+so choosing it is explicit.
 
 Measured latency for a cross-process wake-up drops from 103.7 ms to 2.9 ms at
 p50. The adapter keeps `polling_interval` as the upper bound: a missed or failed
