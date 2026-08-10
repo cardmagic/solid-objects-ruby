@@ -110,6 +110,29 @@ applications discover the namespaced engine asset. Applications created with
 explicitly serve the module. Turbo's normal morph rules still apply; use
 `data-turbo-permanent` for elements that must never be changed.
 
+## Cross-process wake-up
+
+Runtime roles poll for work and are woken early by an in-process signal. That
+signal cannot cross process boundaries, so a commit in a Puma process does not
+wake a broadcast executor in a worker process, and delivery waits out
+`polling_interval`, 100 ms by default.
+
+On PostgreSQL, install the notification adapter to remove that delay:
+
+```ruby
+# config/initializers/solid_objects.rb
+configuration.wake_up_adapter = SolidObjects::WakeUpAdapters::Postgresql.new
+```
+
+Measured latency for a cross-process wake-up drops from 103.7 ms to 2.9 ms at
+p50. The adapter keeps `polling_interval` as the upper bound: a missed or failed
+notification costs latency, never correctness, and signalling never raises into
+the caller that committed. `LISTEN` needs its own connection, so the adapter
+opens one outside the pool and releases it on `stop`.
+
+Applications on SQLite or MySQL, or that do not configure the adapter, keep the
+existing polling behaviour.
+
 ## Batched component refreshes
 
 A component refresh costs one browser request. When one actor mutation changes

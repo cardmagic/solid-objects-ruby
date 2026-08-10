@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add `SolidObjects::WakeUpAdapters::Postgresql`, an optional cross-process
+  wake-up using PostgreSQL notifications. In-process signalling cannot reach a
+  worker process, so reactive delivery waited out `polling_interval`. With the
+  adapter configured, measured cross-process wake-up latency drops from 103.7 ms
+  to 2.9 ms at p50. The polling interval remains the upper bound, and neither
+  signalling nor waiting raises into its caller.
+
 ## 0.7.3 - 2026-08-09
 
 - Coordinate batched component refreshes by revision as well as scope and batch

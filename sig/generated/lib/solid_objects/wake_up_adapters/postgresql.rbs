@@ -1,0 +1,61 @@
+# Generated from lib/solid_objects/wake_up_adapters/postgresql.rb with RBS::Inline
+
+module SolidObjects
+  module WakeUpAdapters
+    # Wakes runtime roles across processes using PostgreSQL notifications.
+    #
+    # The in-process wake-up cannot reach another process, so a commit in a web
+    # process leaves a worker waiting out its polling interval. This adapter
+    # keeps that polling interval as the upper bound and delivers a notification
+    # when one is available, so a missed or failed notification costs latency
+    # rather than correctness.
+    class Postgresql
+      CHANNEL: ::String
+
+      FAILED_WAIT_INTERVAL: ::Float
+
+      @connection: untyped
+
+      @mutex: Thread::Mutex
+
+      @channel: String
+
+      attr_reader channel: untyped
+
+      # @rbs (?channel: String) -> void
+      def initialize: (?channel: String) -> void
+
+      # @rbs () -> bool
+      def signal: () -> bool
+
+      # @rbs (timeout: Numeric) -> bool
+      def wait: (timeout: Numeric) -> bool
+
+      # Starts listening before a caller blocks, so a notification sent between
+      # startup and the first wait is not missed.
+      # @rbs () -> bool
+      def listen: () -> bool
+
+      # @rbs () -> bool
+      def stop: () -> bool
+
+      private
+
+      attr_reader mutex: untyped
+
+      # @rbs () -> void
+      def notify_channel: () -> void
+
+      # A listening connection is dedicated: `LISTEN` is per connection, and a
+      # blocking wait must not hold a connection the rest of the runtime needs.
+      # @rbs () -> untyped
+      def listening_connection: () -> untyped
+
+      # @rbs (Numeric) -> void
+      def pace_after_failure: (Numeric) -> void
+
+      # @rbs (Symbol, Exception) -> void
+      def instrument_failure: (Symbol, Exception) -> void
+    end
+  end
+end
