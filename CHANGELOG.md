@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add a browser test suite running the refresh modules against real Chromium and
+  a real Turbo build, covering `component_refresh.js`, which previously had no
+  tests at all. Every batching defect that reached production passed the jsdom
+  suite, because jsdom cannot model Turbo applying a morph, task boundaries
+  between socket deliveries, or abort semantics.
 - Verify the database server. Each adapter reports its version against the
   oldest one Solid Objects is exercised against, PostgreSQL 13, MySQL 8.0, and
   SQLite 3.35, and MySQL additionally confirms that Solid Objects tables use

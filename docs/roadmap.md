@@ -47,9 +47,10 @@
 - Compatibility CI across the supported span: Ruby 3.3 and 3.4 against Rails 8.0
   and 8.1, pinned through `RAILS_VERSION` so the advertised range is verified
   rather than assumed
-- A JavaScript suite covering the state payload and batched refresh browser
-  modules, run in CI with Node's test runner and jsdom, with every GitHub
-  Actions reference pinned to a commit SHA
+- A JavaScript suite covering every browser module, run in CI with Node's test
+  runner and jsdom, plus a browser suite running the same modules against real
+  Chromium and a real Turbo build, with every GitHub Actions reference pinned to
+  a commit SHA
 
 ## Partially implemented
 
@@ -75,9 +76,6 @@
   distributed per-actor rate limits and global admission control do not.
 - Administration: actor and dead-letter views plus policy hooks exist; richer
   filtering, audit records, and bulk-safe tools do not.
-- Browser module coverage: the state payload and batched refresh modules have
-  JavaScript tests; `component_refresh.js`, which drives individual morph
-  refreshes, does not.
 - Outboxes use portable status rows with polling indexes; future versions may
   introduce narrow ready/claimed membership tables for very large outboxes.
 
