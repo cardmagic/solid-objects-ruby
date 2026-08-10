@@ -22,6 +22,7 @@ module SolidObjects
     # @rbs @process_alive_threshold: Float
     # @rbs @shutdown_timeout: Float
     # @rbs @supervisor_monitor_interval: Float
+    # @rbs @retention_interval: Float
     # @rbs @dead_process_cleanup_interval: Float
     # @rbs @message_retention: Numeric
     # @rbs @message_retention_by_actor_type: Hash[String, Numeric]
@@ -65,6 +66,7 @@ module SolidObjects
       :process_alive_threshold,
       :shutdown_timeout,
       :supervisor_monitor_interval,
+      :retention_interval,
       :dead_process_cleanup_interval,
       :message_retention,
       :message_retention_by_actor_type,
@@ -108,6 +110,7 @@ module SolidObjects
       @lock_retry_attempts = 10
       @supervisor_monitor_interval = 1.0
       @dead_process_cleanup_interval = 60.0
+      @retention_interval = 3600.0
       @process_heartbeat_interval = 15.0
       @process_alive_threshold = 60.0
       @shutdown_timeout = 15.0
@@ -142,6 +145,10 @@ module SolidObjects
     def validate!
       unless table_name_prefix.match?(/\A[a-z][a-z0-9_]*\z/)
         raise ArgumentError, "table_name_prefix must contain lowercase letters, digits, and underscores"
+      end
+
+      if retention_interval.negative?
+        raise ArgumentError, "retention_interval must not be negative"
       end
 
       unless supervisor_monitor_interval.positive?

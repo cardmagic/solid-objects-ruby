@@ -4,6 +4,8 @@ module SolidObjects
   class Supervisor
     @lifecycle: Thread::Mutex
 
+    @pruned_at: Float
+
     @cleaned_up_at: Float
 
     @started: bool
@@ -51,6 +53,13 @@ module SolidObjects
 
     # @rbs (Thread?) -> String?
     def thread_error: (Thread?) -> String?
+
+    # Every actor call writes a durable message row, so retention that is only
+    # configured and never run leaves those rows to grow without bound. The
+    # supervisor runs it rather than requiring every application to schedule
+    # its own job.
+    # @rbs () -> void
+    def prune_expired_records: () -> void
 
     # @rbs () -> void
     def cleanup_dead_processes: () -> void

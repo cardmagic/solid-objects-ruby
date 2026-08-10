@@ -7,6 +7,7 @@ module SolidObjects
     # @rbs @monitor: Thread?
     # @rbs @started: bool
     # @rbs @cleaned_up_at: Float
+    # @rbs @pruned_at: Float
     # @rbs @lifecycle: Thread::Mutex
 
     # @rbs (?worker_count: Integer, ?effect_worker_count: Integer, ?broadcast_worker_count: Integer, ?reminder_scheduler_count: Integer) -> void
@@ -26,6 +27,7 @@ module SolidObjects
       @monitor = nil
       @started = false
       @cleaned_up_at = nil
+      @pruned_at = nil
       @lifecycle = Thread::Mutex.new
     end
 
@@ -84,6 +86,7 @@ module SolidObjects
         begin
           replace_dead_roles
           cleanup_dead_processes
+          prune_expired_records
         rescue => error
           SolidObjects.instrument(
             :"supervisor.monitor_failed",
@@ -131,6 +134,21 @@ module SolidObjects
       nil
     rescue => error
       error.class.name
+    end
+
+    # Every actor call writes a durable message row, so retention that is only
+    # configured and never run leaves those rows to grow without bound. The
+    # supervisor runs it rather than requiring every application to schedule
+    # its own job.
+    # @rbs () -> void
+    def prune_expired_records
+      interval = SolidObjects.configuration.retention_interval
+      return unless interval.positive?
+      return if @pruned_at && monotonic_now - @pruned_at < interval
+
+      @pruned_at = monotonic_now
+      MessagePruner.new.prune
+      ProcessPruner.new.prune
     end
 
     # @rbs () -> void

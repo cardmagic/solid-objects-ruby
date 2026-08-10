@@ -1,0 +1,150 @@
+# frozen_string_literal: true
+
+require "database_test_helper"
+require "timeout"
+
+class ScheduledRetentionTest < ActiveSupport::TestCase
+  class IdleRole
+    # An endless method definition cannot take a modifier keyword: the modifier
+    # would apply to the definition itself and loop the class body.
+    def run
+      sleep(0.01) until @shutdown
+    end
+
+    def request_shutdown = @shutdown = true
+    def stop = @stopped = true
+    def stopped? = @stopped
+  end
+
+  setup do
+    SolidObjects.configuration.supervisor_monitor_interval = 0.02
+    SolidObjects.configuration.dead_process_cleanup_interval = 0
+    SolidObjects.configuration.retention_interval = 0.05
+    SolidObjects.configuration.message_retention = 0
+  end
+
+  teardown do
+    @supervisor&.stop
+    SolidObjects.configuration.retention_interval = 3600.0
+    SolidObjects.configuration.dead_process_cleanup_interval = 60.0
+  end
+
+  test "the supervisor prunes expired messages without being asked" do
+    expired_message
+
+    @supervisor = supervisor
+    @supervisor.start
+
+    Timeout.timeout(10) { sleep 0.02 until SolidObjects::Message.count.zero? }
+    assert_equal 0, SolidObjects::Message.count
+  end
+
+  test "retention can be disabled" do
+    SolidObjects.configuration.retention_interval = 0
+    expired_message
+
+    @supervisor = supervisor
+    @supervisor.start
+    sleep 0.3
+
+    assert_equal 1, SolidObjects::Message.count,
+      "a zero interval should disable scheduled retention"
+  end
+
+  # Retention runs once at startup and then on its interval, matching how dead
+  # process records are cleaned up.
+  test "retention waits for its interval after the first pass" do
+    SolidObjects.configuration.retention_interval = 60
+    expired_message
+
+    @supervisor = supervisor
+    @supervisor.start
+    Timeout.timeout(10) { sleep 0.02 until SolidObjects::Message.count.zero? }
+    expired_message
+    sleep 0.2
+
+    assert_equal 1, SolidObjects::Message.count,
+      "a second pass should wait for the interval rather than run every monitor tick"
+  end
+
+  test "instruments what it pruned" do
+    counts = []
+    subscription = ActiveSupport::Notifications.subscribe("solid_objects.messages.pruned") do |event|
+      counts << event.payload[:count]
+    end
+    expired_message
+
+    @supervisor = supervisor
+    @supervisor.start
+    Timeout.timeout(10) { sleep 0.02 until counts.any? { |count| count.positive? } }
+
+    assert_includes counts, 1
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
+  end
+
+  test "a failing retention pass does not stop the supervisor" do
+    failures = []
+    subscription = ActiveSupport::Notifications.subscribe("solid_objects.supervisor.monitor_failed") do
+      failures << true
+    end
+    role = IdleRole.new
+    @supervisor = supervisor(role)
+    @supervisor.define_singleton_method(:prune_expired_records) { raise "boom" }
+
+    @supervisor.start
+    Timeout.timeout(10) { sleep 0.02 until failures.any? }
+    sleep 0.1
+
+    assert @supervisor.instance_variable_get(:@monitor).alive?,
+      "the monitor should survive a failing retention pass"
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
+  end
+
+  test "rejects a negative retention interval" do
+    SolidObjects.configuration.retention_interval = -1
+
+    assert_raises ArgumentError do
+      SolidObjects.configuration.validate!
+    end
+  end
+
+  private
+
+  def supervisor(role = IdleRole.new)
+    SolidObjects::Supervisor.new(
+      worker_count: 0,
+      effect_worker_count: 0,
+      broadcast_worker_count: 0,
+      reminder_scheduler_count: 0
+    ).tap { |supervisor| supervisor.instance_variable_set(:@components, [ role ]) }
+  end
+
+  # A message old enough that the configured retention has already expired it.
+  def expired_message(actor_id = SecureRandom.hex(4))
+    instance = SolidObjects::Instance.create!(
+      actor_type: "retention-actor",
+      actor_id:,
+      state: {},
+      state_version: 1,
+      next_message_sequence: 2
+    )
+    SolidObjects::Message.create!(
+      instance:,
+      actor_type: "retention-actor",
+      actor_id:,
+      message_name: "noop",
+      message_kind: "async",
+      arguments: {},
+      sequence: 1,
+      max_attempts: 1,
+      attempt_count: 1,
+      request_id: SecureRandom.uuid,
+      enqueued_at: 1.hour.ago,
+      completed_at: 1.hour.ago,
+      created_at: 1.hour.ago,
+      updated_at: 1.hour.ago
+    )
+  end
+end
