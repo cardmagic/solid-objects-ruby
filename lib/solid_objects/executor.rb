@@ -211,10 +211,16 @@ module SolidObjects
       end
     end
 
+    # A reminder is one named alarm per actor, so scheduling a name that is
+    # already armed moves it rather than adding a second. An actor that arms a
+    # reminder per queued item therefore keeps only the last, and nothing else
+    # about that is visible: the write succeeds and the earlier wake-up simply
+    # never happens.
     # @rbs (Instance, Array[Actor::ReminderIntent]) -> void
     def schedule_reminders(instance, intents)
       intents.each do |intent|
         reminder = Reminder.find_or_initialize_by(instance:, name: intent.name)
+        previous_run_at = reminder.next_run_at
         reminder.assign_attributes(
           actor_type: instance.actor_type,
           actor_id: instance.actor_id,
@@ -227,8 +233,26 @@ module SolidObjects
           claimed_by: nil,
           claimed_at: nil
         )
+        report_moved_reminder(reminder, previous_run_at)
         reminder.save!
       end
+    end
+
+    # Arguments are omitted deliberately: a reminder carries application data
+    # and this event exists to be logged.
+    # @rbs (Reminder, Time?) -> void
+    def report_moved_reminder(reminder, previous_run_at)
+      return unless previous_run_at
+      return if previous_run_at == reminder.next_run_at
+
+      SolidObjects.instrument(
+        :"reminder.replaced",
+        actor_type: reminder.actor_type,
+        actor_id: reminder.actor_id,
+        name: reminder.name,
+        previous_run_at:,
+        next_run_at: reminder.next_run_at
+      )
     end
 
     # @rbs (Message, Instance, Array[Actor::OutboundMessageIntent]) -> Array[Effect]

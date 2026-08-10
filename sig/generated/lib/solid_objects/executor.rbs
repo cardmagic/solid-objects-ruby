@@ -45,8 +45,18 @@ module SolidObjects
     # @rbs (Message, Instance, Array[Actor::EffectIntent]) -> Array[Effect]
     def enqueue_effects: (Message, Instance, Array[Actor::EffectIntent]) -> Array[Effect]
 
+    # A reminder is one named alarm per actor, so scheduling a name that is
+    # already armed moves it rather than adding a second. An actor that arms a
+    # reminder per queued item therefore keeps only the last, and nothing else
+    # about that is visible: the write succeeds and the earlier wake-up simply
+    # never happens.
     # @rbs (Instance, Array[Actor::ReminderIntent]) -> void
     def schedule_reminders: (Instance, Array[Actor::ReminderIntent]) -> void
+
+    # Arguments are omitted deliberately: a reminder carries application data
+    # and this event exists to be logged.
+    # @rbs (Reminder, Time?) -> void
+    def report_moved_reminder: (Reminder, Time?) -> void
 
     # @rbs (Message, Instance, Array[Actor::OutboundMessageIntent]) -> Array[Effect]
     def enqueue_actor_messages: (Message, Instance, Array[Actor::OutboundMessageIntent]) -> Array[Effect]

@@ -805,6 +805,62 @@ end
 Use `missed: :latest` to coalesce missed occurrences or `missed: :all` to
 enqueue each one.
 
+### A reminder is one named alarm per actor
+
+The uniqueness key is `(actor, reminder name)`. Scheduling a name that is
+already armed **moves the existing alarm** rather than adding a second one. The
+database enforces this with a unique index on `(instance_id, name)`.
+
+This is the same model as Orleans reminders and Durable Objects alarms, and it
+is what makes a reminder safe to re-arm from a handler that may run more than
+once. It also means this is a data-loss bug:
+
+```ruby
+# Wrong. Every entry overwrites the previous entry's alarm.
+def add(entry:)
+  self.entries = entries + [ entry ]
+  schedule :deliver, at: entry.fetch("wait_until"), arguments: {}
+end
+```
+
+Two entries leave one reminder. The earlier wake-up never happens, nothing
+raises, and nothing is logged except a `solid_objects.reminder.replaced` event.
+
+Arm one alarm for the earliest item instead, and let the handler drain
+everything now due before arming the next:
+
+```ruby
+def add(entry:)
+  self.entries = (entries + [ entry ]).sort_by { |item| item.fetch("wait_until") }
+  arm_next
+end
+
+def deliver
+  now = Time.current.to_i
+  due, pending = entries.partition { |item| item.fetch("wait_until") <= now }
+  due.each { |item| emit :send_push, **item.symbolize_keys }
+  self.entries = pending
+  arm_next
+end
+
+private
+
+def arm_next
+  earliest = entries.first
+  return unless earliest
+
+  schedule :deliver, at: Time.at(earliest.fetch("wait_until")), arguments: {}
+end
+```
+
+`deliver` drains every due item rather than one, so a single alarm serves a
+whole queue and a missed or coalesced occurrence cannot strand an entry. Use a
+distinct reminder name only when you genuinely need two independent alarms on
+one actor, such as `:deliver` and `:sweep`.
+
+Solid Objects has no `unschedule`. A reminder stops when its handler does not
+re-arm it, and destroying an actor removes its reminders.
+
 Self-scheduling actors should also have a low-frequency application reconciler.
 It may read `SolidObjects::Instance.states_for`, `.without_pending_work`, and
 `.orphaned`, but every repair must go through `async`. Never bulk-update actor

@@ -13,6 +13,18 @@
   test's rows and failed depending on order. Reported as reminders leaking,
   which is where it surfaces first because reminders outlive the message that
   created them.
+- Document that a reminder is one named alarm per actor. `schedule` is keyed by
+  actor and reminder name, so scheduling a name that is already armed moves
+  that alarm rather than adding a second. The behaviour is deliberate and
+  matches Orleans and Durable Objects, but it was stated nowhere: an actor that
+  armed one reminder per queued item silently kept only the last, and the
+  earlier wake-ups never happened. The reminders guide now states the
+  uniqueness key and shows the one-alarm-many-items pattern to use instead.
+- Add `solid_objects.reminder.replaced`, reported when a `schedule` call moves
+  an alarm already armed under the same name to a different time. It carries
+  the actor identity, reminder name, previous run time, and next run time, and
+  no arguments. Rescheduling to the same time reports nothing. The replacement
+  was previously indistinguishable from a first schedule.
 
 ## 0.10.2 - 2026-08-10
 
