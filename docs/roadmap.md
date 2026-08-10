@@ -32,6 +32,8 @@
   graceful caller shutdown, committed state snapshots, and an opt-in Minitest
   helper
 - SQLite, PostgreSQL, and MySQL integration suites
+- Opt-in cross-process wake-up on PostgreSQL through `WakeUpAdapters.for`, with
+  a listening connection per waiting thread and release on supervisor shutdown
 - Inline RBS generation/validation, Steep, Standard Ruby, Solid Queue's exact
   RuboCop policy, and a warning-free Brakeman scan
 - A JavaScript suite covering the state payload and batched refresh browser
@@ -42,12 +44,16 @@
 
 - Supervisor: starts and drains thread roles, but does not replace a crashed
   role or run periodic maintenance automatically.
-- Wake-up strategy: in-process signaling plus durable polling and injection are
-  implemented; PostgreSQL `LISTEN/NOTIFY` and optional Redis adapters are not.
-  Signaling cannot cross process boundaries, so a commit in a web process does
-  not wake a broadcast executor in a worker process; that delivery waits up to
-  `polling_interval`, 100 ms by default. This is the largest remaining term in
-  reactive update latency, and neither batching nor state payloads reduce it.
+- Wake-up strategy: in-process signaling, durable polling, injection, and an
+  opt-in PostgreSQL notification adapter are implemented; a Redis adapter is
+  not. In-process signaling cannot cross process boundaries, so without the
+  adapter a commit in a web process does not wake a broadcast executor in a
+  worker process and that delivery waits up to `polling_interval`, 100 ms by
+  default. `WakeUpAdapters.for` removes that delay on PostgreSQL, measured at
+  103.7 ms to 2.9 ms at p50. It is opt-in rather than automatic: it opens a
+  connection per waiting thread outside the pool, and `LISTEN` does not survive
+  a transaction-pooling proxy such as PgBouncer. MySQL has no notification
+  primitive, so MySQL applications keep polling.
 - Realtime: scalar and dependency-driven keyed ERB component replacement or
   morphing, personalized refresh authorization, revision fencing, coalescing,
   reconnect convergence, batched refreshes, and personalized state payloads are
@@ -68,9 +74,9 @@
 ## Next milestones
 
 1. Add automatic supervisor role replacement and periodic dead-process cleanup.
-2. Add PostgreSQL notification and optional Redis wake-up adapters with latency
-   benchmarks and polling-race tests, removing the cross-process polling delay
-   rather than shrinking it with a smaller `polling_interval`.
+2. Add an optional Redis wake-up adapter, which is the remaining cross-process
+   option for MySQL. The PostgreSQL notification adapter, its latency
+   benchmark, and its concurrency tests are implemented.
 3. Add result lookup by request ID and broader deadlock retry classification.
 4. Add scheduled retention and stale-process maintenance.
 5. Add database/server-version checks and MySQL InnoDB verification at boot.
