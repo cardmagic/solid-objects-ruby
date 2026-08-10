@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Run compatibility CI across the span the gemspec advertises: Ruby 3.3 and 3.4
+  against Rails 8.0 and 8.1. The suite previously ran on one combination, so
+  `>= 8.0` was a claim rather than a tested guarantee. Set `RAILS_VERSION` to
+  pin a Rails line locally.
+- Stop a synchronous lock retry from asking for a negative wait when its
+  deadline expires between the check and the wait, which raised
+  `ArgumentError: time interval must not be negative` instead of the timeout
+  the caller expected. Found by the new compatibility matrix.
 - Add `SolidObjects::WakeUpAdapters::Postgresql`, an optional cross-process
   wake-up using PostgreSQL notifications. In-process signalling cannot reach a
   worker process, so reactive delivery waited out `polling_interval`. With the

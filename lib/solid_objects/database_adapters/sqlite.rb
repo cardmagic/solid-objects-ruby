@@ -160,13 +160,15 @@ module SolidObjects
         end
       end
 
+      # The deadline can expire between the check above and this wait, which
+      # would otherwise ask for a negative interval.
       # @rbs () -> void
       def wait_before_retry
+        interval = [ LOCK_RETRY_INTERVAL, SyncDeadline.remaining ].min
+        return unless interval.positive?
+
         LOCK_RETRY_MUTEX.synchronize do
-          LOCK_RETRY_CONDITION.wait(
-            LOCK_RETRY_MUTEX,
-            [ LOCK_RETRY_INTERVAL, SyncDeadline.remaining ].min
-          )
+          LOCK_RETRY_CONDITION.wait(LOCK_RETRY_MUTEX, interval)
         end
       end
     end

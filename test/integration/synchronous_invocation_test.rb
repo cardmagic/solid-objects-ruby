@@ -552,6 +552,15 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
       "a synchronous call should read the clock once per transaction, not once per step"
   end
 
+  test "a retry wait whose deadline already expired does not raise" do
+    skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
+    adapter = SolidObjects.database_adapter
+
+    SolidObjects::SyncDeadline.with(timeout: -1) do
+      assert_nothing_raised { adapter.send(:wait_before_retry) }
+    end
+  end
+
   test "sync discovers the configured SQLite busy wait it has to restore" do
     skip unless SolidObjects::Record.connection.adapter_name.match?(/sqlite/i)
 

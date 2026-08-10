@@ -26,6 +26,24 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version: [ "3.3", "3.4" ]
+        rails-version: [ "8.0", "8.1" ]
+    env:
+      RAILS_VERSION: ${{ matrix.rails-version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: false
+      - run: bundle lock --update && bundle install --jobs 4
+      - run: bundle exec rake test
+
   postgresql:
     runs-on: ubuntu-latest
     services:
@@ -97,6 +115,7 @@ jobs:
       - mysql
       - static
       - javascript
+      - compatibility
     runs-on: ubuntu-latest
     permissions:
       contents: write
