@@ -36,6 +36,9 @@
   a listening connection per waiting thread and release on supervisor shutdown
 - Inline RBS generation/validation, Steep, Standard Ruby, Solid Queue's exact
   RuboCop policy, and a warning-free Brakeman scan
+- Compatibility CI across the supported span: Ruby 3.3 and 3.4 against Rails 8.0
+  and 8.1, pinned through `RAILS_VERSION` so the advertised range is verified
+  rather than assumed
 - A JavaScript suite covering the state payload and batched refresh browser
   modules, run in CI with Node's test runner and jsdom, with every GitHub
   Actions reference pinned to a commit SHA
