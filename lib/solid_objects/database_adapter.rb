@@ -32,6 +32,40 @@ module SolidObjects
       @fixed_connection = connection_pool ? nil : connection
     end
 
+    # The oldest server the adapter has been exercised against. Reported rather
+    # than enforced: refusing to boot on an untested server would be a worse
+    # failure than running on one.
+    # @rbs () -> Gem::Version?
+    def minimum_server_version
+      nil
+    end
+
+    # @rbs () -> Gem::Version
+    def server_version
+      with_connection do |connection|
+        Gem::Version.new(connection.database_version.to_s)
+      end
+    end
+
+    # @rbs () -> Array[String]
+    def unsupported_server_reasons
+      reasons = []
+      minimum = minimum_server_version
+      if minimum && server_version < minimum
+        reasons << "#{self.class.name.demodulize} #{server_version} is older than " \
+          "Solid Objects requires, which is #{minimum}"
+      end
+      reasons.concat(additional_server_reasons)
+      reasons
+    rescue => error
+      [ "the database server could not be verified: #{error.class}: #{error.message}" ]
+    end
+
+    # @rbs () -> Array[String]
+    def additional_server_reasons
+      []
+    end
+
     # @rbs () -> bool
     def supports_skip_locked?
       false

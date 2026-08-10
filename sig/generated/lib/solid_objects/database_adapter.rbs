@@ -16,6 +16,21 @@ module SolidObjects
     # @rbs (untyped) -> void
     def initialize: (untyped) -> void
 
+    # The oldest server the adapter has been exercised against. Reported rather
+    # than enforced: refusing to boot on an untested server would be a worse
+    # failure than running on one.
+    # @rbs () -> Gem::Version?
+    def minimum_server_version: () -> Gem::Version?
+
+    # @rbs () -> Gem::Version
+    def server_version: () -> Gem::Version
+
+    # @rbs () -> Array[String]
+    def unsupported_server_reasons: () -> Array[String]
+
+    # @rbs () -> Array[String]
+    def additional_server_reasons: () -> Array[String]
+
     # @rbs () -> bool
     def supports_skip_locked?: () -> bool
 

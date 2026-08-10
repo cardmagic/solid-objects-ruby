@@ -24,6 +24,9 @@
 - Reconciliation read APIs
 - Installation doctor, authorization reference, fit guide, and legacy-state
   migration cookbook
+- Database server verification: each adapter reports its version against a
+  tested minimum, MySQL confirms Solid Objects tables use InnoDB, and the
+  doctor warns rather than refusing to run on an untested server
 - Handler Active Record write isolation, same-database commit actions, ambient
   transaction rejection, adapter lock/query deadlines, bounded SQLite lock
   retries outside those deadlines, structured sync timeout diagnostics, and
@@ -81,13 +84,12 @@
    benchmark, and its concurrency tests are implemented.
 2. Add result lookup by request ID and broader deadlock retry classification.
 3. Add scheduled retention and stale-process maintenance.
-4. Add database/server-version checks and MySQL InnoDB verification at boot.
-5. Add Turbo append intents and expand reconnect coverage in a full browser.
-6. Add distributed rate limits, global admission hooks, and cache-capacity
+4. Add Turbo append intents and expand reconnect coverage in a full browser.
+5. Add distributed rate limits, global admission hooks, and cache-capacity
    eviction.
-7. Expand security scanning. Compatibility CI across supported Rails and Ruby
+6. Expand security scanning. Compatibility CI across supported Rails and Ruby
    versions is implemented; Ruby 4.0 is not yet in the matrix.
-8. Benchmark all workloads under documented hardware/database settings and
+7. Benchmark all workloads under documented hardware/database settings and
    publish adapter-specific adoption measurements. Throughput, synchronous
    latency, query counts, and the three reactive delivery paths are measured on
    SQLite; adapter-specific and end-to-end browser measurements are not.

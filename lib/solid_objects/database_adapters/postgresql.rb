@@ -3,6 +3,21 @@
 module SolidObjects
   module DatabaseAdapters
     class Postgresql < DatabaseAdapter
+      # @rbs () -> Gem::Version?
+      def minimum_server_version
+        Gem::Version.new("13")
+      end
+
+      # PostgreSQL reports a packed integer, 170010 for 17.10, so comparing it
+      # directly would make every server look newer than any minimum.
+      # @rbs () -> Gem::Version
+      def server_version
+        packed = with_connection { |connection| connection.database_version.to_i }
+        return super unless packed.positive?
+
+        Gem::Version.new("#{packed / 10_000}.#{packed % 10_000}")
+      end
+
       # @rbs () -> bool
       def supports_skip_locked?
         true
