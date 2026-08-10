@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- Run payload broadcast blocks against the actor instance, like every other
+  block in the actor DSL. `self` was the actor class, so an actor instance
+  method called from a payload block raised
+  `NoMethodError: undefined method 'x' for class PlaymatRoom`. Blocks keep
+  receiving the actor and the authorization context as arguments, so the
+  documented signature is unaffected. A block that relied on the class receiver
+  now raises `InvalidPayloadBroadcast` naming the method and the change instead
+  of an unexplained `NameError`.
+- Add `payload_authorization_context`, the payload counterpart to
+  `component_authorization_context`. Payloads are computed inside the channel,
+  so without a resolver the payload block and its `authorize_query` call
+  received the raw Action Cable connection while a controller render passed an
+  application object, and the authorization hook had to tell them apart. The
+  resolver may also accept `payload_name:`. It defaults to returning the
+  connection unchanged.
+- Confine a failing payload to itself. A raising payload block propagated out of
+  the channel: on subscribe it rejected the subscription, and on a broadcast it
+  abandoned the remaining payload names, which showed up in the browser only as
+  reactive updates that stopped arriving. A failure is now reported as
+  `solid_objects.payload_broadcast_failed` with the actor type, actor id,
+  payload name, and exception class, and delivery continues. The exception
+  message is deliberately excluded so subscriber state cannot leak into logs.
+
 - Run retention on the supervisor rather than leaving it configured but
   unscheduled. Every actor call writes a durable message row, so a policy that
   nothing invokes let history grow without bound until an application scheduled

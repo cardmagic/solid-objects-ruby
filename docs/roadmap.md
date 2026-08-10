@@ -79,7 +79,11 @@
   though it costs one browser request. Reconnect convergence previously
   bypassed batching entirely, issuing one request per stale component at the
   moment a restart reconnects every client at once; it now shares the batching
-  the live invalidation path uses.
+  the live invalidation path uses. Payload delivery over Action Cable was
+  untested end to end, which is how a raising payload block came to reject the
+  subscription; it is now covered and confined, and the payload authorization
+  context is resolved through `payload_authorization_context` rather than
+  handing the block a raw Cable connection.
 - Backpressure: mailbox/payload/state/result caps and fair yields exist;
   distributed per-actor rate limits and global admission control do not.
 - Administration: actor and dead-letter views plus policy hooks exist; richer

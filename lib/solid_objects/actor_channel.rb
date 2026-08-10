@@ -78,17 +78,45 @@ module SolidObjects
       return if payload_names.nil? || payload_names.empty?
       return unless newer_payload_revision?(snapshot)
 
-      payload_names.each do |name|
-        payload = PayloadBroadcast.new(
-          snapshot:,
-          name:,
-          authorization_context: connection
-        ).call
-        transmit TurboStreamRenderer.state_payload(payload)
-      rescue Unauthorized
-        next
-      end
+      payload_names.each { |name| transmit_state_payload(snapshot, name) }
       @payload_revision = [ snapshot.instance_id, snapshot.revision ]
+    end
+
+    # A payload is one subscriber's view of one name. Letting it raise through
+    # here would reject the subscription or abandon the rest of a broadcast, so
+    # a failure is confined to the payload that caused it and reported. The
+    # exception message is deliberately not instrumented: a payload block reads
+    # actor state, so its message is the one place subscriber state could leak
+    # into logs.
+    # @rbs (ActorSnapshot, String) -> void
+    def transmit_state_payload(snapshot, name)
+      payload = PayloadBroadcast.new(
+        snapshot:,
+        name:,
+        authorization_context: payload_authorization_context(name)
+      ).call
+      transmit TurboStreamRenderer.state_payload(payload)
+    rescue Unauthorized
+      nil
+    rescue => error
+      SolidObjects.instrument(
+        :payload_broadcast_failed,
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id,
+        payload_name: name,
+        error_class: error.class.name
+      )
+    end
+
+    # Resolves the Cable connection to whatever the application uses as an
+    # authorization subject, so a payload block and `authorize_query` see the
+    # same object a controller render would pass.
+    # @rbs (String) -> untyped
+    def payload_authorization_context(name)
+      callable = SolidObjects.configuration.payload_authorization_context
+      return callable.call(connection:) unless CallableKeywords.accepts?(callable, :payload_name)
+
+      callable.call(connection:, payload_name: name)
     end
 
     # @rbs (ActorSnapshot) -> bool

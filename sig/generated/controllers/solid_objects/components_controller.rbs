@@ -27,14 +27,6 @@ module SolidObjects
     # @rbs (Array[ComponentRegistration]) -> untyped
     def component_authorization_context: (Array[ComponentRegistration]) -> untyped
 
-    # A lambda answers `parameters` directly; a callable object answers it
-    # through its `call` method.
-    # @rbs (untyped) -> bool
-    def accepts_registrations?: (untyped) -> bool
-
-    # @rbs (untyped) -> Array[[ Symbol, Symbol ]]
-    def callable_parameters: (untyped) -> Array[[ Symbol, Symbol ]]
-
     # @rbs (ComponentRegistration) -> Hash[Symbol, untyped]
     def registration_payload: (ComponentRegistration) -> Hash[Symbol, untyped]
 

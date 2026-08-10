@@ -138,26 +138,11 @@ module SolidObjects
     # @rbs (Array[ComponentRegistration]) -> untyped
     def component_authorization_context(registrations)
       callable = SolidObjects.configuration.component_authorization_context
-      return callable.call(controller: self) unless accepts_registrations?(callable)
+      unless CallableKeywords.accepts?(callable, :registrations)
+        return callable.call(controller: self)
+      end
 
       callable.call(controller: self, registrations:)
-    end
-
-    # A lambda answers `parameters` directly; a callable object answers it
-    # through its `call` method.
-    # @rbs (untyped) -> bool
-    def accepts_registrations?(callable)
-      callable_parameters(callable).any? do |type, name|
-        type == :keyrest || (%i[key keyreq].include?(type) && name == :registrations)
-      end
-    end
-
-    # @rbs (untyped) -> Array[[ Symbol, Symbol ]]
-    def callable_parameters(callable)
-      return callable.parameters if callable.respond_to?(:parameters)
-      return callable.method(:call).parameters if callable.respond_to?(:call)
-
-      []
     end
 
     # @rbs (ComponentRegistration) -> Hash[Symbol, untyped]
