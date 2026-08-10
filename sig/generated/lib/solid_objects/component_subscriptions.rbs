@@ -31,6 +31,11 @@ module SolidObjects
 
     attr_reader revisions: untyped
 
+    # Live invalidations and reconnect replays share this, so a reconnecting
+    # client pays the same number of requests a connected one does.
+    # @rbs (Array[ComponentRegistration], Integer, Integer) -> Array[String]
+    def refresh_streams: (Array[ComponentRegistration], Integer, Integer) -> Array[String]
+
     # @rbs (ComponentRegistration, Integer, Integer) -> void
     def record_revision: (ComponentRegistration, Integer, Integer) -> void
 

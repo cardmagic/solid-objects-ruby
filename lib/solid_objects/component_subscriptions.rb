@@ -52,26 +52,19 @@ module SolidObjects
         registration.dependencies.include?(observable_name) &&
           newer_revision?(registration.dom_id, instance_id, revision)
       end
-      batched, individual = changed.partition(&:batch)
-      streams = individual.map { |registration| refresh(registration, instance_id, revision) }
-      batched.group_by(&:batch).each_value do |group|
-        group.each { |registration| record_revision(registration, instance_id, revision) }
-        streams << TurboStreamRenderer.batch_refresh(group, instance_id, revision)
-      end
-      streams
+      refresh_streams(changed, instance_id, revision)
     end
 
     # @rbs (ActorSnapshot) -> Array[String]
     def reconnect_refreshes(snapshot)
-      registrations.filter_map do |registration|
-        next unless newer_revision?(
+      stale = registrations.select do |registration|
+        newer_revision?(
           registration.dom_id,
           snapshot.instance_id,
           snapshot.revision
         )
-
-        refresh(registration, snapshot.instance_id, snapshot.revision)
       end
+      refresh_streams(stale, snapshot.instance_id, snapshot.revision)
     end
 
     class << self
@@ -90,6 +83,21 @@ module SolidObjects
     private
 
     attr_reader :registrations, :revisions
+
+    # Live invalidations and reconnect replays share this, so a reconnecting
+    # client pays the same number of requests a connected one does.
+    # @rbs (Array[ComponentRegistration], Integer, Integer) -> Array[String]
+    def refresh_streams(changed, instance_id, revision)
+      batched, individual = changed.partition(&:batch)
+      streams = individual.map do |registration|
+        refresh(registration, instance_id, revision)
+      end
+      batched.group_by(&:batch).each_value do |group|
+        group.each { |registration| record_revision(registration, instance_id, revision) }
+        streams << TurboStreamRenderer.batch_refresh(group, instance_id, revision)
+      end
+      streams
+    end
 
     # @rbs (ComponentRegistration, Integer, Integer) -> void
     def record_revision(registration, instance_id, revision)

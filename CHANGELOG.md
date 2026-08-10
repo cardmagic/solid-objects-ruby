@@ -9,6 +9,16 @@
   Retention runs on its own thread, so a slow pass cannot delay replacing a
   crashed role, and a failed pass retries at monitor cadence with a doubling
   backoff rather than deferring for the whole interval.
+- Batch component refreshes on reconnect. A reconnecting subscription refreshed
+  every stale component individually, ignoring the batches those components
+  declared, so a page with twenty batched components issued twenty requests
+  instead of one. That happens at the worst moment: a server restart reconnects
+  every client at once. Reconnect now shares the batching the live invalidation
+  path uses.
+- Cover the reconnect burst in the browser suite: convergence of batched and
+  unbatched components, an inert replay of an already-applied revision,
+  cancellation of the request left in flight by the drop, incarnation ordering
+  after a destroy and recreate, and payload delivery exactly once per revision.
 - Add Ruby 4.0 to the compatibility matrix, which now covers Ruby 3.3, 3.4, and
   4.0 against Rails 8.0 and 8.1.
 
