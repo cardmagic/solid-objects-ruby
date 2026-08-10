@@ -55,6 +55,11 @@ require "solid_objects/effect_registry"
 require "solid_objects/commit_action_registry"
 require "solid_objects/lease"
 require "solid_objects/lease_renewer"
+# The reminder scheduler and the effect executor enqueue through the mailbox,
+# and both run in the standalone worker where nothing else has loaded it. It
+# was reachable only through the caller path, so requiring the gem was not
+# enough to run a role that uses it.
+require "solid_objects/mailbox"
 require "solid_objects/worker"
 require "solid_objects/effect_executor"
 require "solid_objects/reminder_scheduler"
