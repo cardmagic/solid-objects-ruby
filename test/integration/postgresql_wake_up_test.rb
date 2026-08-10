@@ -82,6 +82,27 @@ class PostgresqlWakeUpTest < ActiveSupport::TestCase
     assert_equal 2, connections.size.times.map { connections.pop }.uniq.length
   end
 
+  test "stopping the supervisor releases listener connections" do
+    SolidObjects.configuration.wake_up_adapter = @adapter
+    SolidObjects.instance_variable_set(:@wake_up, nil)
+    @adapter.listen
+    supervisor = SolidObjects::Supervisor.new(
+      worker_count: 0,
+      effect_worker_count: 0,
+      broadcast_worker_count: 0,
+      reminder_scheduler_count: 0
+    )
+    supervisor.start
+
+    supervisor.stop
+
+    refute @adapter.send(:connections).any?,
+      "supervisor shutdown must release connections opened outside the pool"
+  ensure
+    SolidObjects.configuration.wake_up_adapter = nil
+    SolidObjects.instance_variable_set(:@wake_up, nil)
+  end
+
   test "signalling never raises into the caller" do
     broken = SolidObjects::WakeUpAdapters::Postgresql.new(channel: "solid_objects_missing")
     broken.define_singleton_method(:notify_channel) { raise "boom" }
