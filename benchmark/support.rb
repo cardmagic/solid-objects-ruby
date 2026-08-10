@@ -291,8 +291,43 @@ module SolidObjectsBenchmark
 
     # @rbs () -> void
     def query_count
+      message_turn_query_count
+      synchronous_query_count
+    end
+
+    private
+
+    # @rbs () -> void
+    def message_turn_query_count
       CounterActor.ref("queries").async(:increment)
       worker = SolidObjects::Worker.new
+      processed = nil
+      queries = count_queries { processed = worker.run_once }
+      puts "database queries: #{queries} for #{processed} message"
+    ensure
+      worker&.stop
+    end
+
+    # A synchronous call also registers or heartbeats the caller process,
+    # claims the activation, and observes the result, so it costs more than the
+    # worker turn it contains. The first call is discarded because it pays for
+    # activation and caller registration that a steady-state call does not.
+    # @rbs () -> void
+    def synchronous_query_count
+      reference = CounterActor.ref("sync-queries")
+      worker = SolidObjects::Worker.new
+      runner = Thread.new { worker.run }
+      reference.sync(:increment)
+      queries = count_queries { reference.sync(:increment) }
+      puts "database queries: #{queries} for 1 synchronous call"
+    ensure
+      worker&.request_shutdown
+      runner&.join(5)
+      worker&.stop
+    end
+
+    # @rbs () { () -> untyped } -> Integer
+    def count_queries
       queries = 0
       subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |event|
         next if %w[SCHEMA TRANSACTION].include?(event.payload[:name])
@@ -300,14 +335,11 @@ module SolidObjectsBenchmark
 
         queries += 1
       end
-      processed = worker.run_once
-      puts "database queries: #{queries} for #{processed} message"
+      yield
+      queries
     ensure
       ActiveSupport::Notifications.unsubscribe(subscriber) if subscriber
-      worker&.stop
     end
-
-    private
 
     # @rbs (ComponentRegistration, untyped, ?snapshot: ActorSnapshot?) -> untyped
     def render_component(registration, view_context, snapshot: nil)

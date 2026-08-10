@@ -6,4 +6,15 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "solid_objects"
 require "solid_objects/cli"
 
-SolidObjects::CLI.start(ARGV)
+begin
+  SolidObjects::CLI.start(ARGV)
+rescue SolidObjects::Unauthorized => error
+  # Authorization denies by default, so this is what an unconfigured host sees
+  # from its first command. A policy decision is not a crash, and printing a
+  # backtrace for one buries the single line that says how to grant access.
+  warn "solid_objects: #{error.message}"
+  warn "Set configuration.authorize_administration in your Solid Objects " \
+    "initializer to allow this command. See the commented example in " \
+    "config/initializers/solid_objects.rb."
+  exit 1
+end

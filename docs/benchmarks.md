@@ -40,8 +40,20 @@ scenario used four worker threads.
 | Process, four workers | 556.5 messages/s |
 | Synchronous latency | p50 1.8 ms, p95 25.6 ms, p99 156.2 ms |
 | Activation reuse | 98.0%, four activations for 200 messages |
-| Queries for one message turn | 29 |
-| Queries for one synchronous call | 49 |
+
+Query counts are a property of the code rather than the host, so they are
+tracked separately. Re-measured 2026-08-10 against 0.10.0 on SQLite with
+`bundle exec ruby benchmark/query_count.rb`, which reports both and is
+deterministic across runs:
+
+| Scenario | Queries |
+| --- | ---: |
+| One message turn | 26 |
+| One synchronous call | 53 |
+
+Both numbers moved since they were first recorded, in opposite directions: a
+worker turn fell from 29 and a synchronous call rose from 49. The synchronous
+count had no script behind it until now, which is why it drifted unnoticed.
 
 A synchronous call costs far more queries than a worker turn because the caller
 also registers or heartbeats its caller process, claims the activation, and

@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 - 2026-08-10
+
+- Report a denied CLI command as a policy decision rather than a crash.
+  Administration denies by default, so an unconfigured host met a thirty-line
+  Ruby backtrace on its first `solid_objects` command. The executable now
+  prints the refusal and the setting that grants access, and exits 1.
+- Measure the query count for a synchronous call. `benchmark/query_count.rb`
+  only measured a worker turn, so the documented synchronous number had no
+  script behind it and had drifted: a message turn costs 26 queries rather than
+  the documented 29, and a synchronous call 53 rather than 49. Both are
+  deterministic and now reported by the same script.
 
 - Run payload broadcast blocks against the actor instance, like every other
   block in the actor DSL. `self` was the actor class, so an actor instance
@@ -27,7 +37,6 @@
   revision with a failed payload does not advance the delivery watermark, so a
   transient failure is retried on the next broadcast instead of being recorded
   as delivered and deduplicated away.
-
 - Run retention on the supervisor rather than leaving it configured but
   unscheduled. Every actor call writes a durable message row, so a policy that
   nothing invokes let history grow without bound until an application scheduled
