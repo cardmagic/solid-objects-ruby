@@ -1,0 +1,96 @@
+# Generated from lib/solid_objects/wake_up_adapters/redis.rb with RBS::Inline
+
+module SolidObjects
+  module WakeUpAdapters
+    # Wakes runtime roles across processes using Redis publish/subscribe.
+    #
+    # MySQL has no notification primitive, so this is the cross-process option
+    # for applications that cannot use PostgreSQL notifications. It is optional
+    # in every sense: the `redis` gem is not a dependency of this gem, and the
+    # polling interval remains the upper bound, so a missed or failed
+    # notification costs latency rather than correctness.
+    class Redis
+      CHANNEL: ::String
+
+      FAILED_WAIT_INTERVAL: ::Float
+
+      SUBSCRIBE_TIMEOUT: ::Float
+
+      @signalled: Integer
+
+      @subscription: untyped
+
+      @subscriber: Thread?
+
+      @condition: Thread::ConditionVariable
+
+      @mutex: Thread::Mutex
+
+      @client: untyped
+
+      @url: String?
+
+      @channel: String
+
+      attr_reader channel: untyped
+
+      # @rbs (?channel: String, ?url: String?, ?client: untyped) -> void
+      def initialize: (?channel: String, ?url: String?, ?client: untyped) -> void
+
+      # @rbs () -> bool
+      def signal: () -> bool
+
+      # The counter is snapshotted before subscribing, and re-checked before
+      # blocking, so a signal delivered while this caller was still getting
+      # ready is observed rather than absorbed into the new baseline.
+      # @rbs (timeout: Numeric) -> bool
+      def wait: (timeout: Numeric) -> bool
+
+      # Redis delivers to a subscribed connection only, and a subscribed
+      # connection cannot serve other callers, so one background subscription
+      # per process fans out to every waiting role in memory. Subscribing
+      # eagerly also closes the window where a signal sent during startup would
+      # be missed.
+      # @rbs () -> bool
+      def listen: () -> bool
+
+      # @rbs () -> bool
+      def stop: () -> bool
+
+      private
+
+      attr_reader mutex: untyped
+
+      attr_reader condition: untyped
+
+      attr_reader url: untyped
+
+      # @rbs (Queue) -> void
+      def subscribe_loop: (Queue) -> void
+
+      # @rbs () -> void
+      def broadcast: () -> void
+
+      # @rbs (Numeric) -> bool
+      def paced_failure: (Numeric) -> bool
+
+      # @rbs () -> untyped
+      def publisher: () -> untyped
+
+      # @rbs () -> untyped
+      def build_client: () -> untyped
+
+      # @rbs () -> void
+      def validate_client!: () -> void
+
+      # @rbs (untyped) -> void
+      def disconnect: (untyped) -> void
+
+      # @rbs (Numeric) -> void
+      def pace_after_failure: (Numeric) -> void
+
+      # @rbs (Symbol, Exception) -> void
+      def instrument_failure: (Symbol, Exception) -> void
+    end
+  end
+end
