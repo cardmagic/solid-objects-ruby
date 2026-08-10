@@ -393,6 +393,11 @@ ordered commits within one incarnation. Out-of-order invalidations at or below
 the last transmitted pair are ignored. The durable state row remains source of
 truth.
 
+Stale components that share a `batch:` are refreshed together, exactly as a
+live invalidation refreshes them, so reconnecting costs one request per batch
+rather than one per component. That matters most on a restart, when every
+client reconnects at once.
+
 The component endpoint rejects a requested revision newer than the committed
 snapshot. This is a final server-side guard; browser safety primarily comes
 from monotonic channel filtering plus replace-frame detachment or morph

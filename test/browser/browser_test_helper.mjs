@@ -64,7 +64,20 @@ export async function openPage(origin) {
   const browser = await chromium.launch()
   const context = await browser.newContext()
   const page = await context.newPage()
-  await page.goto(`${origin}/`)
-  await page.waitForFunction(() => Boolean(customElements.get("solid-objects-refresh")))
+  await loadPage(page, origin)
   return { browser, page }
+}
+
+// The browser modules keep applied revisions in module scope, so a test that
+// needs to start from a lower revision than the previous one left behind has to
+// reload rather than only reset the DOM.
+export async function loadPage(page, origin) {
+  await page.goto(`${origin}/`)
+  await page.waitForFunction(() =>
+    Boolean(
+      customElements.get("solid-objects-refresh") &&
+        customElements.get("solid-objects-batch-refresh") &&
+        customElements.get("solid-objects-payload")
+    )
+  )
 }

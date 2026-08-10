@@ -147,6 +147,67 @@ class ComponentBatchTest < ActiveSupport::TestCase
     end
   end
 
+  # A dropped connection is the worst moment for request amplification: a
+  # server restart reconnects every client at once. Reconnect must cost what a
+  # live invalidation costs.
+  test "a reconnect batches the components that share a batch" do
+    subscriptions = subscriptions_for(
+      player: "playmat",
+      controls: "playmat",
+      library: "playmat"
+    )
+
+    streams = subscriptions.reconnect_refreshes(advanced_snapshot)
+
+    assert_equal 1, streams.length,
+      "a reconnect should cost one request per batch, not one per component"
+    assert_includes streams.first, "solid-objects-batch-refresh"
+    assert_equal 3, streams.first[/data-targets="([^"]+)"/, 1].split.length
+  end
+
+  test "a reconnect keeps unbatched components on their own refresh" do
+    subscriptions = SolidObjects::ComponentSubscriptions.new(
+      registrations(player: "playmat", controls: "playmat", chat: nil)
+    )
+
+    streams = subscriptions.reconnect_refreshes(advanced_snapshot)
+
+    assert_equal 2, streams.length
+    assert_equal 1, streams.count { |stream|
+      stream.include?("solid-objects-batch-refresh")
+    }
+  end
+
+  test "a reconnect refreshes distinct batches separately" do
+    subscriptions = SolidObjects::ComponentSubscriptions.new(
+      registrations(player: "playmat", chat: "sidebar")
+    )
+
+    streams = subscriptions.reconnect_refreshes(advanced_snapshot)
+
+    batches = streams.map { |stream| stream[/data-batch="([^"]+)"/, 1] }
+    assert_equal %w[playmat sidebar], batches.sort
+  end
+
+  test "a reconnect records what it transmitted for every batched component" do
+    subscriptions = subscriptions_for(player: "playmat", controls: "playmat")
+    current = advanced_snapshot
+
+    subscriptions.reconnect_refreshes(current)
+    replayed = subscriptions.refreshes_for(
+      invalidation("player", revision: current.revision)
+    )
+
+    assert_empty replayed,
+      "an invalidation already covered by the reconnect must not refresh again"
+  end
+
+  test "a reconnect leaves current components alone" do
+    subscriptions = subscriptions_for(player: "playmat", controls: "playmat")
+
+    assert_empty subscriptions.reconnect_refreshes(snapshot)
+  end
+
   test "the batch url requests every changed component once" do
     group = registrations(player: "playmat", controls: "playmat")
 
@@ -183,6 +244,15 @@ class ComponentBatchTest < ActiveSupport::TestCase
         batch:
       )
     end
+  end
+
+  # Models a client whose registrations were signed before the state moved on,
+  # which is what a reconnect after a dropped connection looks like.
+  def advanced_snapshot
+    current = snapshot
+    Struct
+      .new(:instance_id, :revision)
+      .new(current.instance_id, current.revision + 1)
   end
 
   def subscriptions_for(**batches)

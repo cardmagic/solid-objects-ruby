@@ -52,7 +52,10 @@
 - A JavaScript suite covering every browser module, run in CI with Node's test
   runner and jsdom, plus a browser suite running the same modules against real
   Chromium and a real Turbo build, with every GitHub Actions reference pinned to
-  a commit SHA
+  a commit SHA. The browser suite covers the reconnect burst: convergence of
+  batched and unbatched components, an inert replay of an applied revision,
+  cancellation of the request left in flight by the drop, incarnation ordering
+  after a destroy and recreate, and payload delivery exactly once per revision
 
 ## Partially implemented
 
@@ -73,7 +76,10 @@
   implemented; application-directed Turbo append intents are not. Batch
   coalescing happens in the browser rather than the broadcast executor, so one
   commit still sends one Action Cable message per changed observable even
-  though it costs one browser request.
+  though it costs one browser request. Reconnect convergence previously
+  bypassed batching entirely, issuing one request per stale component at the
+  moment a restart reconnects every client at once; it now shares the batching
+  the live invalidation path uses.
 - Backpressure: mailbox/payload/state/result caps and fair yields exist;
   distributed per-actor rate limits and global admission control do not.
 - Administration: actor and dead-letter views plus policy hooks exist; richer
@@ -84,7 +90,7 @@
 ## Next milestones
 
 1. Add result lookup by request ID and broader deadlock retry classification.
-2. Add Turbo append intents and expand reconnect coverage in a full browser.
+2. Add Turbo append intents.
 3. Add distributed rate limits, global admission hooks, and cache-capacity
    eviction.
 4. Expand security scanning beyond the Brakeman scan, such as dependency
