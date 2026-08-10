@@ -38,6 +38,21 @@ class PayloadDeliveryTest < ActionCable::Channel::TestCase
       raise "payload exploded with secret-hand and secret-token"
     end
 
+    # Fails its first attempt only, modelling a transient error such as a lock
+    # timeout while reading state.
+    broadcast_payload :flaky_state do
+      self.class.attempts += 1
+      raise "transient" if self.class.attempts == 1
+
+      { "turn" => turn }
+    end
+
+    class << self
+      attr_writer :attempts
+
+      def attempts = @attempts ||= 0
+    end
+
     def hand_for(session_id) = hands.fetch(session_id, [])
 
     def deal(session_id:, cards:)
@@ -61,6 +76,7 @@ class PayloadDeliveryTest < ActionCable::Channel::TestCase
 
   setup do
     SolidObjects.reset!
+    RoomActor.attempts = 0
     RoomActor.ensure_registered!
     SolidObjects.configuration.stream_signing_secret = "payload-delivery-secret"
     SolidObjects.configuration.authorize_subscription = ->(**) { true }
@@ -223,6 +239,22 @@ class PayloadDeliveryTest < ActionCable::Channel::TestCase
     subscribe token: payload_token(reference, %w[spectator_state])
 
     assert_equal 2, delivered_payload("spectator_state").fetch("turn")
+  end
+
+  # A failed payload must not advance the delivery watermark, or the subscriber
+  # never sees that revision: dedup would skip every later attempt at it, and
+  # the actor may not mutate again for a long time.
+  test "a payload that failed is retried at the same revision" do
+    reference = deal_to("alice")
+    reference.advance_turn
+    stub_connection(session_id: "alice")
+    subscribe token: payload_token(reference, %w[flaky_state])
+    assert_nil delivered_payload("flaky_state"), "the first attempt should have failed"
+
+    receive_latest_broadcast
+
+    refute_nil delivered_payload("flaky_state"),
+      "a failed payload must be retried rather than marked delivered"
   end
 
   test "a payload is not re-delivered at the same revision" do

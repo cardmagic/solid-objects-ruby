@@ -23,7 +23,10 @@
   reactive updates that stopped arriving. A failure is now reported as
   `solid_objects.payload_broadcast_failed` with the actor type, actor id,
   payload name, and exception class, and delivery continues. The exception
-  message is deliberately excluded so subscriber state cannot leak into logs.
+  message is deliberately excluded so subscriber state cannot leak into logs. A
+  revision with a failed payload does not advance the delivery watermark, so a
+  transient failure is retried on the next broadcast instead of being recorded
+  as delivered and deduplicated away.
 
 - Run retention on the supervisor rather than leaving it configured but
   unscheduled. Every actor call writes a durable message row, so a policy that

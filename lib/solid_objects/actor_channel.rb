@@ -78,7 +78,13 @@ module SolidObjects
       return if payload_names.nil? || payload_names.empty?
       return unless newer_payload_revision?(snapshot)
 
-      payload_names.each { |name| transmit_state_payload(snapshot, name) }
+      # The watermark records what the subscriber has, so a revision with a
+      # failed payload must not advance it: dedup would skip every later
+      # attempt at that revision and the actor may not mutate again for a long
+      # time. Every name is still attempted before the decision is made.
+      attempts = payload_names.map { |name| transmit_state_payload(snapshot, name) }
+      return if attempts.any?(false)
+
       @payload_revision = [ snapshot.instance_id, snapshot.revision ]
     end
 
@@ -88,7 +94,11 @@ module SolidObjects
     # exception message is deliberately not instrumented: a payload block reads
     # actor state, so its message is the one place subscriber state could leak
     # into logs.
-    # @rbs (ActorSnapshot, String) -> void
+    #
+    # Returns whether this revision was settled for the name. An unauthorized
+    # payload is settled: the decision is stable, so retrying it would only
+    # re-deliver its authorized siblings.
+    # @rbs (ActorSnapshot, String) -> bool
     def transmit_state_payload(snapshot, name)
       payload = PayloadBroadcast.new(
         snapshot:,
@@ -96,8 +106,9 @@ module SolidObjects
         authorization_context: payload_authorization_context(name)
       ).call
       transmit TurboStreamRenderer.state_payload(payload)
+      true
     rescue Unauthorized
-      nil
+      true
     rescue => error
       SolidObjects.instrument(
         :payload_broadcast_failed,
@@ -106,6 +117,7 @@ module SolidObjects
         payload_name: name,
         error_class: error.class.name
       )
+      false
     end
 
     # Resolves the Cable connection to whatever the application uses as an

@@ -316,8 +316,13 @@ or stop component refreshes on the same connection. The failure is reported as
 `solid_objects.payload_broadcast_failed` carrying the actor type, actor id,
 payload name, and exception class. The exception message is deliberately not
 included: a payload block reads subscriber state, so its message is the one
-place that state could leak into logs. A payload the subscriber cannot query is
-skipped rather than served partially, and that skip is silent by design.
+place that state could leak into logs.
+
+A revision with a failed payload does not advance the delivery watermark, so a
+transient failure is retried on the next broadcast rather than being recorded as
+delivered. A payload the subscriber cannot query is skipped rather than served
+partially; that decision is stable, so it settles the revision and the skip is
+silent by design.
 
 ### mtg-playmat before and after
 

@@ -27,8 +27,12 @@ module SolidObjects
     # exception message is deliberately not instrumented: a payload block reads
     # actor state, so its message is the one place subscriber state could leak
     # into logs.
-    # @rbs (ActorSnapshot, String) -> void
-    def transmit_state_payload: (ActorSnapshot, String) -> void
+    #
+    # Returns whether this revision was settled for the name. An unauthorized
+    # payload is settled: the decision is stable, so retrying it would only
+    # re-deliver its authorized siblings.
+    # @rbs (ActorSnapshot, String) -> bool
+    def transmit_state_payload: (ActorSnapshot, String) -> bool
 
     # Resolves the Cable connection to whatever the application uses as an
     # authorization subject, so a payload block and `authorize_query` see the
