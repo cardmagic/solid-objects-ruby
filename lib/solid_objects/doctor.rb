@@ -111,6 +111,7 @@ module SolidObjects
         configuration_check,
         schema_check,
         check_authorization,
+        check_database_server,
         schema_check.failed? ? skipped_runtime : check_runtime,
         ready_for_round_trip?(configuration_check, schema_check) ?
           check_sync_round_trip :
@@ -189,6 +190,21 @@ module SolidObjects
       end
 
       pass(:authorization, "#{allowed.length} of 5 policies allowed a neutral context")
+    end
+
+    # @rbs () -> Check
+    def check_database_server
+      adapter = SolidObjects.database_adapter
+      observed = adapter.server_version
+      reasons = adapter.unsupported_server_reasons(observed)
+      return warn_check(:database_server, reasons.join("; ")) unless reasons.empty?
+
+      pass(
+        :database_server,
+        "#{adapter.class.name.demodulize} #{observed} meets the tested minimum"
+      )
+    rescue => error
+      warn_check(:database_server, "#{error.class}: #{error.message}")
     end
 
     # @rbs () -> Check

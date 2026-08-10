@@ -73,6 +73,9 @@ module SolidObjects
     def check_authorization: () -> Check
 
     # @rbs () -> Check
+    def check_database_server: () -> Check
+
+    # @rbs () -> Check
     def check_runtime: () -> Check
 
     # @rbs () -> Check

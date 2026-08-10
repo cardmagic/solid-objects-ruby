@@ -9,6 +9,17 @@ module SolidObjects
       # @rbs () -> String
       def claim_lock: () -> String
 
+      # A non-transactional engine would silently break fenced commits, so the
+      # storage engine is verified rather than assumed.
+      # @rbs () -> Array[String]
+      def additional_server_reasons: () -> Array[String]
+
+      # @rbs () -> Array[String]
+      def non_innodb_tables: () -> Array[String]
+
+      # @rbs () -> Gem::Version?
+      def minimum_server_version: () -> Gem::Version?
+
       # @rbs () -> String
       def current_time_expression: () -> String
 

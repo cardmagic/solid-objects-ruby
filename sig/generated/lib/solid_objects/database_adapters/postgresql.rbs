@@ -3,6 +3,14 @@
 module SolidObjects
   module DatabaseAdapters
     class Postgresql < DatabaseAdapter
+      # @rbs () -> Gem::Version?
+      def minimum_server_version: () -> Gem::Version?
+
+      # PostgreSQL reports a packed integer, 170010 for 17.10, so comparing it
+      # directly would make every server look newer than any minimum.
+      # @rbs () -> Gem::Version
+      def server_version: () -> Gem::Version
+
       # @rbs () -> bool
       def supports_skip_locked?: () -> bool
 

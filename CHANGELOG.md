@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Verify the database server. Each adapter reports its version against the
+  oldest one Solid Objects is exercised against, PostgreSQL 13, MySQL 8.0, and
+  SQLite 3.35, and MySQL additionally confirms that Solid Objects tables use
+  InnoDB, since a non-transactional engine would silently break fenced commits.
+  The doctor reports this as `database_server` and warns rather than failing:
+  refusing to run on an untested server would be a worse failure than running
+  on one.
+
 ## 0.8.0 - 2026-08-10
 
 - Replace a supervised role whose thread died. A role that raised left its

@@ -11,6 +11,9 @@ module SolidObjects
 
       LOCK_RETRY_CONDITION: untyped
 
+      # @rbs () -> Gem::Version?
+      def minimum_server_version: () -> Gem::Version?
+
       # @rbs () -> String
       def current_time_expression: () -> String
 

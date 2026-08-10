@@ -8,6 +8,11 @@ module SolidObjects
       LOCK_RETRY_MUTEX = Thread::Mutex.new
       LOCK_RETRY_CONDITION = Thread::ConditionVariable.new
 
+      # @rbs () -> Gem::Version?
+      def minimum_server_version
+        Gem::Version.new("3.35")
+      end
+
       # @rbs () -> String
       def current_time_expression
         "STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')"

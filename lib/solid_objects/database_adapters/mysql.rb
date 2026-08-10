@@ -13,6 +13,34 @@ module SolidObjects
         "FOR UPDATE SKIP LOCKED"
       end
 
+      # A non-transactional engine would silently break fenced commits, so the
+      # storage engine is verified rather than assumed.
+      # @rbs () -> Array[String]
+      def additional_server_reasons
+        tables = non_innodb_tables
+        return [] if tables.empty?
+
+        [ "these Solid Objects tables do not use InnoDB, so their commits are " \
+          "not transactional: #{tables.join(", ")}" ]
+      end
+
+      # @rbs () -> Array[String]
+      def non_innodb_tables
+        names = SolidObjects::Doctor::EXPECTED_COLUMNS.keys.map { |name| SolidObjects.table_name(name) }
+        with_connection do |connection|
+          connection.select_rows(<<~SQL.squish).filter_map { |table, engine| table if engine != "InnoDB" }
+            SELECT table_name, engine FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+              AND table_name IN (#{names.map { |name| connection.quote(name) }.join(", ")})
+          SQL
+        end
+      end
+
+      # @rbs () -> Gem::Version?
+      def minimum_server_version
+        Gem::Version.new("8.0")
+      end
+
       # @rbs () -> String
       def current_time_expression
         "CURRENT_TIMESTAMP(6)"
