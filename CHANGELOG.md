@@ -8,9 +8,12 @@
   prints the refusal and the setting that grants access, and exits 1.
 - Measure the query count for a synchronous call. `benchmark/query_count.rb`
   only measured a worker turn, so the documented synchronous number had no
-  script behind it and had drifted: a message turn costs 26 queries rather than
-  the documented 29, and a synchronous call 53 rather than 49. Both are
-  deterministic and now reported by the same script.
+  script behind it. It reports three now: a message turn costs 26 queries
+  rather than the documented 29, the caller of a synchronous call costs 49, and
+  a synchronous call in total costs 75, being a caller plus the turn it waits
+  on. Counting is scoped to the measuring thread, since a worker loop polls
+  whether or not a call is in flight and a process-wide count folds those polls
+  into the result.
 
 - Run payload broadcast blocks against the actor instance, like every other
   block in the actor DSL. `self` was the actor class, so an actor instance

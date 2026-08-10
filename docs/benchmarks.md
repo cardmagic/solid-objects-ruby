@@ -43,17 +43,22 @@ scenario used four worker threads.
 
 Query counts are a property of the code rather than the host, so they are
 tracked separately. Re-measured 2026-08-10 against 0.10.0 on SQLite with
-`bundle exec ruby benchmark/query_count.rb`, which reports both and is
-deterministic across runs:
+`bundle exec ruby benchmark/query_count.rb`, which is deterministic across runs:
 
 | Scenario | Queries |
 | --- | ---: |
 | One message turn | 26 |
-| One synchronous call | 53 |
+| The caller of one synchronous call | 49 |
+| One synchronous call, caller plus the turn it waits on | 75 |
 
-Both numbers moved since they were first recorded, in opposite directions: a
-worker turn fell from 29 and a synchronous call rose from 49. The synchronous
-count had no script behind it until now, which is why it drifted unnoticed.
+A worker turn fell from the 29 recorded earlier. The caller count is unchanged
+at 49, and the combined figure is new: a synchronous call is a caller and a
+worker turn, and only the sum says what the database actually serves.
+
+Counting is scoped to the measuring thread. A worker loop polls whether or not
+a call is in flight, so a process-wide count folds however many polls happened
+to land inside the window into the result. That is also why the caller and the
+turn are measured separately rather than by watching both threads at once.
 
 A synchronous call costs far more queries than a worker turn because the caller
 also registers or heartbeats its caller process, claims the activation, and

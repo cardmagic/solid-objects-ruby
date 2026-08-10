@@ -291,45 +291,55 @@ module SolidObjectsBenchmark
 
     # @rbs () -> void
     def query_count
-      message_turn_query_count
-      synchronous_query_count
+      turn = message_turn_query_count
+      caller_queries = synchronous_caller_query_count
+      puts "database queries: #{turn} for 1 message turn"
+      puts "database queries: #{caller_queries} for the caller of 1 synchronous call"
+      puts "database queries: #{caller_queries + turn} for 1 synchronous call, caller plus the turn it waits on"
     end
 
     private
 
-    # @rbs () -> void
+    # Runs the turn on the measuring thread, so nothing else can contribute.
+    # @rbs () -> Integer
     def message_turn_query_count
       CounterActor.ref("queries").async(:increment)
       worker = SolidObjects::Worker.new
-      processed = nil
-      queries = count_queries { processed = worker.run_once }
-      puts "database queries: #{queries} for #{processed} message"
+      count_queries { worker.run_once }
     ensure
       worker&.stop
     end
 
     # A synchronous call also registers or heartbeats the caller process,
-    # claims the activation, and observes the result, so it costs more than the
-    # worker turn it contains. The first call is discarded because it pays for
-    # activation and caller registration that a steady-state call does not.
-    # @rbs () -> void
-    def synchronous_query_count
+    # claims the activation, and observes the result, so the caller costs more
+    # than the turn it waits on. Only the caller thread is counted; the worker
+    # runs on its own thread and its turn is measured separately, because a
+    # worker loop also polls and those polls belong to no particular call. The
+    # first call is discarded because it pays for activation and caller
+    # registration that a steady-state call does not.
+    # @rbs () -> Integer
+    def synchronous_caller_query_count
       reference = CounterActor.ref("sync-queries")
       worker = SolidObjects::Worker.new
       runner = Thread.new { worker.run }
       reference.sync(:increment)
-      queries = count_queries { reference.sync(:increment) }
-      puts "database queries: #{queries} for 1 synchronous call"
+      count_queries { reference.sync(:increment) }
     ensure
       worker&.request_shutdown
       runner&.join(5)
       worker&.stop
     end
 
+    # Subscriptions are process-wide and notifications run on the thread that
+    # issued the query, so counting is scoped to the measuring thread. Without
+    # that, a worker polling in the background inflates the count by however
+    # many times it happened to poll during the window.
     # @rbs () { () -> untyped } -> Integer
     def count_queries
+      measuring = Thread.current
       queries = 0
       subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |event|
+        next unless Thread.current.equal?(measuring)
         next if %w[SCHEMA TRANSACTION].include?(event.payload[:name])
         next if event.payload[:cached]
 
