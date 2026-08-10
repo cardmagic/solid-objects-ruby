@@ -10,9 +10,6 @@
   deadline expires between the check and the wait, which raised
   `ArgumentError: time interval must not be negative` instead of the timeout
   the caller expected. Found by the new compatibility matrix.
-
-## Unreleased
-
 - Add `SolidObjects::WakeUpAdapters::Postgresql`, an optional cross-process
   wake-up using PostgreSQL notifications. In-process signalling cannot reach a
   worker process, so reactive delivery waited out `polling_interval`. With the
