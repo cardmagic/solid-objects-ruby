@@ -46,7 +46,8 @@
   RuboCop policy, and a warning-free Brakeman scan
 - Compatibility CI across the supported span: Ruby 3.3 and 3.4 against Rails 8.0
   and 8.1, pinned through `RAILS_VERSION` so the advertised range is verified
-  rather than assumed
+  rather than assumed. Ruby 4.0 is not in the matrix, and the gemspec does not
+  advertise it
 - A JavaScript suite covering every browser module, run in CI with Node's test
   runner and jsdom, plus a browser suite running the same modules against real
   Chromium and a real Turbo build, with every GitHub Actions reference pinned to
@@ -86,8 +87,8 @@
 3. Add Turbo append intents and expand reconnect coverage in a full browser.
 4. Add distributed rate limits, global admission hooks, and cache-capacity
    eviction.
-5. Expand security scanning. Compatibility CI across supported Rails and Ruby
-   versions is implemented; Ruby 4.0 is not yet in the matrix.
+5. Expand security scanning beyond the Brakeman scan, such as dependency
+   auditing and secret scanning.
 6. Benchmark all workloads under documented hardware/database settings and
    publish adapter-specific adoption measurements. Throughput, synchronous
    latency, query counts, and the three reactive delivery paths are measured on
