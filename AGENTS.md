@@ -24,6 +24,10 @@ Every owned Ruby file must enable inline RBS with `# rbs_inline: enabled`; annot
 
 Write Minitest files as `test/**/*_test.rb`. Start behavioral changes with a focused failing test. Exercise locking, leases, fencing, and claiming against real database adapters. Synchronize races with queues, barriers, or condition variables instead of arbitrary sleeps. Host-app actor tests should include `SolidObjects::TestHelper` rather than rely on transactional tests.
 
+Watch the test fail before making it pass, and quote the observed failure in the pull request. A test that has never failed has not been shown to test anything, and the ways it can pass while proving nothing are not exotic: a regression test written after the fix, a double that lacks the `ensure` its real collaborator runs, a mock that ignores the signal under test, or a second guard that covers for the one being removed. When a change fixes a defect, revert the fix and confirm the test fails for the expected reason rather than some other one.
+
+Run code in the process and environment it actually runs in. A runtime role gets only what `require "solid_objects"` defines, so verify it through `solid_objects start` rather than in a test process that has already loaded the constant it needs; `test/integration/load_contract_test.rb` enforces that boundary and is the place to record a deliberate exception. Browser modules go through a real browser as well as jsdom. Adapter behavior goes through the real database and every supported client, and because a skipped test looks exactly like a passing one in the summary line, check the skip count when a change touches an adapter.
+
 ## Commit & Pull Request Guidelines
 
 Use concise imperative subjects, preferably under 50 characters; use prefixes such as `fix:`, `ci:`, or `chore:`. Pull requests should explain API, correctness, security, migration, and compatibility effects; list exact validation commands; link issues; and include screenshots for UI or reactive ERB changes. Never bypass hooks or add AI attribution.
