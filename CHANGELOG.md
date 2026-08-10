@@ -1,7 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 - 2026-08-10
 
+- Replace a supervised role whose thread died. A role that raised left its
+  thread dead while the process kept running and quietly did less work; the
+  supervisor now restarts it until shutdown is requested. Prune dead process
+  records on an interval as part of the same monitor. Both intervals are
+  configurable through `supervisor_monitor_interval` and
+  `dead_process_cleanup_interval`.
 - Run compatibility CI across the span the gemspec advertises: Ruby 3.3 and 3.4
   against Rails 8.0 and 8.1. The suite previously ran on one combination, so
   `>= 8.0` was a claim rather than a tested guarantee. Set `RAILS_VERSION` to

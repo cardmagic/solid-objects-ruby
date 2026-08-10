@@ -4,7 +4,10 @@ module SolidObjects
   class Supervisor
     # @rbs @components: Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
     # @rbs @threads: Array[Thread]
+    # @rbs @monitor: Thread?
     # @rbs @started: bool
+    # @rbs @cleaned_up_at: Float
+    # @rbs @lifecycle: Thread::Mutex
 
     # @rbs (?worker_count: Integer, ?effect_worker_count: Integer, ?broadcast_worker_count: Integer, ?reminder_scheduler_count: Integer) -> void
     def initialize(
@@ -20,7 +23,10 @@ module SolidObjects
         reminder_scheduler_count:
       )
       @threads = []
+      @monitor = nil
       @started = false
+      @cleaned_up_at = nil
+      @lifecycle = Thread::Mutex.new
     end
 
     # @rbs () -> void
@@ -36,7 +42,8 @@ module SolidObjects
       return if @started
 
       @started = true
-      @threads = components.map { |component| Thread.new { component.run } }
+      @threads = components.map { |component| supervise(component) }
+      @monitor = Thread.new { monitor_loop }
       SolidObjects.instrument(:"supervisor.started", component_count: components.length)
     end
 
@@ -45,6 +52,11 @@ module SolidObjects
       return unless @started
 
       begin
+        # Flipping the flag under the same lock replacement takes means a
+        # replacement either completes before shutdown reads the component
+        # list, or never starts.
+        @lifecycle.synchronize { @started = false }
+        stop_monitor
         components.each(&:request_shutdown)
         join_until_timeout
         components.reject(&:stopped?).each(&:stop)
@@ -52,7 +64,7 @@ module SolidObjects
         # Connections held outside the pool must be released even when a
         # component fails to stop, or they accumulate across restarts.
         release_wake_up
-        @started = false
+        @monitor = nil
         SolidObjects.instrument(:"supervisor.stopped", component_count: components.length)
       end
     end
@@ -60,6 +72,95 @@ module SolidObjects
     private
 
     attr_reader :components, :threads
+
+    # A role that raises leaves its thread dead. Without replacement the
+    # process keeps running while quietly doing less work, so the supervisor
+    # watches its threads and restarts any that stopped before shutdown.
+    # A failing pass must not stop supervision, and must not retry without
+    # pacing either: a persistently failing database would otherwise spin.
+    # @rbs () -> void
+    def monitor_loop
+      while @started
+        begin
+          replace_dead_roles
+          cleanup_dead_processes
+        rescue => error
+          SolidObjects.instrument(
+            :"supervisor.monitor_failed",
+            error_class: error.class.name,
+            error_message: error.message
+          )
+        end
+        sleep SolidObjects.configuration.supervisor_monitor_interval
+      end
+    end
+
+    # A role that raises runs its own shutdown cleanup on the way out, so a
+    # crashed component reports itself stopped exactly like one that was asked
+    # to stop. While the supervisor is still running, a dead thread can only
+    # mean a crash, so replacement keys on the supervisor rather than on the
+    # component. The crashed instance has already released its process record,
+    # so a fresh one takes its place.
+    # @rbs () -> void
+    def replace_dead_roles
+      components.each_with_index do |component, index|
+        thread = threads[index]
+        next if thread&.alive?
+
+        replaced = @lifecycle.synchronize do
+          next false unless @started
+
+          replacement = component.class.new
+          components[index] = replacement
+          threads[index] = supervise(replacement)
+          replacement
+        end
+        break unless replaced
+
+        SolidObjects.instrument(
+          :"supervisor.role_replaced",
+          role: replaced.class.name,
+          error_class: thread_error(thread)
+        )
+      end
+    end
+
+    # @rbs (Thread?) -> String?
+    def thread_error(thread)
+      thread&.join
+      nil
+    rescue => error
+      error.class.name
+    end
+
+    # @rbs () -> void
+    def cleanup_dead_processes
+      interval = SolidObjects.configuration.dead_process_cleanup_interval
+      return unless interval.positive?
+      return if @cleaned_up_at && monotonic_now - @cleaned_up_at < interval
+
+      @cleaned_up_at = monotonic_now
+      ProcessRegistry.cleanup_dead
+    end
+
+    # @rbs (untyped) -> Thread
+    def supervise(component)
+      Thread.new { component.run }
+    end
+
+    # The monitor only performs maintenance, so shutdown must never return while
+    # it is still alive: a pass blocked on the database would otherwise outlive
+    # the supervisor that owns it.
+    # @rbs () -> void
+    def stop_monitor
+      monitor = @monitor
+      @monitor = nil
+      return unless monitor
+
+      monitor.join(SolidObjects.configuration.shutdown_timeout)
+      monitor.kill if monitor.alive?
+      monitor.join(SolidObjects.configuration.supervisor_monitor_interval)
+    end
 
     # A wake-up adapter may hold connections outside the pool, which would
     # otherwise accumulate across restarts in one process.

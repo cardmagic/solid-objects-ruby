@@ -2,9 +2,11 @@
 
 module SolidObjects
   class Configuration
-    @process_alive_threshold: Float
-
     @shutdown_timeout: Float
+
+    @supervisor_monitor_interval: Float
+
+    @dead_process_cleanup_interval: Float
 
     @message_retention: Numeric
 
@@ -82,6 +84,8 @@ module SolidObjects
 
     @process_heartbeat_interval: Float
 
+    @process_alive_threshold: Float
+
     attr_accessor table_name_prefix: untyped
 
     attr_accessor polling_interval: untyped
@@ -119,6 +123,10 @@ module SolidObjects
     attr_accessor process_alive_threshold: untyped
 
     attr_accessor shutdown_timeout: untyped
+
+    attr_accessor supervisor_monitor_interval: untyped
+
+    attr_accessor dead_process_cleanup_interval: untyped
 
     attr_accessor message_retention: untyped
 

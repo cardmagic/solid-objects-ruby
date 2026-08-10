@@ -2,11 +2,17 @@
 
 module SolidObjects
   class Supervisor
-    @components: Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
+    @lifecycle: Thread::Mutex
+
+    @cleaned_up_at: Float
+
+    @started: bool
+
+    @monitor: Thread?
 
     @threads: Array[Thread]
 
-    @started: bool
+    @components: Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
 
     # @rbs (?worker_count: Integer, ?effect_worker_count: Integer, ?broadcast_worker_count: Integer, ?reminder_scheduler_count: Integer) -> void
     def initialize: (?worker_count: Integer, ?effect_worker_count: Integer, ?broadcast_worker_count: Integer, ?reminder_scheduler_count: Integer) -> void
@@ -25,6 +31,38 @@ module SolidObjects
     attr_reader components: untyped
 
     attr_reader threads: untyped
+
+    # A role that raises leaves its thread dead. Without replacement the
+    # process keeps running while quietly doing less work, so the supervisor
+    # watches its threads and restarts any that stopped before shutdown.
+    # A failing pass must not stop supervision, and must not retry without
+    # pacing either: a persistently failing database would otherwise spin.
+    # @rbs () -> void
+    def monitor_loop: () -> void
+
+    # A role that raises runs its own shutdown cleanup on the way out, so a
+    # crashed component reports itself stopped exactly like one that was asked
+    # to stop. While the supervisor is still running, a dead thread can only
+    # mean a crash, so replacement keys on the supervisor rather than on the
+    # component. The crashed instance has already released its process record,
+    # so a fresh one takes its place.
+    # @rbs () -> void
+    def replace_dead_roles: () -> void
+
+    # @rbs (Thread?) -> String?
+    def thread_error: (Thread?) -> String?
+
+    # @rbs () -> void
+    def cleanup_dead_processes: () -> void
+
+    # @rbs (untyped) -> Thread
+    def supervise: (untyped) -> Thread
+
+    # The monitor only performs maintenance, so shutdown must never return while
+    # it is still alive: a pass blocked on the database would otherwise outlive
+    # the supervisor that owns it.
+    # @rbs () -> void
+    def stop_monitor: () -> void
 
     # A wake-up adapter may hold connections outside the pool, which would
     # otherwise accumulate across restarts in one process.
