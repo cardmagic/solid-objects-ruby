@@ -44,10 +44,9 @@
   gem's dependencies
 - Inline RBS generation/validation, Steep, Standard Ruby, Solid Queue's exact
   RuboCop policy, and a warning-free Brakeman scan
-- Compatibility CI across the supported span: Ruby 3.3 and 3.4 against Rails 8.0
-  and 8.1, pinned through `RAILS_VERSION` so the advertised range is verified
-  rather than assumed. Ruby 4.0 is not in the matrix, and the gemspec does not
-  advertise it
+- Compatibility CI across the supported span: Ruby 3.3, 3.4, and 4.0 against
+  Rails 8.0 and 8.1, pinned through `RAILS_VERSION` so the advertised range is
+  verified rather than assumed
 - A JavaScript suite covering every browser module, run in CI with Node's test
   runner and jsdom, plus a browser suite running the same modules against real
   Chromium and a real Turbo build, with every GitHub Actions reference pinned to
