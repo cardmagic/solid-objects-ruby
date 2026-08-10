@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 - 2026-08-10
 
 - Replace a supervised role whose thread died. A role that raised left its
   thread dead while the process kept running and quietly did less work; the
