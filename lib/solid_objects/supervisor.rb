@@ -2,11 +2,14 @@
 
 module SolidObjects
   class Supervisor
+    MAXIMUM_RETENTION_BACKOFF_DOUBLINGS = 16
+
     # @rbs @components: Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
     # @rbs @threads: Array[Thread]
     # @rbs @monitor: Thread?
     # @rbs @started: bool
     # @rbs @cleaned_up_at: Float
+    # @rbs @retention: Thread?
     # @rbs @lifecycle: Thread::Mutex
 
     # @rbs (?worker_count: Integer, ?effect_worker_count: Integer, ?broadcast_worker_count: Integer, ?reminder_scheduler_count: Integer) -> void
@@ -26,6 +29,7 @@ module SolidObjects
       @monitor = nil
       @started = false
       @cleaned_up_at = nil
+      @retention = nil
       @lifecycle = Thread::Mutex.new
     end
 
@@ -44,6 +48,7 @@ module SolidObjects
       @started = true
       @threads = components.map { |component| supervise(component) }
       @monitor = Thread.new { monitor_loop }
+      @retention = Thread.new { retention_loop }
       SolidObjects.instrument(:"supervisor.started", component_count: components.length)
     end
 
@@ -57,6 +62,7 @@ module SolidObjects
         # list, or never starts.
         @lifecycle.synchronize { @started = false }
         stop_monitor
+        stop_retention
         components.each(&:request_shutdown)
         join_until_timeout
         components.reject(&:stopped?).each(&:stop)
@@ -131,6 +137,76 @@ module SolidObjects
       nil
     rescue => error
       error.class.name
+    end
+
+    # Retention gets its own thread rather than sharing the monitor's. A large
+    # backlog or a lock wait can make a pass slow, and role replacement must not
+    # wait behind housekeeping.
+    # @rbs () -> void
+    def retention_loop
+      failures = 0
+      while @started
+        begin
+          prune_expired_records
+          failures = 0
+        rescue => error
+          failures += 1
+          SolidObjects.instrument(
+            :"supervisor.retention_failed",
+            error_class: error.class.name,
+            error_message: error.message
+          )
+        end
+        wait_for_next_retention(failures)
+      end
+    end
+
+    # Sleeping the whole interval would make shutdown wait out an hour-long
+    # nap, so the pause is taken in short steps that notice a stop request.
+    # @rbs (Integer) -> void
+    def wait_for_next_retention(failures)
+      deadline = monotonic_now + retention_pause(failures)
+      step = SolidObjects.configuration.supervisor_monitor_interval
+      while @started && monotonic_now < deadline
+        sleep [ step, deadline - monotonic_now ].min
+      end
+    end
+
+    # Every actor call writes a durable message row, so retention that is only
+    # configured and never run leaves those rows to grow without bound. The
+    # supervisor runs it rather than requiring every application to schedule
+    # its own job.
+    # @rbs () -> void
+    def prune_expired_records
+      return unless SolidObjects.configuration.retention_interval.positive?
+
+      MessagePruner.new.prune
+      ProcessPruner.new.prune
+    end
+
+    # A transient lock or connection error must not defer retention for the
+    # whole interval, so a failed pass retries at monitor cadence. The pause
+    # then doubles per consecutive failure, capped by the interval, so a
+    # database that stays down is not polled once a second forever.
+    # @rbs (Integer) -> Float
+    def retention_pause(failures)
+      interval = SolidObjects.configuration.retention_interval
+      interval = SolidObjects.configuration.supervisor_monitor_interval unless interval.positive?
+      return interval if failures.zero?
+
+      backoff = SolidObjects.configuration.supervisor_monitor_interval *
+        (2**[ failures - 1, MAXIMUM_RETENTION_BACKOFF_DOUBLINGS ].min)
+      [ backoff, interval ].min
+    end
+
+    # @rbs () -> void
+    def stop_retention
+      retention = @retention
+      @retention = nil
+      return unless retention
+
+      retention.join(SolidObjects.configuration.shutdown_timeout)
+      retention.kill if retention.alive?
     end
 
     # @rbs () -> void

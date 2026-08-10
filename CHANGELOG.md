@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Run retention on the supervisor rather than leaving it configured but
+  unscheduled. Every actor call writes a durable message row, so a policy that
+  nothing invokes let history grow without bound until an application scheduled
+  its own job. `retention_interval` defaults to one hour, and zero disables it.
+  Retention runs on its own thread, so a slow pass cannot delay replacing a
+  crashed role, and a failed pass retries at monitor cadence with a doubling
+  backoff rather than deferring for the whole interval.
 - Add Ruby 4.0 to the compatibility matrix, which now covers Ruby 3.3, 3.4, and
   4.0 against Rails 8.0 and 8.1.
 

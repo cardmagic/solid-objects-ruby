@@ -2,9 +2,11 @@
 
 module SolidObjects
   class Configuration
-    @shutdown_timeout: Float
+    @table_name_prefix: String
 
     @supervisor_monitor_interval: Float
+
+    @retention_interval: Float
 
     @dead_process_cleanup_interval: Float
 
@@ -50,8 +52,6 @@ module SolidObjects
 
     @authorize_administration: Proc
 
-    @table_name_prefix: String
-
     @polling_interval: Float
 
     @sync_polling_interval: Float
@@ -85,6 +85,8 @@ module SolidObjects
     @process_heartbeat_interval: Float
 
     @process_alive_threshold: Float
+
+    @shutdown_timeout: Float
 
     attr_accessor table_name_prefix: untyped
 
@@ -125,6 +127,8 @@ module SolidObjects
     attr_accessor shutdown_timeout: untyped
 
     attr_accessor supervisor_monitor_interval: untyped
+
+    attr_accessor retention_interval: untyped
 
     attr_accessor dead_process_cleanup_interval: untyped
 

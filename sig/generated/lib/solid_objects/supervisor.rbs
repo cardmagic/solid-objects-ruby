@@ -2,7 +2,11 @@
 
 module SolidObjects
   class Supervisor
+    MAXIMUM_RETENTION_BACKOFF_DOUBLINGS: ::Integer
+
     @lifecycle: Thread::Mutex
+
+    @retention: Thread?
 
     @cleaned_up_at: Float
 
@@ -51,6 +55,34 @@ module SolidObjects
 
     # @rbs (Thread?) -> String?
     def thread_error: (Thread?) -> String?
+
+    # Retention gets its own thread rather than sharing the monitor's. A large
+    # backlog or a lock wait can make a pass slow, and role replacement must not
+    # wait behind housekeeping.
+    # @rbs () -> void
+    def retention_loop: () -> void
+
+    # Sleeping the whole interval would make shutdown wait out an hour-long
+    # nap, so the pause is taken in short steps that notice a stop request.
+    # @rbs (Integer) -> void
+    def wait_for_next_retention: (Integer) -> void
+
+    # Every actor call writes a durable message row, so retention that is only
+    # configured and never run leaves those rows to grow without bound. The
+    # supervisor runs it rather than requiring every application to schedule
+    # its own job.
+    # @rbs () -> void
+    def prune_expired_records: () -> void
+
+    # A transient lock or connection error must not defer retention for the
+    # whole interval, so a failed pass retries at monitor cadence. The pause
+    # then doubles per consecutive failure, capped by the interval, so a
+    # database that stays down is not polled once a second forever.
+    # @rbs (Integer) -> Float
+    def retention_pause: (Integer) -> Float
+
+    # @rbs () -> void
+    def stop_retention: () -> void
 
     # @rbs () -> void
     def cleanup_dead_processes: () -> void

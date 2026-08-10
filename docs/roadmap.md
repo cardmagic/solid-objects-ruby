@@ -35,7 +35,9 @@
   graceful caller shutdown, committed state snapshots, and an opt-in Minitest
   helper
 - Supervisor role replacement: a role whose thread dies is restarted until
-  shutdown is requested, and dead process records are pruned on an interval
+  shutdown is requested, and dead process records plus expired message and
+  process history are pruned on their own intervals without an application
+  scheduling its own job
 - SQLite, PostgreSQL, and MySQL integration suites
 - Opt-in cross-process wake-up on PostgreSQL through `WakeUpAdapters.for`, with
   a listening connection per waiting thread and release on supervisor shutdown
@@ -82,13 +84,12 @@
 ## Next milestones
 
 1. Add result lookup by request ID and broader deadlock retry classification.
-2. Add scheduled retention and stale-process maintenance.
-3. Add Turbo append intents and expand reconnect coverage in a full browser.
-4. Add distributed rate limits, global admission hooks, and cache-capacity
+2. Add Turbo append intents and expand reconnect coverage in a full browser.
+3. Add distributed rate limits, global admission hooks, and cache-capacity
    eviction.
-5. Expand security scanning beyond the Brakeman scan, such as dependency
+4. Expand security scanning beyond the Brakeman scan, such as dependency
    auditing and secret scanning.
-6. Benchmark all workloads under documented hardware/database settings and
+5. Benchmark all workloads under documented hardware/database settings and
    publish adapter-specific adoption measurements. Throughput, synchronous
    latency, query counts, and the three reactive delivery paths are measured on
    SQLite; adapter-specific and end-to-end browser measurements are not.
