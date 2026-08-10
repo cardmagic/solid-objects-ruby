@@ -31,6 +31,8 @@
 - Bounded message/process pruning, actor-type opt-in instance expiration,
   graceful caller shutdown, committed state snapshots, and an opt-in Minitest
   helper
+- Supervisor role replacement: a role whose thread dies is restarted until
+  shutdown is requested, and dead process records are pruned on an interval
 - SQLite, PostgreSQL, and MySQL integration suites
 - Opt-in cross-process wake-up on PostgreSQL through `WakeUpAdapters.for`, with
   a listening connection per waiting thread and release on supervisor shutdown
@@ -45,8 +47,6 @@
 
 ## Partially implemented
 
-- Supervisor: starts and drains thread roles, but does not replace a crashed
-  role or run periodic maintenance automatically.
 - Wake-up strategy: in-process signaling, durable polling, injection, and an
   opt-in PostgreSQL notification adapter are implemented; a Redis adapter is
   not. In-process signaling cannot cross process boundaries, so without the
@@ -76,19 +76,18 @@
 
 ## Next milestones
 
-1. Add automatic supervisor role replacement and periodic dead-process cleanup.
-2. Add an optional Redis wake-up adapter, which is the remaining cross-process
+1. Add an optional Redis wake-up adapter, which is the remaining cross-process
    option for MySQL. The PostgreSQL notification adapter, its latency
    benchmark, and its concurrency tests are implemented.
-3. Add result lookup by request ID and broader deadlock retry classification.
-4. Add scheduled retention and stale-process maintenance.
-5. Add database/server-version checks and MySQL InnoDB verification at boot.
-6. Add Turbo append intents and expand reconnect coverage in a full browser.
-7. Add distributed rate limits, global admission hooks, and cache-capacity
+2. Add result lookup by request ID and broader deadlock retry classification.
+3. Add scheduled retention and stale-process maintenance.
+4. Add database/server-version checks and MySQL InnoDB verification at boot.
+5. Add Turbo append intents and expand reconnect coverage in a full browser.
+6. Add distributed rate limits, global admission hooks, and cache-capacity
    eviction.
-8. Expand security scanning and run compatibility CI across supported Rails and
+7. Expand security scanning and run compatibility CI across supported Rails and
    Ruby versions.
-9. Benchmark all workloads under documented hardware/database settings and
+8. Benchmark all workloads under documented hardware/database settings and
    publish adapter-specific adoption measurements. Throughput, synchronous
    latency, query counts, and the three reactive delivery paths are measured on
    SQLite; adapter-specific and end-to-end browser measurements are not.

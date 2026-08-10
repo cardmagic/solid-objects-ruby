@@ -21,6 +21,8 @@ module SolidObjects
     # @rbs @process_heartbeat_interval: Float
     # @rbs @process_alive_threshold: Float
     # @rbs @shutdown_timeout: Float
+    # @rbs @supervisor_monitor_interval: Float
+    # @rbs @dead_process_cleanup_interval: Float
     # @rbs @message_retention: Numeric
     # @rbs @message_retention_by_actor_type: Hash[String, Numeric]
     # @rbs @instance_retention_by_actor_type: Hash[String, Numeric]
@@ -62,6 +64,8 @@ module SolidObjects
       :process_heartbeat_interval,
       :process_alive_threshold,
       :shutdown_timeout,
+      :supervisor_monitor_interval,
+      :dead_process_cleanup_interval,
       :message_retention,
       :message_retention_by_actor_type,
       :instance_retention_by_actor_type,
@@ -102,6 +106,8 @@ module SolidObjects
       @max_attempts = 5
       @retry_delay = ->(attempt) { [ 2**(attempt - 1), 60 ].min.to_f }
       @lock_retry_attempts = 10
+      @supervisor_monitor_interval = 1.0
+      @dead_process_cleanup_interval = 60.0
       @process_heartbeat_interval = 15.0
       @process_alive_threshold = 60.0
       @shutdown_timeout = 15.0

@@ -2,11 +2,15 @@
 
 module SolidObjects
   class Supervisor
-    @components: Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
+    @cleaned_up_at: Float
+
+    @started: bool
+
+    @monitor: Thread?
 
     @threads: Array[Thread]
 
-    @started: bool
+    @components: Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
 
     # @rbs (?worker_count: Integer, ?effect_worker_count: Integer, ?broadcast_worker_count: Integer, ?reminder_scheduler_count: Integer) -> void
     def initialize: (?worker_count: Integer, ?effect_worker_count: Integer, ?broadcast_worker_count: Integer, ?reminder_scheduler_count: Integer) -> void
@@ -25,6 +29,24 @@ module SolidObjects
     attr_reader components: untyped
 
     attr_reader threads: untyped
+
+    # A role that raises leaves its thread dead. Without replacement the
+    # process keeps running while quietly doing less work, so the supervisor
+    # watches its threads and restarts any that stopped before shutdown.
+    # @rbs () -> void
+    def monitor_loop: () -> void
+
+    # @rbs () -> void
+    def replace_dead_roles: () -> void
+
+    # @rbs (Thread?) -> String?
+    def thread_error: (Thread?) -> String?
+
+    # @rbs () -> void
+    def cleanup_dead_processes: () -> void
+
+    # @rbs (untyped) -> Thread
+    def supervise: (untyped) -> Thread
 
     # A wake-up adapter may hold connections outside the pool, which would
     # otherwise accumulate across restarts in one process.
