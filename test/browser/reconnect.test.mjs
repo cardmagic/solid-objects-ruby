@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { test, before, after, beforeEach } from "node:test"
+import { test, before, after, beforeEach, afterEach } from "node:test"
 import { startServer, openPage, loadPage, frameHtml } from "./browser_test_helper.mjs"
 
 // A reconnecting subscription replays the current state as a burst of refresh
@@ -14,6 +14,11 @@ let page
 const batches = new Map()
 const components = new Map()
 const cancelled = new Set()
+const gates = []
+
+function releaseGates() {
+  while (gates.length) gates.pop()()
+}
 
 before(async () => {
   const started = await startServer({
@@ -47,8 +52,13 @@ before(async () => {
 })
 
 after(async () => {
+  releaseGates()
   await browser?.close()
   server?.close()
+})
+
+afterEach(() => {
+  releaseGates()
 })
 
 beforeEach(async () => {
@@ -67,11 +77,15 @@ async function waitFor(condition, message) {
   assert.fail(message)
 }
 
+// A gate a test forgets to release, because an assertion failed before it got
+// there, leaves its route awaiting forever and turns a reported failure into a
+// hung suite. Every gate is released when the test that made it finishes.
 function gate() {
   let release
   const promise = new Promise((resolve) => {
     release = resolve
   })
+  gates.push(release)
   return { promise, release }
 }
 
