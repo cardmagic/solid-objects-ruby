@@ -2,6 +2,8 @@
 
 module SolidObjects
   class Supervisor
+    MAXIMUM_RETENTION_BACKOFF_DOUBLINGS = 16
+
     # @rbs @components: Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
     # @rbs @threads: Array[Thread]
     # @rbs @monitor: Thread?
@@ -139,29 +141,31 @@ module SolidObjects
 
     # Retention gets its own thread rather than sharing the monitor's. A large
     # backlog or a lock wait can make a pass slow, and role replacement must not
-    # wait behind housekeeping. A failed pass retries on the next tick instead of
-    # deferring for the whole interval.
+    # wait behind housekeeping.
     # @rbs () -> void
     def retention_loop
+      failures = 0
       while @started
         begin
           prune_expired_records
+          failures = 0
         rescue => error
+          failures += 1
           SolidObjects.instrument(
             :"supervisor.retention_failed",
             error_class: error.class.name,
             error_message: error.message
           )
         end
-        wait_for_next_retention
+        wait_for_next_retention(failures)
       end
     end
 
     # Sleeping the whole interval would make shutdown wait out an hour-long
     # nap, so the pause is taken in short steps that notice a stop request.
-    # @rbs () -> void
-    def wait_for_next_retention
-      deadline = monotonic_now + retention_pause
+    # @rbs (Integer) -> void
+    def wait_for_next_retention(failures)
+      deadline = monotonic_now + retention_pause(failures)
       step = SolidObjects.configuration.supervisor_monitor_interval
       while @started && monotonic_now < deadline
         sleep [ step, deadline - monotonic_now ].min
@@ -180,12 +184,19 @@ module SolidObjects
       ProcessPruner.new.prune
     end
 
-    # @rbs () -> Float
-    def retention_pause
+    # A transient lock or connection error must not defer retention for the
+    # whole interval, so a failed pass retries at monitor cadence. The pause
+    # then doubles per consecutive failure, capped by the interval, so a
+    # database that stays down is not polled once a second forever.
+    # @rbs (Integer) -> Float
+    def retention_pause(failures)
       interval = SolidObjects.configuration.retention_interval
-      return interval if interval.positive?
+      interval = SolidObjects.configuration.supervisor_monitor_interval unless interval.positive?
+      return interval if failures.zero?
 
-      SolidObjects.configuration.supervisor_monitor_interval
+      backoff = SolidObjects.configuration.supervisor_monitor_interval *
+        (2**[ failures - 1, MAXIMUM_RETENTION_BACKOFF_DOUBLINGS ].min)
+      [ backoff, interval ].min
     end
 
     # @rbs () -> void

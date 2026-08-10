@@ -32,6 +32,8 @@ class ScheduledRetentionTest < ActiveSupport::TestCase
     def run
       self.class.shared_runs += 1
       if self.class.shared_runs == 1
+        # The crash is the point of the test, so its backtrace is not news.
+        Thread.current.report_on_exception = false
         sleep 0.1
         raise "role crashed"
       end
@@ -46,12 +48,17 @@ class ScheduledRetentionTest < ActiveSupport::TestCase
     SolidObjects.configuration.dead_process_cleanup_interval = 0
     SolidObjects.configuration.retention_interval = 0.05
     SolidObjects.configuration.message_retention = 0
+    # A test that stalls a retention pass on purpose should not pay the
+    # production join before the thread is killed.
+    SolidObjects.configuration.shutdown_timeout = 0.2
   end
 
   teardown do
     @supervisor&.stop
     SolidObjects.configuration.retention_interval = 3600.0
     SolidObjects.configuration.dead_process_cleanup_interval = 60.0
+    SolidObjects.configuration.supervisor_monitor_interval = 1.0
+    SolidObjects.configuration.shutdown_timeout = 15.0
   end
 
   test "the supervisor prunes expired messages without being asked" do
@@ -108,7 +115,11 @@ class ScheduledRetentionTest < ActiveSupport::TestCase
     ActiveSupport::Notifications.unsubscribe(subscription) if subscription
   end
 
+  # The interval here is far longer than the assertion window, so a retry that
+  # waited it out would fail. A transient lock or connection error must not
+  # defer retention for the whole hour.
   test "a failing retention pass retries rather than deferring for the interval" do
+    SolidObjects.configuration.retention_interval = 600
     failures = []
     subscription = ActiveSupport::Notifications.subscribe("solid_objects.supervisor.retention_failed") do
       failures << true
@@ -118,14 +129,35 @@ class ScheduledRetentionTest < ActiveSupport::TestCase
     @supervisor.define_singleton_method(:prune_expired_records) { raise "boom" }
 
     @supervisor.start
-    Timeout.timeout(10) { sleep 0.02 until failures.length >= 2 }
+    Timeout.timeout(5) { sleep 0.02 until failures.length >= 3 }
 
     assert @supervisor.instance_variable_get(:@monitor).alive?,
       "the monitor should survive a failing retention pass"
-    assert_operator failures.length, :>=, 2,
-      "a failed pass should retry on the next tick, not wait out the interval"
+    assert_operator failures.length, :>=, 3
   ensure
     ActiveSupport::Notifications.unsubscribe(subscription) if subscription
+  end
+
+  # Retrying at monitor cadence forever would hammer a database that stays
+  # down, so the pause grows and is capped by the configured interval.
+  test "repeated retention failures back off" do
+    SolidObjects.configuration.retention_interval = 600
+    SolidObjects.configuration.supervisor_monitor_interval = 0.05
+    @supervisor = supervisor
+    @supervisor.define_singleton_method(:prune_expired_records) { raise "boom" }
+
+    pauses = (1..5).map { |failures| @supervisor.send(:retention_pause, failures) }
+
+    assert_equal pauses.sort, pauses, "each failure should wait at least as long"
+    assert_operator pauses.last, :>, pauses.first
+    assert_operator pauses.max, :<=, 600
+  end
+
+  test "a recovered retention pass returns to its interval" do
+    SolidObjects.configuration.retention_interval = 600
+    @supervisor = supervisor
+
+    assert_equal 600, @supervisor.send(:retention_pause, 0)
   end
 
   # Role replacement must not wait behind housekeeping.
