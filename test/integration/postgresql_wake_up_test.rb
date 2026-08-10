@@ -103,6 +103,13 @@ class PostgresqlWakeUpTest < ActiveSupport::TestCase
     SolidObjects.instance_variable_set(:@wake_up, nil)
   end
 
+  test "the helper selects notifications on PostgreSQL" do
+    assert_instance_of(
+      SolidObjects::WakeUpAdapters::Postgresql,
+      SolidObjects::WakeUpAdapters.for(SolidObjects::Record.connection)
+    )
+  end
+
   test "signalling never raises into the caller" do
     broken = SolidObjects::WakeUpAdapters::Postgresql.new(channel: "solid_objects_missing")
     broken.define_singleton_method(:notify_channel) { raise "boom" }

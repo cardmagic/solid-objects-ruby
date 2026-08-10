@@ -121,8 +121,15 @@ On PostgreSQL, install the notification adapter to remove that delay:
 
 ```ruby
 # config/initializers/solid_objects.rb
-configuration.wake_up_adapter = SolidObjects::WakeUpAdapters::Postgresql.new
+configuration.wake_up_adapter = SolidObjects::WakeUpAdapters.for
 ```
+
+`WakeUpAdapters.for` returns notifications on PostgreSQL and the in-process
+default on SQLite and MySQL, so the same line is safe across adapters. Name
+`SolidObjects::WakeUpAdapters::Postgresql.new` directly to require it.
+
+MySQL has no notification primitive, so MySQL applications keep polling and tune
+`polling_interval`.
 
 Measured latency for a cross-process wake-up drops from 103.7 ms to 2.9 ms at
 p50. The adapter keeps `polling_interval` as the upper bound: a missed or failed

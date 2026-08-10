@@ -7,7 +7,10 @@
   worker process, so reactive delivery waited out `polling_interval`. With the
   adapter configured, measured cross-process wake-up latency drops from 103.7 ms
   to 2.9 ms at p50. The polling interval remains the upper bound, and neither
-  signalling nor waiting raises into its caller.
+  signalling nor waiting raises into its caller. `WakeUpAdapters.for` selects
+  notifications on PostgreSQL and the in-process default elsewhere; it is not
+  the default, because the adapter opens a connection per waiting thread
+  outside the pool and `LISTEN` does not survive a transaction-pooling proxy.
 
 ## 0.7.3 - 2026-08-09
 

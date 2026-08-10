@@ -1,0 +1,17 @@
+# Generated from lib/solid_objects/wake_up_adapters.rb with RBS::Inline
+
+module SolidObjects
+  module WakeUpAdapters
+    # Returns the best wake-up strategy for a connection: cross-process
+    # notifications where the database provides them, and the in-process
+    # default everywhere else.
+    #
+    # This is deliberately not the default. A notification adapter opens a
+    # connection per waiting thread outside the pool, and `LISTEN` does not
+    # survive a transaction-pooling proxy such as PgBouncer, so adopting it is
+    # a deployment decision rather than an upgrade side effect.
+    #
+    # @rbs (?untyped) -> untyped
+    def self?.for: (?untyped) -> untyped
+  end
+end
