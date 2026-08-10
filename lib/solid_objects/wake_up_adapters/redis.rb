@@ -49,12 +49,17 @@ module SolidObjects
         false
       end
 
+      # The counter is snapshotted before subscribing, and re-checked before
+      # blocking, so a signal delivered while this caller was still getting
+      # ready is observed rather than absorbed into the new baseline.
       # @rbs (timeout: Numeric) -> bool
       def wait(timeout:)
+        signalled = mutex.synchronize { @signalled }
         return paced_failure(timeout) unless listen
 
         mutex.synchronize do
-          signalled = @signalled
+          return true unless @signalled == signalled
+
           condition.wait(mutex, timeout.to_f)
           @signalled != signalled
         end

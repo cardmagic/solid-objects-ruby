@@ -78,6 +78,25 @@ class RedisWakeUpTest < ActiveSupport::TestCase
     assert subscribers.alive?, "one background subscription should serve the process"
   end
 
+  test "a signal arriving while a waiter is subscribing is not absorbed" do
+    @adapter.listen
+    real = @adapter.method(:listen)
+    # Publish inside listen, modelling a signal that lands after the counter
+    # would have been snapshotted but before the waiter blocks.
+    @adapter.define_singleton_method(:listen) do
+      result = real.call
+      SolidObjects::WakeUpAdapters::Redis.new(url: REDIS_URL).tap(&:signal).stop
+      sleep 0.1
+      result
+    end
+    started = monotonic_now
+
+    woken = @adapter.wait(timeout: 5)
+
+    assert woken, "the signal must not be absorbed by the subscribing waiter"
+    assert_operator monotonic_now - started, :<, 1.0
+  end
+
   test "signalling never raises into the caller" do
     broken = SolidObjects::WakeUpAdapters::Redis.new(url: "redis://127.0.0.1:1/0")
 
