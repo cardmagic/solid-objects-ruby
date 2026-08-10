@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add Ruby 4.0 to the compatibility matrix, which now covers Ruby 3.3, 3.4, and
+  4.0 against Rails 8.0 and 8.1.
+
 ## 0.9.0 - 2026-08-10
 
 - Add a browser test suite running the refresh modules against real Chromium and
