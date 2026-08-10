@@ -136,6 +136,25 @@ class SupervisorReplacementTest < ActiveSupport::TestCase
     assert_equal "stopped", dead.reload.shutdown_state
   end
 
+  test "a persistently failing maintenance pass stays paced" do
+    failures = []
+    subscription = ActiveSupport::Notifications.subscribe("solid_objects.supervisor.monitor_failed") do
+      failures << ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+    end
+    @supervisor = supervisor_for(HealthyRole.new)
+    @supervisor.define_singleton_method(:cleanup_dead_processes) { raise "boom" }
+
+    @supervisor.start
+    sleep 0.3
+
+    # 0.3s at a 0.02s interval bounds the passes; spinning would produce orders
+    # of magnitude more.
+    assert_operator failures.size, :>, 1, "the monitor should keep running"
+    assert_operator failures.size, :<, 40, "the monitor should pace its retries"
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
+  end
+
   test "a failing maintenance pass does not stop the supervisor" do
     role = HealthyRole.new
     @supervisor = supervisor_for(role)

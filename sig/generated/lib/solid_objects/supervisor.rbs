@@ -33,6 +33,8 @@ module SolidObjects
     # A role that raises leaves its thread dead. Without replacement the
     # process keeps running while quietly doing less work, so the supervisor
     # watches its threads and restarts any that stopped before shutdown.
+    # A failing pass must not stop supervision, and must not retry without
+    # pacing either: a persistently failing database would otherwise spin.
     # @rbs () -> void
     def monitor_loop: () -> void
 

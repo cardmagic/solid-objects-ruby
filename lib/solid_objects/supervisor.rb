@@ -71,15 +71,23 @@ module SolidObjects
     # A role that raises leaves its thread dead. Without replacement the
     # process keeps running while quietly doing less work, so the supervisor
     # watches its threads and restarts any that stopped before shutdown.
+    # A failing pass must not stop supervision, and must not retry without
+    # pacing either: a persistently failing database would otherwise spin.
     # @rbs () -> void
     def monitor_loop
       while @started
-        replace_dead_roles
-        cleanup_dead_processes
+        begin
+          replace_dead_roles
+          cleanup_dead_processes
+        rescue => error
+          SolidObjects.instrument(
+            :"supervisor.monitor_failed",
+            error_class: error.class.name,
+            error_message: error.message
+          )
+        end
         sleep SolidObjects.configuration.supervisor_monitor_interval
       end
-    rescue
-      retry if @started
     end
 
     # A role that raises runs its own shutdown cleanup on the way out, so a
