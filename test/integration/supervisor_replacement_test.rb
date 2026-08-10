@@ -117,6 +117,22 @@ class SupervisorReplacementTest < ActiveSupport::TestCase
     end
   end
 
+  test "shutdown does not return while the monitor is still alive" do
+    SolidObjects.configuration.shutdown_timeout = 0.1
+    @supervisor = supervisor_for(HealthyRole.new)
+    blocking = Queue.new
+    @supervisor.define_singleton_method(:cleanup_dead_processes) { blocking.pop }
+    @supervisor.start
+    sleep 0.1
+
+    @supervisor.stop
+
+    refute @supervisor.instance_variable_get(:@monitor)&.alive?,
+      "a blocked monitor must not outlive shutdown"
+  ensure
+    SolidObjects.configuration.shutdown_timeout = 5.0
+  end
+
   test "instruments a replacement" do
     events = []
     subscription = ActiveSupport::Notifications.subscribe("solid_objects.supervisor.role_replaced") do |event|

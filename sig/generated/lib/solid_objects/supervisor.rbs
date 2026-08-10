@@ -58,6 +58,12 @@ module SolidObjects
     # @rbs (untyped) -> Thread
     def supervise: (untyped) -> Thread
 
+    # The monitor only performs maintenance, so shutdown must never return while
+    # it is still alive: a pass blocked on the database would otherwise outlive
+    # the supervisor that owns it.
+    # @rbs () -> void
+    def stop_monitor: () -> void
+
     # A wake-up adapter may hold connections outside the pool, which would
     # otherwise accumulate across restarts in one process.
     # @rbs () -> void

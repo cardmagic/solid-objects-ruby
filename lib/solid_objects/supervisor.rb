@@ -56,7 +56,7 @@ module SolidObjects
         # replacement either completes before shutdown reads the component
         # list, or never starts.
         @lifecycle.synchronize { @started = false }
-        @monitor&.join(SolidObjects.configuration.supervisor_monitor_interval * 2)
+        stop_monitor
         components.each(&:request_shutdown)
         join_until_timeout
         components.reject(&:stopped?).each(&:stop)
@@ -146,6 +146,20 @@ module SolidObjects
     # @rbs (untyped) -> Thread
     def supervise(component)
       Thread.new { component.run }
+    end
+
+    # The monitor only performs maintenance, so shutdown must never return while
+    # it is still alive: a pass blocked on the database would otherwise outlive
+    # the supervisor that owns it.
+    # @rbs () -> void
+    def stop_monitor
+      monitor = @monitor
+      @monitor = nil
+      return unless monitor
+
+      monitor.join(SolidObjects.configuration.shutdown_timeout)
+      monitor.kill if monitor.alive?
+      monitor.join(SolidObjects.configuration.supervisor_monitor_interval)
     end
 
     # A wake-up adapter may hold connections outside the pool, which would
