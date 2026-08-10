@@ -26,6 +26,11 @@ module SolidObjects
 
     attr_reader threads: untyped
 
+    # A wake-up adapter may hold connections outside the pool, which would
+    # otherwise accumulate across restarts in one process.
+    # @rbs () -> void
+    def release_wake_up: () -> void
+
     # @rbs (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
     def build_components: (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
 

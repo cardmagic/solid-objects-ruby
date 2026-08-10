@@ -58,4 +58,12 @@ SolidObjects.configure do |configuration|
   # configuration.authorize_administration = lambda do |authorization_context:, **|
   #   authorization_context.is_a?(Hash) && authorization_context[:source] == "cli"
   # end
+
+  # Runtime roles poll for work and are woken early by an in-process signal,
+  # which cannot reach another process. On PostgreSQL, notifications remove that
+  # delay. This opens a connection per waiting thread outside the pool and does
+  # not work through a transaction-pooling proxy such as PgBouncer, so it is
+  # opt-in:
+  #
+  # configuration.wake_up_adapter = SolidObjects::WakeUpAdapters.for
 end

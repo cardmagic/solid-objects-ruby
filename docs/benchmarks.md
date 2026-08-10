@@ -76,6 +76,21 @@ Cable delivery, or browser rendering, which dominate wall-clock time in a real
 deployment and make the request-count difference matter more than it appears
 here. End-to-end latency against a deployed application has not been measured.
 
+## Cross-process wake-up
+
+Measured 2026-08-09 against PostgreSQL 17, 30 samples, with `polling_interval`
+at its 100 ms default and a signal sent 2 ms after the waiter began.
+
+| Wake-up strategy | p50 | p95 |
+| --- | ---: | ---: |
+| In-process `WakeUp` | 103.7 ms | 105.1 ms |
+| `WakeUpAdapters::Postgresql` | 2.9 ms | 5.1 ms |
+
+The in-process wake-up cannot reach another process, so a worker waits out the
+full polling interval no matter how quickly the web process committed. The
+notification adapter removes that floor rather than shrinking it, and the
+polling interval remains the upper bound if a notification is missed.
+
 ## Durable row growth
 
 The storage cost is deterministic even when latency is not:

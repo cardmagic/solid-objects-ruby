@@ -44,16 +44,34 @@ module SolidObjects
     def stop
       return unless @started
 
-      components.each(&:request_shutdown)
-      join_until_timeout
-      components.reject(&:stopped?).each(&:stop)
-      @started = false
-      SolidObjects.instrument(:"supervisor.stopped", component_count: components.length)
+      begin
+        components.each(&:request_shutdown)
+        join_until_timeout
+        components.reject(&:stopped?).each(&:stop)
+      ensure
+        # Connections held outside the pool must be released even when a
+        # component fails to stop, or they accumulate across restarts.
+        release_wake_up
+        @started = false
+        SolidObjects.instrument(:"supervisor.stopped", component_count: components.length)
+      end
     end
 
     private
 
     attr_reader :components, :threads
+
+    # A wake-up adapter may hold connections outside the pool, which would
+    # otherwise accumulate across restarts in one process.
+    # @rbs () -> void
+    def release_wake_up
+      wake_up = SolidObjects.wake_up
+      return unless wake_up.respond_to?(:stop)
+
+      wake_up.stop
+    rescue
+      nil
+    end
 
     # @rbs (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
     def build_components(
