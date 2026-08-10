@@ -4,7 +4,7 @@ module SolidObjects
   class Supervisor
     @lifecycle: Thread::Mutex
 
-    @pruned_at: Float
+    @retention: Thread?
 
     @cleaned_up_at: Float
 
@@ -54,12 +54,30 @@ module SolidObjects
     # @rbs (Thread?) -> String?
     def thread_error: (Thread?) -> String?
 
+    # Retention gets its own thread rather than sharing the monitor's. A large
+    # backlog or a lock wait can make a pass slow, and role replacement must not
+    # wait behind housekeeping. A failed pass retries on the next tick instead of
+    # deferring for the whole interval.
+    # @rbs () -> void
+    def retention_loop: () -> void
+
+    # Sleeping the whole interval would make shutdown wait out an hour-long
+    # nap, so the pause is taken in short steps that notice a stop request.
+    # @rbs () -> void
+    def wait_for_next_retention: () -> void
+
     # Every actor call writes a durable message row, so retention that is only
     # configured and never run leaves those rows to grow without bound. The
     # supervisor runs it rather than requiring every application to schedule
     # its own job.
     # @rbs () -> void
     def prune_expired_records: () -> void
+
+    # @rbs () -> Float
+    def retention_pause: () -> Float
+
+    # @rbs () -> void
+    def stop_retention: () -> void
 
     # @rbs () -> void
     def cleanup_dead_processes: () -> void

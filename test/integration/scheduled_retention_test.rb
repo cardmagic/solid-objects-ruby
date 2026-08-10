@@ -16,7 +16,32 @@ class ScheduledRetentionTest < ActiveSupport::TestCase
     def stopped? = @stopped
   end
 
+  class CrashOnceRole < IdleRole
+    class << self
+      attr_accessor :shared_runs
+    end
+
+    def initialize
+      self.class.shared_runs ||= 0
+    end
+
+    def runs = self.class.shared_runs
+
+    # Crashes only after the first monitor pass has begun, so replacement is
+    # needed while a slow retention pass is already running.
+    def run
+      self.class.shared_runs += 1
+      if self.class.shared_runs == 1
+        sleep 0.1
+        raise "role crashed"
+      end
+
+      super
+    end
+  end
+
   setup do
+    CrashOnceRole.shared_runs = nil
     SolidObjects.configuration.supervisor_monitor_interval = 0.02
     SolidObjects.configuration.dead_process_cleanup_interval = 0
     SolidObjects.configuration.retention_interval = 0.05
@@ -83,9 +108,9 @@ class ScheduledRetentionTest < ActiveSupport::TestCase
     ActiveSupport::Notifications.unsubscribe(subscription) if subscription
   end
 
-  test "a failing retention pass does not stop the supervisor" do
+  test "a failing retention pass retries rather than deferring for the interval" do
     failures = []
-    subscription = ActiveSupport::Notifications.subscribe("solid_objects.supervisor.monitor_failed") do
+    subscription = ActiveSupport::Notifications.subscribe("solid_objects.supervisor.retention_failed") do
       failures << true
     end
     role = IdleRole.new
@@ -93,13 +118,29 @@ class ScheduledRetentionTest < ActiveSupport::TestCase
     @supervisor.define_singleton_method(:prune_expired_records) { raise "boom" }
 
     @supervisor.start
-    Timeout.timeout(10) { sleep 0.02 until failures.any? }
-    sleep 0.1
+    Timeout.timeout(10) { sleep 0.02 until failures.length >= 2 }
 
     assert @supervisor.instance_variable_get(:@monitor).alive?,
       "the monitor should survive a failing retention pass"
+    assert_operator failures.length, :>=, 2,
+      "a failed pass should retry on the next tick, not wait out the interval"
   ensure
     ActiveSupport::Notifications.unsubscribe(subscription) if subscription
+  end
+
+  # Role replacement must not wait behind housekeeping.
+  test "a slow retention pass does not block role replacement" do
+    SolidObjects.configuration.retention_interval = 0.02
+    role = CrashOnceRole.new
+    @supervisor = supervisor(role)
+    @supervisor.define_singleton_method(:prune_expired_records) { sleep 10 }
+
+    @supervisor.start
+
+    # Shorter than the pruning pass, so sharing a thread with it fails here.
+    Timeout.timeout(3) { sleep 0.02 until role.runs >= 2 }
+    assert_operator role.runs, :>=, 2,
+      "a crashed role should be replaced while retention is still running"
   end
 
   test "rejects a negative retention interval" do

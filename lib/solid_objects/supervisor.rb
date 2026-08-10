@@ -7,7 +7,7 @@ module SolidObjects
     # @rbs @monitor: Thread?
     # @rbs @started: bool
     # @rbs @cleaned_up_at: Float
-    # @rbs @pruned_at: Float
+    # @rbs @retention: Thread?
     # @rbs @lifecycle: Thread::Mutex
 
     # @rbs (?worker_count: Integer, ?effect_worker_count: Integer, ?broadcast_worker_count: Integer, ?reminder_scheduler_count: Integer) -> void
@@ -27,7 +27,7 @@ module SolidObjects
       @monitor = nil
       @started = false
       @cleaned_up_at = nil
-      @pruned_at = nil
+      @retention = nil
       @lifecycle = Thread::Mutex.new
     end
 
@@ -46,6 +46,7 @@ module SolidObjects
       @started = true
       @threads = components.map { |component| supervise(component) }
       @monitor = Thread.new { monitor_loop }
+      @retention = Thread.new { retention_loop }
       SolidObjects.instrument(:"supervisor.started", component_count: components.length)
     end
 
@@ -59,6 +60,7 @@ module SolidObjects
         # list, or never starts.
         @lifecycle.synchronize { @started = false }
         stop_monitor
+        stop_retention
         components.each(&:request_shutdown)
         join_until_timeout
         components.reject(&:stopped?).each(&:stop)
@@ -86,7 +88,6 @@ module SolidObjects
         begin
           replace_dead_roles
           cleanup_dead_processes
-          prune_expired_records
         rescue => error
           SolidObjects.instrument(
             :"supervisor.monitor_failed",
@@ -136,19 +137,65 @@ module SolidObjects
       error.class.name
     end
 
+    # Retention gets its own thread rather than sharing the monitor's. A large
+    # backlog or a lock wait can make a pass slow, and role replacement must not
+    # wait behind housekeeping. A failed pass retries on the next tick instead of
+    # deferring for the whole interval.
+    # @rbs () -> void
+    def retention_loop
+      while @started
+        begin
+          prune_expired_records
+        rescue => error
+          SolidObjects.instrument(
+            :"supervisor.retention_failed",
+            error_class: error.class.name,
+            error_message: error.message
+          )
+        end
+        wait_for_next_retention
+      end
+    end
+
+    # Sleeping the whole interval would make shutdown wait out an hour-long
+    # nap, so the pause is taken in short steps that notice a stop request.
+    # @rbs () -> void
+    def wait_for_next_retention
+      deadline = monotonic_now + retention_pause
+      step = SolidObjects.configuration.supervisor_monitor_interval
+      while @started && monotonic_now < deadline
+        sleep [ step, deadline - monotonic_now ].min
+      end
+    end
+
     # Every actor call writes a durable message row, so retention that is only
     # configured and never run leaves those rows to grow without bound. The
     # supervisor runs it rather than requiring every application to schedule
     # its own job.
     # @rbs () -> void
     def prune_expired_records
-      interval = SolidObjects.configuration.retention_interval
-      return unless interval.positive?
-      return if @pruned_at && monotonic_now - @pruned_at < interval
+      return unless SolidObjects.configuration.retention_interval.positive?
 
-      @pruned_at = monotonic_now
       MessagePruner.new.prune
       ProcessPruner.new.prune
+    end
+
+    # @rbs () -> Float
+    def retention_pause
+      interval = SolidObjects.configuration.retention_interval
+      return interval if interval.positive?
+
+      SolidObjects.configuration.supervisor_monitor_interval
+    end
+
+    # @rbs () -> void
+    def stop_retention
+      retention = @retention
+      @retention = nil
+      return unless retention
+
+      retention.join(SolidObjects.configuration.shutdown_timeout)
+      retention.kill if retention.alive?
     end
 
     # @rbs () -> void
