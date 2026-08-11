@@ -77,7 +77,8 @@ Indexes:
 ### `reminders`
 
 Durable one-shot or recurring alarm definitions. Unique instance/name makes
-rescheduling an actor-owned reminder deterministic. Status/next-run/ID drives
+rescheduling an actor-owned reminder deterministic, which also means a second
+`schedule` under the same name moves that alarm rather than adding one. Status/next-run/ID drives
 the due scan. Claim ownership references the process registry, and constraints
 limit recurrence intervals, missed-work policies, and statuses.
 

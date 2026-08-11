@@ -155,6 +155,15 @@ transaction rejection, commit-action start/completion/failure, effect and
 broadcast enqueue/completion, reminder enqueue, actor destruction/expiration,
 retention pruning, process cleanup, and supervisor lifecycle.
 
+`solid_objects.reminder.replaced` reports a `schedule` call that moved an alarm
+already armed under the same name on the same actor, carrying the actor
+identity, reminder `name`, `previous_run_at`, and `next_run_at`. Reminders are
+keyed by actor and name, so re-arming a name is an update rather than a second
+alarm. That is deliberate, and it is silent: an actor that arms one reminder
+per queued item keeps only the last, and the earlier wake-up never happens.
+Watch this event if your actors schedule from a loop or from a handler that can
+run more than once. Rescheduling to the same time reports nothing.
+
 `solid_objects.component.refreshed` covers every authorized component refresh
 request. Its payload carries the actor identity, `component_name`,
 `component_key`, declared `dependencies`, `refresh_method`, the rendered

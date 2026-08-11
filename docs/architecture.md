@@ -439,6 +439,8 @@ A reminder record contains actor identity, a reminder name, target message, JSON
 schedule :expire, at: 30.minutes.from_now, arguments: {}
 ```
 
+Reminders are keyed by `(actor, reminder name)`, enforced by a unique index on `(instance_id, name)`. `schedule` is therefore an upsert: scheduling a name that is already armed moves that alarm instead of adding another, which is what makes re-arming safe from a handler that may run more than once. An actor needing several pending items should arm one alarm for the earliest and drain everything due when it fires, rather than one alarm per item; the [reminders guide](../README.md#a-reminder-is-one-named-alarm-per-actor) shows that pattern. A move that changes `next_run_at` emits `solid_objects.reminder.replaced`, because the replacement is otherwise indistinguishable from a first schedule.
+
 When due, the scheduler locks the source instance and creates a normal mailbox
 row with an idempotency key derived from reminder ID and occurrence. The
 mailbox insert and reminder advancement commit atomically. The mailbox provides
