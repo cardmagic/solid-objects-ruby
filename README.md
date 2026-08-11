@@ -458,6 +458,39 @@ Deploy and monitor that process before enabling any feature marked as requiring
 a runtime role. A missing worker never makes a durable `async` message
 disappear, but it leaves the message pending indefinitely.
 
+### Running an extension in the same process
+
+An extension gem can register its own long-running component, and
+`solid_objects start` runs it beside the built-in roles. The component joins the
+same supervision, the same replacement after a crash, and the same shutdown
+timeout, so an operator deploys and monitors one process instead of two:
+
+```ruby
+SolidObjects.configure do |configuration|
+  configuration.register_component { MyExtension::FlushEngine.new }
+end
+```
+
+Pass `count:` for more than one instance. The block runs once for each instance,
+and again when the supervisor replaces a crashed one, so no two components share
+an object.
+
+A registered component answers four methods, the contract the built-in roles
+already keep:
+
+| Method | Purpose |
+| --- | --- |
+| `run` | Runs the loop. The supervisor calls it in its own thread |
+| `request_shutdown` | Asks the loop to finish. It must make `run` return |
+| `stopped?` | Reports whether the component already finished |
+| `stop` | Forces cleanup when the shutdown timeout expires first |
+
+The supervisor checks that contract when it builds the component, and a missing
+method raises `ArgumentError` as the supervisor starts, rather than hanging a
+shutdown later. Registration itself never calls the block, so a component is
+free to need a database connection that the application does not have while it
+boots.
+
 ## Defining an actor
 
 The Durable Object class becomes an ordinary Ruby class:

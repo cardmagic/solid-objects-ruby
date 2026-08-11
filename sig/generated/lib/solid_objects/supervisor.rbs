@@ -36,6 +36,8 @@ module SolidObjects
 
     attr_reader threads: untyped
 
+    attr_reader builders: untyped
+
     # A role that raises leaves its thread dead. Without replacement the
     # process keeps running while quietly doing less work, so the supervisor
     # watches its threads and restarts any that stopped before shutdown.
@@ -101,8 +103,23 @@ module SolidObjects
     # @rbs () -> void
     def release_wake_up: () -> void
 
-    # @rbs (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
-    def build_components: (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
+    # A constructor can take a resource, and a later builder can raise. Without
+    # this, the components built first would be dropped while still holding
+    # whatever they took, and nothing would ever give it back.
+    # @rbs (Array[^() -> untyped]) -> Array[untyped]
+    def build_all: (Array[^() -> untyped]) -> Array[untyped]
+
+    # The failure that stopped the build is the one worth reporting, so a
+    # failure inside the cleanup never replaces it.
+    # @rbs (untyped) -> void
+    def stop_after_failed_build: (untyped) -> void
+
+    # Each component keeps the builder that made it, so a replacement after a
+    # crash is built the same way as the original. Components registered
+    # through the configuration run beside the built in ones, under the same
+    # supervision, restart, and shutdown timeout.
+    # @rbs (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[^() -> untyped]
+    def component_builders: (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[^() -> untyped]
 
     # @rbs () -> void
     def join_until_timeout: () -> void

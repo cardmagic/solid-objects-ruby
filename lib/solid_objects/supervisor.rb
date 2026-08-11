@@ -19,12 +19,13 @@ module SolidObjects
       broadcast_worker_count: SolidObjects.configuration.broadcast_worker_count,
       reminder_scheduler_count: SolidObjects.configuration.reminder_scheduler_count
     )
-      @components = build_components(
+      @builders = component_builders(
         worker_count:,
         effect_worker_count:,
         broadcast_worker_count:,
         reminder_scheduler_count:
       )
+      @components = build_all(@builders)
       @threads = []
       @monitor = nil
       @started = false
@@ -77,7 +78,7 @@ module SolidObjects
 
     private
 
-    attr_reader :components, :threads
+    attr_reader :components, :threads, :builders
 
     # A role that raises leaves its thread dead. Without replacement the
     # process keeps running while quietly doing less work, so the supervisor
@@ -116,7 +117,11 @@ module SolidObjects
         replaced = @lifecycle.synchronize do
           next false unless @started
 
-          replacement = component.class.new
+          # A component built by this supervisor has a builder, which carries
+          # whatever the constructor was given. A component put in place by
+          # other means has none, so the class is the only thing left to go on.
+          builder = builders[index] || -> { component.class.new }
+          replacement = builder.call
           components[index] = replacement
           threads[index] = supervise(replacement)
           replacement
@@ -250,17 +255,53 @@ module SolidObjects
       nil
     end
 
-    # @rbs (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
-    def build_components(
+    # A constructor can take a resource, and a later builder can raise. Without
+    # this, the components built first would be dropped while still holding
+    # whatever they took, and nothing would ever give it back.
+    # @rbs (Array[^() -> untyped]) -> Array[untyped]
+    def build_all(builders)
+      built = []
+      builders.each do |builder|
+        # The component joins the list before the contract check, so a
+        # component that fails the check is stopped along with the rest.
+        built << (component = builder.call)
+        SolidObjects.configuration.validate_component!(component)
+      end
+      built
+    rescue Exception # rubocop:disable Lint/RescueException
+      built.each { |component| stop_after_failed_build(component) }
+      raise
+    end
+
+    # The failure that stopped the build is the one worth reporting, so a
+    # failure inside the cleanup never replaces it.
+    # @rbs (untyped) -> void
+    def stop_after_failed_build(component)
+      component.stop if component.respond_to?(:stop)
+    rescue Exception => error # rubocop:disable Lint/RescueException
+      SolidObjects.instrument(
+        :"supervisor.component_cleanup_failed",
+        role: component.class.name,
+        error_class: error.class.name
+      )
+    end
+
+    # Each component keeps the builder that made it, so a replacement after a
+    # crash is built the same way as the original. Components registered
+    # through the configuration run beside the built in ones, under the same
+    # supervision, restart, and shutdown timeout.
+    # @rbs (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[^() -> untyped]
+    def component_builders(
       worker_count:,
       effect_worker_count:,
       broadcast_worker_count:,
       reminder_scheduler_count:
     )
-      Array.new(worker_count) { Worker.new } +
-        Array.new(effect_worker_count) { EffectExecutor.new } +
-        Array.new(broadcast_worker_count) { BroadcastExecutor.new } +
-        Array.new(reminder_scheduler_count) { ReminderScheduler.new }
+      Array.new(worker_count) { -> { Worker.new } } +
+        Array.new(effect_worker_count) { -> { EffectExecutor.new } } +
+        Array.new(broadcast_worker_count) { -> { BroadcastExecutor.new } } +
+        Array.new(reminder_scheduler_count) { -> { ReminderScheduler.new } } +
+        SolidObjects.configuration.additional_components
     end
 
     # @rbs () -> void

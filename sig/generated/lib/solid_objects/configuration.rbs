@@ -2,6 +2,10 @@
 
 module SolidObjects
   class Configuration
+    @process_alive_threshold: Float
+
+    @shutdown_timeout: Float
+
     @supervisor_monitor_interval: Float
 
     @retention_interval: Float
@@ -85,10 +89,6 @@ module SolidObjects
     @lock_retry_attempts: Integer
 
     @process_heartbeat_interval: Float
-
-    @process_alive_threshold: Float
-
-    @shutdown_timeout: Float
 
     attr_accessor table_name_prefix: untyped
 
@@ -178,8 +178,36 @@ module SolidObjects
 
     attr_accessor authorize_administration: untyped
 
+    # @rbs @additional_components: Array[untyped]
+    attr_reader additional_components: untyped
+
     # @rbs () -> void
     def initialize: () -> void
+
+    # Registers a long running component that the supervisor runs beside its own
+    # workers. An extension gem uses this to share one process, rather than ask
+    # an operator to run and monitor a second one.
+    #
+    # The block must return an object that answers `run`, `request_shutdown`,
+    # `stopped?`, and `stop`, which is the contract the built in components
+    # already keep. The supervisor calls the block once for each supervisor it
+    # builds, and again when it replaces a crashed component, so two
+    # supervisors never share one component instance.
+    #
+    # @rbs (?count: Integer) { () -> untyped } -> void
+    def register_component: (?count: Integer) { () -> untyped } -> void
+
+    # The supervisor checks the contract here rather than at registration,
+    # because a component often needs a database connection to exist, and
+    # registration happens while the application boots.
+    # @rbs () -> Array[untyped]
+    def build_additional_components: () -> Array[untyped]
+
+    # A component that misses part of the contract would hang the supervisor at
+    # shutdown, or crash the moment it starts. The build fails instead, where
+    # the caller can read the reason.
+    # @rbs (untyped) -> void
+    def validate_component!: (untyped) -> void
 
     # @rbs () -> self
     def validate!: () -> self
