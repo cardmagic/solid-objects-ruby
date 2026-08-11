@@ -12,11 +12,34 @@ module SolidObjects
         test_case.teardown { reset_actors! }
       end
 
+      # Deleting instances alone left every other actor-owned row to the
+      # database cascade. That cascade is not enforced everywhere: SQLite has
+      # to be asked for foreign keys, MySQL has to be on InnoDB, and a host
+      # application may have stripped the constraints out of the copied
+      # migration. Where it does not fire, rows survive into the next test with
+      # an instance_id pointing at nothing, and a test that reads them sees
+      # another test's data. Deleting each table costs nothing and does not
+      # depend on referential integrity.
       # @rbs () -> void
       def reset_actors!
         SolidObjects.reset_caller_process!
-        Instance.delete_all
+        actor_owned_models.each(&:delete_all)
         Process.delete_all
+      end
+
+      # Children first, so the order is safe whether or not the cascade fires.
+      # @rbs () -> Array[Class]
+      def actor_owned_models
+        [
+          DeadLetter,
+          ClaimedMessage,
+          ReadyMessage,
+          Broadcast,
+          Effect,
+          Reminder,
+          Message,
+          Instance
+        ]
       end
     end
 

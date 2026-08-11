@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Delete every actor-owned row in `SolidObjects::TestHelper#reset_actors!`. It
+  deleted actor instances and processes and left the other seven tables to the
+  database cascade. That cascade is not enforced everywhere: SQLite has to be
+  asked for foreign keys, MySQL has to be on InnoDB, and a host application may
+  have stripped the constraints out of the copied migration. Where it does not
+  fire, messages, ready and claimed mailbox rows, reminders, effects,
+  broadcasts, and dead letters all survived into the next test with an
+  `instance_id` pointing at nothing, so a test reading any of them saw another
+  test's rows and failed depending on order. Reported as reminders leaking,
+  which is where it surfaces first because reminders outlive the message that
+  created them.
+
 ## 0.10.2 - 2026-08-10
 
 - Load the mailbox when the gem is required. `SolidObjects::Mailbox` was

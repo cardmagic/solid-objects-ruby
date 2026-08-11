@@ -66,7 +66,13 @@ Pass `roles: [:actors]` when a test intentionally wants to leave outboxes or
 reminders pending.
 
 `SolidObjects::TestHelper.reset_actors!` is also available for explicit suite
-boundaries.
+boundaries. It deletes every actor-owned row itself rather than deleting actor
+instances and letting the database cascade remove the rest: SQLite has to be
+asked for foreign keys, MySQL has to be on InnoDB, and a host application may
+have stripped the constraints out of the copied migration. Where the cascade
+does not fire, a row that survives a reset carries an `instance_id` pointing at
+nothing, and the next test that reads reminders or dead letters sees another
+test's data.
 
 ## Inline RBS
 

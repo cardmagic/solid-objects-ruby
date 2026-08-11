@@ -48,6 +48,37 @@ class PublicTestHelperTest < ActiveSupport::TestCase
     assert_empty SolidObjects::Process.all
   end
 
+  # The helper used to delete instances and let the database cascade remove
+  # everything else. Where the cascade does not fire, rows survive into the
+  # next test pointing at an instance that no longer exists, and a test that
+  # reads them sees another test's data.
+  test "reset actors clears actor-owned rows without the database cascade" do
+    skip unless database_family == :sqlite
+
+    instance = create_actor_owned_rows
+    without_foreign_keys do
+      SolidObjects::TestHelper.reset_actors!
+    end
+
+    remaining = SolidObjects::TestHelper.actor_owned_models.reject { |model| model.count.zero? }
+    assert_empty remaining.map(&:table_name),
+      "these tables survived a reset that could not rely on the cascade"
+    refute_nil instance
+  end
+
+  # A table added later is only covered if the helper is told about it, and the
+  # cascade would hide the omission on every database that enforces it.
+  test "every actor-owned table is in the reset list" do
+    owned = SolidObjects::Record.connection.tables
+      .grep(/\Asolid_objects_/)
+      .reject { |table| table == "solid_objects_test_domain_records" }
+      .sort
+    listed = SolidObjects::TestHelper.actor_owned_models.map(&:table_name)
+
+    assert_equal owned, (listed + [ SolidObjects::Process.table_name ]).sort,
+      "a Solid Objects table is missing from reset_actors!"
+  end
+
   test "drain actor messages processes queued work deterministically" do
     test_case = ActorTestCase.new("unused")
     message_reference = HelperActor.ref("async").async(:increment)
@@ -89,5 +120,91 @@ class PublicTestHelperTest < ActiveSupport::TestCase
     end
 
     assert_includes error.message, "unknown"
+  end
+
+  private
+
+  # One row in every actor-owned table, so an omission from the reset list
+  # shows up as a surviving table rather than as a passing test.
+  def create_actor_owned_rows
+    now = Time.current
+    instance = SolidObjects::Instance.create!(
+      actor_type: "reset-probe",
+      actor_id: "one",
+      state: {},
+      state_version: 1
+    )
+    message = SolidObjects::Message.create!(
+      instance:,
+      actor_type: instance.actor_type,
+      actor_id: instance.actor_id,
+      message_name: "noop",
+      message_kind: "async",
+      arguments: {},
+      sequence: 1,
+      max_attempts: 1,
+      request_id: SecureRandom.uuid,
+      enqueued_at: now,
+      available_at: now
+    )
+    SolidObjects::ReadyMessage.create!(message:, instance:, sequence: 1, available_at: now)
+    SolidObjects::ClaimedMessage.create!(
+      message:,
+      instance:,
+      activation_generation: 1,
+      claimed_at: now
+    )
+    SolidObjects::Reminder.create!(
+      instance:,
+      actor_type: instance.actor_type,
+      actor_id: instance.actor_id,
+      name: "probe",
+      message_name: "noop",
+      arguments: {},
+      next_run_at: now,
+      status: "scheduled"
+    )
+    SolidObjects::Effect.create!(
+      instance:,
+      message:,
+      effect_id: SecureRandom.uuid,
+      name: "probe",
+      arguments: {},
+      max_attempts: 1,
+      available_at: now
+    )
+    SolidObjects::Broadcast.create!(
+      instance:,
+      message:,
+      broadcast_id: SecureRandom.uuid,
+      observable_name: "probe",
+      value: {},
+      state_version: 1,
+      activation_generation: 1,
+      available_at: now
+    )
+    SolidObjects::DeadLetter.create!(
+      instance:,
+      message:,
+      actor_type: instance.actor_type,
+      actor_id: instance.actor_id,
+      message_name: "noop",
+      arguments: {},
+      attempts: 1,
+      exception_class: "RuntimeError",
+      exception_message: "probe",
+      backtrace: [],
+      first_failed_at: now,
+      last_failed_at: now
+    )
+    instance
+  end
+
+  def without_foreign_keys
+    connection = SolidObjects::Record.connection
+    connection.execute("PRAGMA foreign_keys = OFF")
+    yield
+  ensure
+    connection.execute("PRAGMA foreign_keys = ON")
   end
 end
