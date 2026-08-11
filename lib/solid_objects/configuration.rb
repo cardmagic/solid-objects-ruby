@@ -171,12 +171,19 @@ module SolidObjects
     # registration happens while the application boots.
     # @rbs () -> Array[untyped]
     def build_additional_components
-      additional_components.map { |factory| build_component(factory) }
+      additional_components.map { |factory| factory.call.tap { |component| validate_component!(component) } }
     end
 
-    # @rbs (^() -> untyped) -> untyped
-    def build_component(factory)
-      factory.call.tap { |component| validate_component!(component) }
+    # A component that misses part of the contract would hang the supervisor at
+    # shutdown, or crash the moment it starts. The build fails instead, where
+    # the caller can read the reason.
+    # @rbs (untyped) -> void
+    def validate_component!(component)
+      %i[run request_shutdown stopped? stop].each do |method_name|
+        next if component.respond_to?(method_name)
+
+        raise ArgumentError, "a registered component must respond to #{method_name}"
+      end
     end
 
     # @rbs () -> self
@@ -229,18 +236,6 @@ module SolidObjects
     end
 
     private
-
-    # A component that misses part of the contract would hang the supervisor at
-    # shutdown, or crash the moment it starts. The registration fails instead,
-    # where the caller can read the reason.
-    # @rbs (untyped) -> void
-    def validate_component!(component)
-      %i[run request_shutdown stopped? stop].each do |method_name|
-        next if component.respond_to?(method_name)
-
-        raise ArgumentError, "a registered component must respond to #{method_name}"
-      end
-    end
 
     # @rbs () -> Hash[Symbol, Numeric]
     def positive_values

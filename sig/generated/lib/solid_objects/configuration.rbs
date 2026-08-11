@@ -2,8 +2,6 @@
 
 module SolidObjects
   class Configuration
-    @table_name_prefix: String
-
     @process_alive_threshold: Float
 
     @shutdown_timeout: Float
@@ -57,6 +55,8 @@ module SolidObjects
     @authorize_subscription: Proc
 
     @authorize_administration: Proc
+
+    @table_name_prefix: String
 
     @polling_interval: Float
 
@@ -203,19 +203,16 @@ module SolidObjects
     # @rbs () -> Array[untyped]
     def build_additional_components: () -> Array[untyped]
 
-    # @rbs (^() -> untyped) -> untyped
-    def build_component: (^() -> untyped) -> untyped
+    # A component that misses part of the contract would hang the supervisor at
+    # shutdown, or crash the moment it starts. The build fails instead, where
+    # the caller can read the reason.
+    # @rbs (untyped) -> void
+    def validate_component!: (untyped) -> void
 
     # @rbs () -> self
     def validate!: () -> self
 
     private
-
-    # A component that misses part of the contract would hang the supervisor at
-    # shutdown, or crash the moment it starts. The registration fails instead,
-    # where the caller can read the reason.
-    # @rbs (untyped) -> void
-    def validate_component!: (untyped) -> void
 
     # @rbs () -> Hash[Symbol, Numeric]
     def positive_values: () -> Hash[Symbol, Numeric]

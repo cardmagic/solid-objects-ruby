@@ -129,6 +129,41 @@ class SupervisorAdditionalComponentsTest < ActiveSupport::TestCase
     supervisor&.stop
   end
 
+  # Components are built one after another. A failure part way through leaves
+  # the earlier ones constructed and unreachable, so whatever their
+  # constructors took would never be given back.
+  test "stops the components it already built when a later factory raises" do
+    first = RecordingComponent.new
+    SolidObjects.configuration.register_component { first }
+    SolidObjects.configuration.register_component { raise "factory failed" }
+
+    assert_raises(RuntimeError) { new_supervisor }
+
+    assert first.stopped?, "the earlier component was abandoned without a stop"
+  end
+
+  test "stops the components it already built when a later one breaks the contract" do
+    first = RecordingComponent.new
+    SolidObjects.configuration.register_component { first }
+    SolidObjects.configuration.register_component { Object.new }
+
+    assert_raises(ArgumentError) { new_supervisor }
+
+    assert first.stopped?, "the earlier component was abandoned without a stop"
+  end
+
+  test "reports the original failure, not a cleanup failure" do
+    unstoppable = Class.new(RecordingComponent) do
+      def stop = raise "cleanup failed"
+    end
+    SolidObjects.configuration.register_component { unstoppable.new }
+    SolidObjects.configuration.register_component { raise "factory failed" }
+
+    error = assert_raises(RuntimeError) { new_supervisor }
+
+    assert_equal "factory failed", error.message
+  end
+
   private
 
   def register_component(label: "default")

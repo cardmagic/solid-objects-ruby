@@ -14,6 +14,13 @@
   block, so a component may need a database connection that the application
   does not have while it boots.
 
+- Stop the components already built when a later one fails. The supervisor
+  builds its components one after another, so a factory that raised, or a
+  component that failed the contract check, left the earlier ones constructed
+  and unreachable while they still held whatever their constructors took. Each
+  one now receives `stop`, and a failure inside that cleanup never replaces the
+  failure that caused it.
+
 - Replace a crashed component through the builder that made it. The supervisor
   called `component.class.new`, which discards every constructor argument, so a
   component built with arguments returned with its defaults after a crash. Each

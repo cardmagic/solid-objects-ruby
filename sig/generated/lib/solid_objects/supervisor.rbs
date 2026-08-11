@@ -103,6 +103,17 @@ module SolidObjects
     # @rbs () -> void
     def release_wake_up: () -> void
 
+    # A constructor can take a resource, and a later builder can raise. Without
+    # this, the components built first would be dropped while still holding
+    # whatever they took, and nothing would ever give it back.
+    # @rbs (Array[^() -> untyped]) -> Array[untyped]
+    def build_all: (Array[^() -> untyped]) -> Array[untyped]
+
+    # The failure that stopped the build is the one worth reporting, so a
+    # failure inside the cleanup never replaces it.
+    # @rbs (untyped) -> void
+    def stop_after_failed_build: (untyped) -> void
+
     # Each component keeps the builder that made it, so a replacement after a
     # crash is built the same way as the original. Components registered
     # through the configuration run beside the built in ones, under the same
