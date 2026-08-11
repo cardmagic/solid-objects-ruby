@@ -215,6 +215,45 @@ class RemindersTest < ActiveSupport::TestCase
     worker&.stop
   end
 
+  test "scheduling reports moves to its caller rather than announcing them" do
+    executor = SolidObjects::Executor.allocate
+    instance = SolidObjects::Instance.create!(
+      actor_type: "reminder-queue",
+      actor_id: "unit",
+      state: {},
+      state_version: 1
+    )
+    intent = SolidObjects::Actor::ReminderIntent.new(
+      name: "deliver",
+      at: 1.hour.from_now,
+      arguments: {},
+      interval_seconds: nil,
+      missed_policy: "latest"
+    )
+    later = SolidObjects::Actor::ReminderIntent.new(
+      name: "deliver",
+      at: 2.hours.from_now,
+      arguments: {},
+      interval_seconds: nil,
+      missed_policy: "latest"
+    )
+    events = []
+    subscription = ActiveSupport::Notifications.subscribe("solid_objects.reminder.replaced") do |event|
+      events << event.payload
+    end
+
+    assert_empty executor.send(:schedule_reminders, instance, [ intent ]),
+      "a first schedule moves nothing"
+    moves = executor.send(:schedule_reminders, instance, [ later ])
+
+    assert_equal 1, moves.length, "the move should be returned to the caller"
+    assert_equal "deliver", moves.sole.fetch(:name)
+    assert_empty events,
+      "scheduling must not announce a move that the enclosing turn may roll back"
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
+  end
+
   test "rescheduling to the same time reports nothing" do
     events = []
     subscription = ActiveSupport::Notifications.subscribe("solid_objects.reminder.replaced") do |event|

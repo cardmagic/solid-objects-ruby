@@ -90,6 +90,7 @@ module SolidObjects
       reminder_intents = actor.drain_reminder_intents
       outbound_message_intents = actor.drain_outbound_message_intents
       enqueued_effects = []
+      moved_reminders = []
 
       activation.lease.fenced_transaction do |instance|
         claimed_message = matching_claim!
@@ -107,7 +108,7 @@ module SolidObjects
           completed_at: SolidObjects.database_adapter.database_now
         )
         enqueued_effects.concat(enqueue_effects(locked_message, instance, effect_intents))
-        schedule_reminders(instance, reminder_intents)
+        moved_reminders.concat(schedule_reminders(instance, reminder_intents))
         enqueued_effects.concat(
           enqueue_actor_messages(locked_message, instance, outbound_message_intents)
         )
@@ -126,6 +127,9 @@ module SolidObjects
           **instrumentation_payload,
           observable_name:
         )
+      end
+      moved_reminders.each do |moved|
+        SolidObjects.instrument(:"reminder.replaced", **moved)
       end
       enqueued_effects.each do |effect|
         SolidObjects.instrument(
@@ -216,9 +220,13 @@ module SolidObjects
     # reminder per queued item therefore keeps only the last, and nothing else
     # about that is visible: the write succeeds and the earlier wake-up simply
     # never happens.
-    # @rbs (Instance, Array[Actor::ReminderIntent]) -> void
+    # Moves are returned rather than reported here, so the report happens after
+    # the turn commits. A rolled back turn would otherwise announce an alarm
+    # that never moved, which is the opposite of the visibility this event
+    # exists to provide.
+    # @rbs (Instance, Array[Actor::ReminderIntent]) -> Array[Hash[Symbol, untyped]]
     def schedule_reminders(instance, intents)
-      intents.each do |intent|
+      intents.filter_map do |intent|
         reminder = Reminder.find_or_initialize_by(instance:, name: intent.name)
         previous_run_at = reminder.next_run_at
         reminder.assign_attributes(
@@ -233,26 +241,26 @@ module SolidObjects
           claimed_by: nil,
           claimed_at: nil
         )
-        report_moved_reminder(reminder, previous_run_at)
+        moved = moved_reminder_payload(reminder, previous_run_at)
         reminder.save!
+        moved
       end
     end
 
     # Arguments are omitted deliberately: a reminder carries application data
     # and this event exists to be logged.
-    # @rbs (Reminder, Time?) -> void
-    def report_moved_reminder(reminder, previous_run_at)
-      return unless previous_run_at
-      return if previous_run_at == reminder.next_run_at
+    # @rbs (Reminder, Time?) -> Hash[Symbol, untyped]?
+    def moved_reminder_payload(reminder, previous_run_at)
+      return nil unless previous_run_at
+      return nil if previous_run_at == reminder.next_run_at
 
-      SolidObjects.instrument(
-        :"reminder.replaced",
+      {
         actor_type: reminder.actor_type,
         actor_id: reminder.actor_id,
         name: reminder.name,
         previous_run_at:,
         next_run_at: reminder.next_run_at
-      )
+      }
     end
 
     # @rbs (Message, Instance, Array[Actor::OutboundMessageIntent]) -> Array[Effect]
