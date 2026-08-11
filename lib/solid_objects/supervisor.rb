@@ -19,12 +19,13 @@ module SolidObjects
       broadcast_worker_count: SolidObjects.configuration.broadcast_worker_count,
       reminder_scheduler_count: SolidObjects.configuration.reminder_scheduler_count
     )
-      @components = build_components(
+      @builders = component_builders(
         worker_count:,
         effect_worker_count:,
         broadcast_worker_count:,
         reminder_scheduler_count:
       )
+      @components = @builders.map(&:call)
       @threads = []
       @monitor = nil
       @started = false
@@ -77,7 +78,7 @@ module SolidObjects
 
     private
 
-    attr_reader :components, :threads
+    attr_reader :components, :threads, :builders
 
     # A role that raises leaves its thread dead. Without replacement the
     # process keeps running while quietly doing less work, so the supervisor
@@ -116,7 +117,11 @@ module SolidObjects
         replaced = @lifecycle.synchronize do
           next false unless @started
 
-          replacement = component.class.new
+          # A component built by this supervisor has a builder, which carries
+          # whatever the constructor was given. A component put in place by
+          # other means has none, so the class is the only thing left to go on.
+          builder = builders[index] || -> { component.class.new }
+          replacement = builder.call
           components[index] = replacement
           threads[index] = supervise(replacement)
           replacement
@@ -250,17 +255,22 @@ module SolidObjects
       nil
     end
 
-    # @rbs (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]
-    def build_components(
+    # Each component keeps the builder that made it, so a replacement after a
+    # crash is built the same way as the original. Components registered
+    # through the configuration run beside the built in ones, under the same
+    # supervision, restart, and shutdown timeout.
+    # @rbs (worker_count: Integer, effect_worker_count: Integer, broadcast_worker_count: Integer, reminder_scheduler_count: Integer) -> Array[^() -> untyped]
+    def component_builders(
       worker_count:,
       effect_worker_count:,
       broadcast_worker_count:,
       reminder_scheduler_count:
     )
-      Array.new(worker_count) { Worker.new } +
-        Array.new(effect_worker_count) { EffectExecutor.new } +
-        Array.new(broadcast_worker_count) { BroadcastExecutor.new } +
-        Array.new(reminder_scheduler_count) { ReminderScheduler.new }
+      Array.new(worker_count) { -> { Worker.new } } +
+        Array.new(effect_worker_count) { -> { EffectExecutor.new } } +
+        Array.new(broadcast_worker_count) { -> { BroadcastExecutor.new } } +
+        Array.new(reminder_scheduler_count) { -> { ReminderScheduler.new } } +
+        SolidObjects.configuration.additional_components
     end
 
     # @rbs () -> void

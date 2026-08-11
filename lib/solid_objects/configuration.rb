@@ -92,6 +92,9 @@ module SolidObjects
       :authorize_subscription,
       :authorize_administration
 
+    # @rbs @additional_components: Array[untyped]
+    attr_reader :additional_components
+
     # @rbs () -> void
     def initialize
       @table_name_prefix = "solid_objects_"
@@ -142,6 +145,32 @@ module SolidObjects
       @authorize_destroy = ->(**) { false }
       @authorize_subscription = ->(**) { false }
       @authorize_administration = ->(**) { false }
+      @additional_components = []
+    end
+
+    # Registers a long running component that the supervisor runs beside its own
+    # workers. An extension gem uses this to share one process, rather than ask
+    # an operator to run and monitor a second one.
+    #
+    # The block must return an object that answers `run`, `request_shutdown`,
+    # `stopped?`, and `stop`, which is the contract the built in components
+    # already keep. The supervisor calls the block once for each supervisor it
+    # builds, and again when it replaces a crashed component, so two
+    # supervisors never share one component instance.
+    #
+    # @rbs (?count: Integer) { () -> untyped } -> void
+    def register_component(count: 1, &factory)
+      raise ArgumentError, "register_component requires a block" unless factory
+      raise ArgumentError, "count must be positive" unless count.positive?
+
+      validate_component!(factory.call)
+
+      count.times { @additional_components << factory }
+    end
+
+    # @rbs () -> Array[untyped]
+    def build_additional_components
+      additional_components.map(&:call)
     end
 
     # @rbs () -> self
@@ -194,6 +223,18 @@ module SolidObjects
     end
 
     private
+
+    # A component that misses part of the contract would hang the supervisor at
+    # shutdown, or crash the moment it starts. The registration fails instead,
+    # where the caller can read the reason.
+    # @rbs (untyped) -> void
+    def validate_component!(component)
+      %i[run request_shutdown stopped? stop].each do |method_name|
+        next if component.respond_to?(method_name)
+
+        raise ArgumentError, "a registered component must respond to #{method_name}"
+      end
+    end
 
     # @rbs () -> Hash[Symbol, Numeric]
     def positive_values
