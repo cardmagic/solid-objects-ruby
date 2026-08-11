@@ -9,7 +9,10 @@
   shutdown timeout. Without it, an extension has to ask an operator to run and
   monitor a second process for work that belongs to the same runtime. A
   registered component must answer `run`, `request_shutdown`, `stopped?`, and
-  `stop`, and the registration raises `ArgumentError` when it does not.
+  `stop`. The supervisor checks that contract when it builds the component and
+  raises `ArgumentError` when a method is missing. Registration never calls the
+  block, so a component may need a database connection that the application
+  does not have while it boots.
 
 - Replace a crashed component through the builder that made it. The supervisor
   called `component.class.new`, which discards every constructor argument, so a

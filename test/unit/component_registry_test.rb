@@ -38,6 +38,16 @@ class ComponentRegistryTest < ActiveSupport::TestCase
     assert_empty SolidObjects.configuration.additional_components
   end
 
+  test "registration does not build the component" do
+    built = 0
+    SolidObjects.configuration.register_component do
+      built += 1
+      CountingComponent.new
+    end
+
+    assert_equal 0, built, "registration must not need a database connection"
+  end
+
   test "registers a component factory" do
     SolidObjects.configuration.register_component { CountingComponent.new }
 
@@ -59,9 +69,14 @@ class ComponentRegistryTest < ActiveSupport::TestCase
     assert_equal 3, SolidObjects.configuration.build_additional_components.length
   end
 
+  # The check happens when the supervisor builds the component, because a
+  # component often needs a database connection, and registration runs while
+  # the application boots.
   test "refuses a component without a run method" do
+    SolidObjects.configuration.register_component { Object.new }
+
     error = assert_raises(ArgumentError) do
-      SolidObjects.configuration.register_component { Object.new }
+      SolidObjects.configuration.build_additional_components
     end
 
     assert_match(/run/, error.message)
@@ -73,8 +88,10 @@ class ComponentRegistryTest < ActiveSupport::TestCase
       end
     end
 
+    SolidObjects.configuration.register_component { incomplete.new }
+
     error = assert_raises(ArgumentError) do
-      SolidObjects.configuration.register_component { incomplete.new }
+      SolidObjects.configuration.build_additional_components
     end
 
     assert_match(/request_shutdown/, error.message)
@@ -94,8 +111,10 @@ class ComponentRegistryTest < ActiveSupport::TestCase
       end
     end
 
+    SolidObjects.configuration.register_component { without_stopped.new }
+
     error = assert_raises(ArgumentError) do
-      SolidObjects.configuration.register_component { without_stopped.new }
+      SolidObjects.configuration.build_additional_components
     end
 
     assert_match(/stopped\?/, error.message)

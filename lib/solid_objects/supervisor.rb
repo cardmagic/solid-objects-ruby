@@ -270,7 +270,9 @@ module SolidObjects
         Array.new(effect_worker_count) { -> { EffectExecutor.new } } +
         Array.new(broadcast_worker_count) { -> { BroadcastExecutor.new } } +
         Array.new(reminder_scheduler_count) { -> { ReminderScheduler.new } } +
-        SolidObjects.configuration.additional_components
+        SolidObjects.configuration.additional_components.map do |factory|
+          -> { SolidObjects.configuration.build_component(factory) }
+        end
     end
 
     # @rbs () -> void

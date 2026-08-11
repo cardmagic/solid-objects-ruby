@@ -163,14 +163,20 @@ module SolidObjects
       raise ArgumentError, "register_component requires a block" unless factory
       raise ArgumentError, "count must be positive" unless count.positive?
 
-      validate_component!(factory.call)
-
       count.times { @additional_components << factory }
     end
 
+    # The supervisor checks the contract here rather than at registration,
+    # because a component often needs a database connection to exist, and
+    # registration happens while the application boots.
     # @rbs () -> Array[untyped]
     def build_additional_components
-      additional_components.map(&:call)
+      additional_components.map { |factory| build_component(factory) }
+    end
+
+    # @rbs (^() -> untyped) -> untyped
+    def build_component(factory)
+      factory.call.tap { |component| validate_component!(component) }
     end
 
     # @rbs () -> self

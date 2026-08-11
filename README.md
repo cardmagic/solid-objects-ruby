@@ -485,9 +485,11 @@ already keep:
 | `stopped?` | Reports whether the component already finished |
 | `stop` | Forces cleanup when the shutdown timeout expires first |
 
-`register_component` builds one instance at once to check that contract, so a
-component that misses a method raises `ArgumentError` while the application
-boots, rather than hanging a shutdown later.
+The supervisor checks that contract when it builds the component, and a missing
+method raises `ArgumentError` as the supervisor starts, rather than hanging a
+shutdown later. Registration itself never calls the block, so a component is
+free to need a database connection that the application does not have while it
+boots.
 
 ## Defining an actor
 

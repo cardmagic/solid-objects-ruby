@@ -93,11 +93,12 @@ class SupervisorAdditionalComponentsTest < ActiveSupport::TestCase
       RecordingComponent.new
     end
 
+    assert_equal 0, built.value, "registration must not build the component"
+
     supervisor = new_supervisor
     supervisor.start
 
-    # One call validates the registration, then one call for each instance.
-    assert_equal 3, built.value
+    assert_equal 2, built.value
   ensure
     supervisor&.stop
   end
@@ -114,7 +115,6 @@ class SupervisorAdditionalComponentsTest < ActiveSupport::TestCase
 
     supervisor = new_supervisor
     supervisor.start
-    components.pop # the instance built during validation
     first = components.pop
     wait_until { first.started? }
 
