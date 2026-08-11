@@ -93,6 +93,11 @@ module SolidObjects
       moved_reminders = []
 
       activation.lease.fenced_transaction do |instance|
+        # A busy database makes the adapter retry this whole block, so an
+        # attempt that was rolled back must not leave its work in the lists the
+        # reporting below reads. Each attempt starts from empty.
+        enqueued_effects.clear
+        moved_reminders.clear
         claimed_message = matching_claim!
         locked_message = Message.lock.find(message.id)
         execute_commit_actions(commit_action_intents)
