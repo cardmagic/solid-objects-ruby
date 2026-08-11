@@ -44,7 +44,8 @@
   result recovery
 - Bounded message/process pruning, actor-type opt-in instance expiration,
   graceful caller shutdown, committed state snapshots, and an opt-in Minitest
-  helper
+  helper that clears every actor-owned table itself rather than relying on the
+  database cascade, which a host application may not enforce
 - Supervisor role replacement: a role whose thread dies is restarted until
   shutdown is requested, and dead process records plus expired message and
   process history are pruned on their own intervals without an application

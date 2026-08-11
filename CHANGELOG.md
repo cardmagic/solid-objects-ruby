@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.3 - 2026-08-11
 
 - Delete every actor-owned row in `SolidObjects::TestHelper#reset_actors!`. It
   deleted actor instances and processes and left the other seven tables to the
