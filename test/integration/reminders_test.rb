@@ -105,7 +105,7 @@ class RemindersTest < ActiveSupport::TestCase
 
     reminder = SolidObjects::Reminder.find_by!(instance: SolidObjects::Message.find(message_reference.id).instance)
     assert_equal "expire", reminder.name
-    assert_equal "expire", reminder.message_name
+    assert_equal "expire", reminder.operation
     assert_equal "scheduled", reminder.status
     assert_operator reminder.next_run_at, :>, Time.current
   ensure

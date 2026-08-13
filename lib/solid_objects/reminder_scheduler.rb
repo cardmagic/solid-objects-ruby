@@ -97,8 +97,8 @@ module SolidObjects
     # @rbs (Reminder) -> MessageReference?
     def enqueue(reminder)
       actor_class = SolidObjects.registry.fetch(reminder.actor_type)
-      unless actor_class.definition.messages.key?(reminder.message_name.to_sym)
-        raise UnknownMessage, "unknown reminder message #{reminder.message_name.inspect}"
+      unless actor_class.definition.messages.key?(reminder.operation.to_sym)
+        raise UnknownMessage, "unknown reminder operation #{reminder.operation.inspect}"
       end
 
       mailbox = Mailbox.new(database_adapter:)
@@ -111,10 +111,10 @@ module SolidObjects
         verify_claim!(locked_reminder)
         now = database_adapter.database_now
         message = mailbox.enqueue_in_transaction(
-          Reference.new(actor_type: instance.actor_type, actor_id: instance.actor_id),
-          locked_reminder.message_name,
-          locked_reminder.arguments,
-          kind: "internal",
+          reference: Reference.new(actor_type: instance.actor_type, actor_id: instance.actor_id),
+          operation: locked_reminder.operation,
+          arguments: locked_reminder.arguments,
+          delivery_mode: "internal",
           idempotency_key: "reminder:#{locked_reminder.id}:#{locked_reminder.occurrence}",
           actor_class:
         )

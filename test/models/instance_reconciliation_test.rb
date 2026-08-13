@@ -42,7 +42,7 @@ class InstanceReconciliationTest < ActiveSupport::TestCase
       actor_type: reminded.actor_type,
       actor_id: reminded.actor_id,
       name: "next-evaluation",
-      message_name: "evaluate",
+      operation: "evaluate",
       arguments: {},
       next_run_at: 1.day.from_now
     )
@@ -143,8 +143,8 @@ class InstanceReconciliationTest < ActiveSupport::TestCase
       instance:,
       actor_type: instance.actor_type,
       actor_id: instance.actor_id,
-      message_name: "evaluate",
-      message_kind: "async",
+      operation: "evaluate",
+      delivery_mode: "async",
       arguments: {},
       sequence: 1,
       request_id: SecureRandom.uuid,

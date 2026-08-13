@@ -71,7 +71,7 @@ module SolidObjects
 
     @actor_id: String
 
-    @message_name: String
+    @operation: String
 
     attr_reader timeout: untyped
 
@@ -79,10 +79,10 @@ module SolidObjects
 
     attr_reader actor_id: untyped
 
-    attr_reader message_name: untyped
+    attr_reader operation: untyped
 
-    # @rbs (timeout: Numeric, actor_type: String, actor_id: String, message_name: String) -> void
-    def initialize: (timeout: Numeric, actor_type: String, actor_id: String, message_name: String) -> void
+    # @rbs (timeout: Numeric, actor_type: String, actor_id: String, operation: String) -> void
+    def initialize: (timeout: Numeric, actor_type: String, actor_id: String, operation: String) -> void
   end
 
   class SyncTimeout < Error
@@ -92,7 +92,7 @@ module SolidObjects
 
     @actor_id: String
 
-    @message_name: String
+    @operation: String
 
     @message_id: Integer
 
@@ -114,7 +114,7 @@ module SolidObjects
 
     attr_reader actor_id: untyped
 
-    attr_reader message_name: untyped
+    attr_reader operation: untyped
 
     attr_reader message_id: untyped
 
@@ -130,8 +130,8 @@ module SolidObjects
 
     attr_reader blocker: untyped
 
-    # @rbs (timeout: Numeric, actor_type: String, actor_id: String, message_name: String, message_id: Integer, request_id: String, sequence: Integer, status: String, waiting_on: String, activation: Hash[String, untyped], blocker: Hash[String, untyped]?) -> void
-    def initialize: (timeout: Numeric, actor_type: String, actor_id: String, message_name: String, message_id: Integer, request_id: String, sequence: Integer, status: String, waiting_on: String, activation: Hash[String, untyped], blocker: Hash[String, untyped]?) -> void
+    # @rbs (timeout: Numeric, actor_type: String, actor_id: String, operation: String, message_id: Integer, request_id: String, sequence: Integer, status: String, waiting_on: String, activation: Hash[String, untyped], blocker: Hash[String, untyped]?) -> void
+    def initialize: (timeout: Numeric, actor_type: String, actor_id: String, operation: String, message_id: Integer, request_id: String, sequence: Integer, status: String, waiting_on: String, activation: Hash[String, untyped], blocker: Hash[String, untyped]?) -> void
 
     # @rbs () -> MessageReference
     def message_reference: () -> MessageReference
@@ -142,16 +142,16 @@ module SolidObjects
 
     @actor_id: String
 
-    @message_name: String
+    @operation: String
 
     attr_reader actor_type: untyped
 
     attr_reader actor_id: untyped
 
-    attr_reader message_name: untyped
+    attr_reader operation: untyped
 
-    # @rbs (actor_type: String, actor_id: String, message_name: String) -> void
-    def initialize: (actor_type: String, actor_id: String, message_name: String) -> void
+    # @rbs (actor_type: String, actor_id: String, operation: String) -> void
+    def initialize: (actor_type: String, actor_id: String, operation: String) -> void
   end
 
   class ApplicationWriteForbidden < NonRetryableError
@@ -159,21 +159,21 @@ module SolidObjects
 
     @actor_id: String
 
-    @message_name: String
+    @operation: String
 
     attr_reader actor_type: untyped
 
     attr_reader actor_id: untyped
 
-    attr_reader message_name: untyped
+    attr_reader operation: untyped
 
-    # @rbs (actor_type: String, actor_id: String, message_name: String) -> void
-    def initialize: (actor_type: String, actor_id: String, message_name: String) -> void
+    # @rbs (actor_type: String, actor_id: String, operation: String) -> void
+    def initialize: (actor_type: String, actor_id: String, operation: String) -> void
   end
 
   class CommitActionUnavailable < NonRetryableError
-    # @rbs (actor_type: String, actor_id: String, message_name: String) -> void
-    def initialize: (actor_type: String, actor_id: String, message_name: String) -> void
+    # @rbs (actor_type: String, actor_id: String, operation: String) -> void
+    def initialize: (actor_type: String, actor_id: String, operation: String) -> void
   end
 
   class UnknownCommitAction < NonRetryableError

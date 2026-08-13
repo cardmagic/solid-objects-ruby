@@ -45,6 +45,7 @@ module SolidObjects
     # @rbs (Symbol | String, default: untyped) -> StateDefinition::Attribute
     def add_attribute(name, default:)
       attribute_name = name.to_sym
+      OperationDispatcher.validate_operation_name!(attribute_name)
       if messages.key?(attribute_name) || queries.key?(attribute_name)
         raise InvalidActor, "#{attribute_name.inspect} is already defined"
       end
@@ -60,7 +61,7 @@ module SolidObjects
 
     # @rbs (Symbol | String, Proc) -> Handler
     def add_message(name, block)
-      add_handler(messages, name, block)
+      add_handler(collection: messages, name:, block:)
     end
 
     # @rbs (Symbol | String, Proc) -> Handler
@@ -72,7 +73,7 @@ module SolidObjects
         end
       end
 
-      add_handler(queries, name, block)
+      add_handler(collection: queries, name:, block:)
     end
 
     # @rbs (Symbol | String, Proc?) -> Handler
@@ -121,8 +122,8 @@ module SolidObjects
       @state_version = version
     end
 
-    # @rbs (Integer, Integer, Proc) -> StateMigration
-    def add_state_migration(from, to, block)
+    # @rbs (from: Integer, to: Integer, block: Proc) -> StateMigration
+    def add_state_migration(from:, to:, block:)
       unless to == from + 1
         raise InvalidActor, "state migrations must advance exactly one version"
       end
@@ -183,6 +184,7 @@ module SolidObjects
 
     # @rbs (Symbol) -> Handler
     def add_method_message(name)
+      OperationDispatcher.validate_operation_name!(name)
       if messages.key?(name) || queries.key?(name)
         raise InvalidActor, "#{name.inspect} is already defined"
       end
@@ -222,9 +224,10 @@ module SolidObjects
       end
     end
 
-    # @rbs (Hash[Symbol, Handler], Symbol | String, Proc) -> Handler
-    def add_handler(collection, name, block)
+    # @rbs (collection: Hash[Symbol, Handler], name: Symbol | String, block: Proc) -> Handler
+    def add_handler(collection:, name:, block:)
       handler_name = name.to_sym
+      OperationDispatcher.validate_operation_name!(handler_name)
       raise InvalidActor, "#{handler_name.inspect} is already defined" if messages.key?(handler_name) || queries.key?(handler_name)
 
       Handler.new(name: handler_name, block:).tap { |handler| collection[handler_name] = handler }

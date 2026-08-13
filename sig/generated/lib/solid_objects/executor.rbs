@@ -36,14 +36,14 @@ module SolidObjects
     # @rbs (Array[Actor::CommitActionIntent]) -> void
     def execute_commit_actions: (Array[Actor::CommitActionIntent]) -> void
 
-    # @rbs (Actor::CommitActionIntent, Proc, CommitActionContext) -> untyped
-    def execute_commit_action: (Actor::CommitActionIntent, Proc, CommitActionContext) -> untyped
+    # @rbs (intent: Actor::CommitActionIntent, handler: Proc, context: CommitActionContext) -> untyped
+    def execute_commit_action: (intent: Actor::CommitActionIntent, handler: Proc, context: CommitActionContext) -> untyped
 
     # @rbs () -> void
     def ensure_application_database_is_shared!: () -> void
 
-    # @rbs (Message, Instance, Array[Actor::EffectIntent]) -> Array[Effect]
-    def enqueue_effects: (Message, Instance, Array[Actor::EffectIntent]) -> Array[Effect]
+    # @rbs (message: Message, instance: Instance, intents: Array[Actor::EffectIntent]) -> Array[Effect]
+    def enqueue_effects: (message: Message, instance: Instance, intents: Array[Actor::EffectIntent]) -> Array[Effect]
 
     # A reminder is one named alarm per actor, so scheduling a name that is
     # already armed moves it rather than adding a second. An actor that arms a
@@ -62,11 +62,11 @@ module SolidObjects
     # @rbs (Reminder, Time?) -> Hash[Symbol, untyped]?
     def moved_reminder_payload: (Reminder, Time?) -> Hash[Symbol, untyped]?
 
-    # @rbs (Message, Instance, Array[Actor::OutboundMessageIntent]) -> Array[Effect]
-    def enqueue_actor_messages: (Message, Instance, Array[Actor::OutboundMessageIntent]) -> Array[Effect]
+    # @rbs (message: Message, instance: Instance, intents: Array[Actor::OutboundMessageIntent]) -> Array[Effect]
+    def enqueue_actor_messages: (message: Message, instance: Instance, intents: Array[Actor::OutboundMessageIntent]) -> Array[Effect]
 
-    # @rbs (Message, Instance, Hash[String, untyped], state_changed: bool) -> void
-    def enqueue_broadcasts: (Message, Instance, Hash[String, untyped], state_changed: bool) -> void
+    # @rbs (message: Message, instance: Instance, observable_changes: Hash[String, untyped], state_changed: bool) -> void
+    def enqueue_broadcasts: (message: Message, instance: Instance, observable_changes: Hash[String, untyped], state_changed: bool) -> void
 
     # @rbs () -> bool
     def payload_broadcasts?: () -> bool
@@ -83,8 +83,8 @@ module SolidObjects
     # @rbs (Exception) -> Hash[String, untyped]
     def serialized_error: (Exception) -> Hash[String, untyped]
 
-    # @rbs (Message, Hash[String, untyped], Time) -> DeadLetter
-    def create_dead_letter: (Message, Hash[String, untyped], Time) -> DeadLetter
+    # @rbs (message: Message, error_details: Hash[String, untyped], now: Time) -> DeadLetter
+    def create_dead_letter: (message: Message, error_details: Hash[String, untyped], now: Time) -> DeadLetter
 
     # @rbs () -> Hash[Symbol, untyped]
     def instrumentation_payload: () -> Hash[Symbol, untyped]

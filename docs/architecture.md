@@ -71,7 +71,7 @@ through the client.
 
 ### Client and mailbox
 
-The client finds or creates the actor instance and atomically allocates a sequence. It inserts one durable message-history row and one ready-membership row. It validates message names and JSON payloads before writing and enforces idempotency-key uniqueness, payload limits, and the per-actor mailbox cap. It also authorizes and coordinates actor destruction. Distributed rate limiting and global admission control are not implemented.
+The client finds or creates the actor instance and atomically allocates a sequence. It inserts one durable message-history row and one ready-membership row. It validates operations and JSON payloads before writing and enforces idempotency-key uniqueness, payload limits, and the per-actor mailbox cap. It also authorizes and coordinates actor destruction. Distributed rate limiting and global admission control are not implemented.
 
 Message execution state is table membership, not a status column. The durable message remains for results, retention, and diagnostics. Only live work occupies `ready_messages` or `claimed_messages`, so completed history cannot inflate the polling index.
 
@@ -185,7 +185,7 @@ with application Active Record writes prevented.
 Enqueue uses one transaction:
 
 1. Resolve actor class from the registry.
-2. Validate authorization, message name, actor ID, arguments, and size.
+2. Validate authorization, operation, actor ID, arguments, and size.
 3. `INSERT ... ON CONFLICT` the actor instance if missing.
 4. Lock the instance row.
 5. Enforce the mailbox limit.

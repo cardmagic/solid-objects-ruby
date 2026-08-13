@@ -16,7 +16,7 @@ class SyncTest < ActiveSupport::TestCase
 
     message = SolidObjects::Message.find_by!(actor_type: "sync-query", actor_id: "one")
     assert_equal "answer", result
-    assert_equal "sync", message.message_kind
+    assert_equal "sync", message.delivery_mode
     assert message.completed?
     assert_equal "answer", message.result
   end

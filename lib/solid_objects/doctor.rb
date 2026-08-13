@@ -68,7 +68,7 @@ module SolidObjects
         activation_generation
       ],
       messages: %w[
-        id instance_id message_kind arguments sequence attempt_count request_id
+        id instance_id delivery_mode arguments sequence attempt_count request_id
         result error rejection completed_at rejected_at
       ],
       ready_messages: %w[id message_id instance_id sequence available_at],
@@ -76,7 +76,7 @@ module SolidObjects
         id message_id instance_id process_id activation_token
         activation_generation claimed_at
       ],
-      reminders: %w[id instance_id message_name next_run_at status],
+      reminders: %w[id instance_id operation next_run_at status],
       effects: %w[id message_id instance_id effect_id status available_at],
       broadcasts: %w[id message_id instance_id broadcast_id status available_at],
       dead_letters: %w[id message_id instance_id actor_type actor_id attempts]
@@ -247,10 +247,10 @@ module SolidObjects
       probe_registry.register(kind: "caller", metadata: { execution: "doctor" })
       value = SecureRandom.hex(8)
       message_reference = Mailbox.new.enqueue(
-        ProbeActor.ref(actor_id),
-        :ping,
-        { value: },
-        kind: "sync"
+        reference: ProbeActor.ref(actor_id),
+        operation: :ping,
+        arguments: { value: },
+        delivery_mode: "sync"
       )
       result = SynchronousInvocation
         .new(process_registry: probe_registry)
@@ -314,11 +314,11 @@ module SolidObjects
       }
       {
         authorize_message: actor_arguments.merge(
-          message_name: "ping",
+          operation: "ping",
           arguments: { "value" => "doctor" }
         ),
         authorize_query: actor_arguments.merge(
-          message_name: "value",
+          operation: "value",
           arguments: {}
         ),
         authorize_destroy: actor_arguments,

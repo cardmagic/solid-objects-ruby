@@ -7,16 +7,16 @@ module SolidObjects
 
       attr_reader arguments(): untyped
 
-      attr_reader success_message_name(): untyped
+      attr_reader success_operation(): untyped
 
-      attr_reader failure_message_name(): untyped
+      attr_reader failure_operation(): untyped
 
-      def self.new: (untyped name, untyped arguments, untyped success_message_name, untyped failure_message_name) -> instance
-                  | (name: untyped, arguments: untyped, success_message_name: untyped, failure_message_name: untyped) -> instance
+      def self.new: (untyped name, untyped arguments, untyped success_operation, untyped failure_operation) -> instance
+                  | (name: untyped, arguments: untyped, success_operation: untyped, failure_operation: untyped) -> instance
 
-      def self.members: () -> [ :name, :arguments, :success_message_name, :failure_message_name ]
+      def self.members: () -> [ :name, :arguments, :success_operation, :failure_operation ]
 
-      def members: () -> [ :name, :arguments, :success_message_name, :failure_message_name ]
+      def members: () -> [ :name, :arguments, :success_operation, :failure_operation ]
     end
 
     class CommitActionIntent < Data
@@ -56,7 +56,7 @@ module SolidObjects
 
       attr_reader actor_id(): untyped
 
-      attr_reader message_name(): untyped
+      attr_reader operation(): untyped
 
       attr_reader arguments(): untyped
 
@@ -64,12 +64,12 @@ module SolidObjects
 
       attr_reader idempotency_key(): untyped
 
-      def self.new: (untyped actor_type, untyped actor_id, untyped message_name, untyped arguments, untyped available_at, untyped idempotency_key) -> instance
-                  | (actor_type: untyped, actor_id: untyped, message_name: untyped, arguments: untyped, available_at: untyped, idempotency_key: untyped) -> instance
+      def self.new: (untyped actor_type, untyped actor_id, untyped operation, untyped arguments, untyped available_at, untyped idempotency_key) -> instance
+                  | (actor_type: untyped, actor_id: untyped, operation: untyped, arguments: untyped, available_at: untyped, idempotency_key: untyped) -> instance
 
-      def self.members: () -> [ :actor_type, :actor_id, :message_name, :arguments, :available_at, :idempotency_key ]
+      def self.members: () -> [ :actor_type, :actor_id, :operation, :arguments, :available_at, :idempotency_key ]
 
-      def members: () -> [ :actor_type, :actor_id, :message_name, :arguments, :available_at, :idempotency_key ]
+      def members: () -> [ :actor_type, :actor_id, :operation, :arguments, :available_at, :idempotency_key ]
     end
 
     # @rbs (Class) -> void
@@ -178,8 +178,8 @@ module SolidObjects
     # @rbs () -> void
     def deactivate: () -> void
 
-    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], ?available_at: Time?, idempotency_key: String?) -> OutboundMessageIntent
-    def stage_outbound_message: (Reference, Symbol | String, Hash[Symbol | String, untyped], idempotency_key: String?, ?available_at: Time?) -> OutboundMessageIntent
+    # @rbs (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], ?available_at: Time?, idempotency_key: String?) -> OutboundMessageIntent
+    def stage_outbound_message: (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], idempotency_key: String?, ?available_at: Time?) -> OutboundMessageIntent
 
     # @rbs () -> Array[EffectIntent]
     def drain_effect_intents: () -> Array[EffectIntent]

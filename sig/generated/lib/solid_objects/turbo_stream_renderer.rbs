@@ -9,14 +9,14 @@ module SolidObjects
     # @rbs (Broadcast) -> String
     def self?.observable: (Broadcast) -> String
 
-    # @rbs (Reference, Symbol | String, untyped) -> String
-    def self?.observable_value: (Reference, Symbol | String, untyped) -> String
+    # @rbs (reference: Reference, name: Symbol | String, value: untyped) -> String
+    def self?.observable_value: (reference: Reference, name: Symbol | String, value: untyped) -> String
 
-    # @rbs (ComponentRegistration, Integer, Integer) -> String
-    def self?.component_refresh: (ComponentRegistration, Integer, Integer) -> String
+    # @rbs (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> String
+    def self?.component_refresh: (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> String
 
-    # @rbs (Array[ComponentRegistration], Integer, Integer) -> String
-    def self?.batch_refresh: (Array[ComponentRegistration], Integer, Integer) -> String
+    # @rbs (registrations: Array[ComponentRegistration], instance_id: Integer, revision: Integer) -> String
+    def self?.batch_refresh: (registrations: Array[ComponentRegistration], instance_id: Integer, revision: Integer) -> String
 
     # @rbs (Hash[String, untyped]) -> String
     def self?.state_payload: (Hash[String, untyped]) -> String
@@ -27,7 +27,7 @@ module SolidObjects
     # @rbs (untyped) -> String
     def self?.display_value: (untyped) -> String
 
-    # @rbs (ComponentRegistration, Integer, Integer) -> String
-    def self?.morph_component_refresh: (ComponentRegistration, Integer, Integer) -> String
+    # @rbs (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> String
+    def self?.morph_component_refresh: (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> String
   end
 end

@@ -50,21 +50,21 @@ module SolidObjects
       revision = invalidation.fetch("revision")
       changed = registrations.select do |registration|
         registration.dependencies.include?(observable_name) &&
-          newer_revision?(registration.dom_id, instance_id, revision)
+          newer_revision?(dom_id: registration.dom_id, instance_id:, revision:)
       end
-      refresh_streams(changed, instance_id, revision)
+      refresh_streams(changed:, instance_id:, revision:)
     end
 
     # @rbs (ActorSnapshot) -> Array[String]
     def reconnect_refreshes(snapshot)
       stale = registrations.select do |registration|
         newer_revision?(
-          registration.dom_id,
-          snapshot.instance_id,
-          snapshot.revision
+          dom_id: registration.dom_id,
+          instance_id: snapshot.instance_id,
+          revision: snapshot.revision
         )
       end
-      refresh_streams(stale, snapshot.instance_id, snapshot.revision)
+      refresh_streams(changed: stale, instance_id: snapshot.instance_id, revision: snapshot.revision)
     end
 
     class << self
@@ -86,36 +86,36 @@ module SolidObjects
 
     # Live invalidations and reconnect replays share this, so a reconnecting
     # client pays the same number of requests a connected one does.
-    # @rbs (Array[ComponentRegistration], Integer, Integer) -> Array[String]
-    def refresh_streams(changed, instance_id, revision)
+    # @rbs (changed: Array[ComponentRegistration], instance_id: Integer, revision: Integer) -> Array[String]
+    def refresh_streams(changed:, instance_id:, revision:)
       batched, individual = changed.partition(&:batch)
       streams = individual.map do |registration|
-        refresh(registration, instance_id, revision)
+        refresh(registration:, instance_id:, revision:)
       end
       batched.group_by(&:batch).each_value do |group|
-        group.each { |registration| record_revision(registration, instance_id, revision) }
-        streams << TurboStreamRenderer.batch_refresh(group, instance_id, revision)
+        group.each { |registration| record_revision(registration:, instance_id:, revision:) }
+        streams << TurboStreamRenderer.batch_refresh(registrations: group, instance_id:, revision:)
       end
       streams
     end
 
-    # @rbs (ComponentRegistration, Integer, Integer) -> void
-    def record_revision(registration, instance_id, revision)
+    # @rbs (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> void
+    def record_revision(registration:, instance_id:, revision:)
       revisions[registration.dom_id] = [ instance_id, revision ]
     end
 
-    # @rbs (ComponentRegistration, Integer, Integer) -> String
-    def refresh(registration, instance_id, revision)
-      record_revision(registration, instance_id, revision)
+    # @rbs (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> String
+    def refresh(registration:, instance_id:, revision:)
+      record_revision(registration:, instance_id:, revision:)
       TurboStreamRenderer.component_refresh(
-        registration,
-        instance_id,
-        revision
+        registration:,
+        instance_id:,
+        revision:
       )
     end
 
-    # @rbs (String, Integer, Integer) -> bool
-    def newer_revision?(dom_id, instance_id, revision)
+    # @rbs (dom_id: String, instance_id: Integer, revision: Integer) -> bool
+    def newer_revision?(dom_id:, instance_id:, revision:)
       current = revisions.fetch(dom_id)
       (current <=> [ instance_id, revision ]) == -1
     end

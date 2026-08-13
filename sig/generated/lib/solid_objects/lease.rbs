@@ -8,8 +8,8 @@ module SolidObjects
     # @rbs (instance_id: Integer, owner_id: String, ?activation_token: String, ?duration: Numeric, ?database_adapter: DatabaseAdapter) -> Lease?
     def self.acquire: (instance_id: Integer, owner_id: String, ?activation_token: String, ?duration: Numeric, ?database_adapter: DatabaseAdapter) -> Lease?
 
-    # @rbs (Instance, String, Time) -> bool
-    private def self.held_by_another_live_owner?: (Instance, String, Time) -> bool
+    # @rbs (instance: Instance, activation_token: String, now: Time) -> bool
+    private def self.held_by_another_live_owner?: (instance: Instance, activation_token: String, now: Time) -> bool
 
     @database_adapter: DatabaseAdapter
 

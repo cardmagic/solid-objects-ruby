@@ -18,7 +18,7 @@ class EnqueueTest < ActiveSupport::TestCase
     message = SolidObjects::Message.find(message_reference.id)
 
     assert_equal 1, message.sequence
-    assert_equal "async", message.message_kind
+    assert_equal "async", message.delivery_mode
     assert_equal({ "product_id" => "shirt" }, message.arguments)
     assert message.ready?
     assert_not message.completed?

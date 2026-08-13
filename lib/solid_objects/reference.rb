@@ -21,12 +21,12 @@ module SolidObjects
       OperationDispatcher.new(
         actor_type:,
         handlers: actor_definition.messages
-      ) do |message_name, arguments|
+      ) do |operation, arguments|
         if (actor = Context.current_actor)
           actor.stage_outbound_message(
-            self,
-            message_name,
-            arguments,
+            reference: self,
+            operation:,
+            arguments:,
             available_at:,
             idempotency_key:
           )
@@ -34,9 +34,9 @@ module SolidObjects
         end
 
         SolidObjects.client.async(
-          self,
-          message_name,
-          arguments,
+          reference: self,
+          operation:,
+          arguments:,
           available_at:,
           idempotency_key:,
           authorization_context:
@@ -51,9 +51,9 @@ module SolidObjects
       OperationDispatcher.new(
         actor_type:,
         handlers: actor_definition.messages.merge(actor_definition.queries)
-      ) do |message_name, arguments|
+      ) do |operation, arguments|
         invoke_synchronously(
-          message_name,
+          operation,
           arguments,
           timeout:,
           idempotency_key:,
@@ -101,13 +101,13 @@ module SolidObjects
     private
 
     # @rbs (Symbol | String, Hash[Symbol, untyped], timeout: Numeric, idempotency_key: String?, authorization_context: untyped) -> untyped
-    def invoke_synchronously(message_name, arguments, timeout:, idempotency_key:, authorization_context:)
+    def invoke_synchronously(operation, arguments, timeout:, idempotency_key:, authorization_context:)
       raise ActorCallCycle, "actors cannot synchronously wait for another actor" if Context.current_actor
 
       SolidObjects.client.sync(
-        self,
-        message_name,
-        arguments,
+        reference: self,
+        operation:,
+        arguments:,
         timeout:,
         idempotency_key:,
         authorization_context:

@@ -37,9 +37,9 @@ scheduled reminder, unresolved outbox, or dead letter before deletion.
 
 ### `messages`
 
-Durable immutable invocation identity and arguments plus sequence, attempt
-count, request/idempotency IDs, result/error, requested availability, and
-execution timestamps. A terminal domain rejection stores a structured
+Durable immutable invocation identity, selected operation, delivery mode, and
+arguments plus sequence, attempt count, request/idempotency IDs, result/error,
+requested availability, and execution timestamps. A terminal domain rejection stores a structured
 code/message/details document and rejection time. The table intentionally has
 no status column.
 
@@ -85,7 +85,7 @@ limit recurrence intervals, missed-work policies, and statuses.
 ### `effects`
 
 Transactional external-effect outbox. It stores stable effect UUID, arguments,
-optional actor outcome messages, attempts, claim ownership, result/error, and
+optional actor outcome operations, attempts, claim ownership, result/error, and
 completion time. Claim ownership references the process registry.
 Status/availability/ID drives delivery; completion/ID drives cleanup.
 

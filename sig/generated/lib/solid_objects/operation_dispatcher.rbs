@@ -24,5 +24,12 @@ module SolidObjects
     attr_reader handlers: untyped
 
     attr_reader dispatch: untyped
+
+    RESERVED_REFERENCE_METHOD_NAMES: untyped
+
+    RESERVED_OPERATION_NAMES: untyped
+
+    # @rbs (Symbol | String) -> void
+    def self.validate_operation_name!: (Symbol | String) -> void
   end
 end

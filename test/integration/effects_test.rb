@@ -108,7 +108,7 @@ class EffectsTest < ActiveSupport::TestCase
     result_message = SolidObjects::Message.find_by!(
       idempotency_key: "effect:#{effect.effect_id}:success"
     )
-    assert_equal "payment_charged", result_message.message_name
+    assert_equal "payment_charged", result_message.operation
     assert_equal effect.effect_id, result_message.arguments.fetch("effect_id")
 
     worker.run_until_idle
@@ -136,7 +136,7 @@ class EffectsTest < ActiveSupport::TestCase
     failure_message = SolidObjects::Message.find_by!(
       idempotency_key: "effect:#{effect.effect_id}:failure"
     )
-    assert_equal "payment_failed", failure_message.message_name
+    assert_equal "payment_failed", failure_message.operation
     assert_equal "RuntimeError", failure_message.arguments.dig("error", "class")
   ensure
     effect_executor&.stop

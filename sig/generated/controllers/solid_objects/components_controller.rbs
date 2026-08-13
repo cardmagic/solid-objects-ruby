@@ -39,7 +39,7 @@ module SolidObjects
     # @rbs () -> untyped
     def component_view_context: () -> untyped
 
-    # @rbs (ComponentRegistration, ActorSnapshot, untyped) -> String
-    def component_frame: (ComponentRegistration, ActorSnapshot, untyped) -> String
+    # @rbs (registration: ComponentRegistration, snapshot: ActorSnapshot, rendered: untyped) -> String
+    def component_frame: (registration: ComponentRegistration, snapshot: ActorSnapshot, rendered: untyped) -> String
   end
 end

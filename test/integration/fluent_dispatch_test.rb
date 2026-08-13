@@ -103,8 +103,8 @@ class FluentDispatchTest < ActiveSupport::TestCase
     message = SolidObjects::Message.find(message_reference.id)
 
     assert_instance_of SolidObjects::MessageReference, message_reference
-    assert_equal "record", message.message_name
-    assert_equal "async", message.message_kind
+    assert_equal "record", message.operation
+    assert_equal "async", message.delivery_mode
   end
 
   test "fluent external async forwards message arguments unchanged" do
@@ -202,7 +202,7 @@ class FluentDispatchTest < ActiveSupport::TestCase
     effect = SolidObjects::Effect.find_by!(name: SolidObjects::EffectExecutor::ACTOR_MESSAGE_EFFECT)
 
     assert source.state.fetch("delivery_returned_nil")
-    assert_equal "record", effect.arguments.fetch("message_name")
+    assert_equal "record", effect.arguments.fetch("operation")
     assert_equal({ "value" => "one" }, effect.arguments.fetch("arguments"))
     assert_in_delta available_at.to_f, Time.iso8601(effect.arguments.fetch("available_at")).to_f, 0.01
     assert_equal "forward-once", effect.arguments.fetch("idempotency_key")
@@ -217,7 +217,7 @@ class FluentDispatchTest < ActiveSupport::TestCase
     source = SolidObjects::Instance.find_by!(actor_id: "reference-sender")
     effect = SolidObjects::Effect.find_by!(name: SolidObjects::EffectExecutor::ACTOR_MESSAGE_EFFECT)
     assert source.state.fetch("delivery_returned_nil")
-    assert_equal "record", effect.arguments.fetch("message_name")
+    assert_equal "record", effect.arguments.fetch("operation")
   end
 
   test "a staged fluent send_to delivery disappears when the source turn rolls back" do
@@ -242,7 +242,7 @@ class FluentDispatchTest < ActiveSupport::TestCase
     reminder = SolidObjects::Reminder.find_by!(actor_id: "scheduler")
 
     assert_equal "evaluate", reminder.name
-    assert_equal "evaluate", reminder.message_name
+    assert_equal "evaluate", reminder.operation
     assert_equal(
       {
         "account_id" => "account-1",
@@ -347,5 +347,37 @@ class FluentDispatchTest < ActiveSupport::TestCase
     assert_raises(ArgumentError) { reference.sync(:status) }
     assert_raises(ArgumentError) { actor.send_to(reference, :record) }
     assert_raises(ArgumentError) { actor.schedule(:evaluate, at: 1.hour.from_now) }
+  end
+
+  test "explicit operations that conflict with dispatch methods are rejected" do
+    %i[class send tap async sync destroy snapshot].each do |operation_name|
+      error = assert_raises(SolidObjects::InvalidActor) do
+        Class.new(SolidObjects::Actor) do
+          message(operation_name) { "unreachable" }
+        end
+      end
+
+      assert_includes error.message, operation_name.inspect
+    end
+
+    error = assert_raises(SolidObjects::InvalidActor) do
+      Class.new(SolidObjects::Actor) do
+        attribute :async
+      end
+    end
+
+    assert_includes error.message, ":async"
+  end
+
+  test "public actor methods that conflict with dispatch methods are rejected" do
+    actor_class = Class.new(SolidObjects::Actor) do
+      actor_type "fluent-dispatch-conflict"
+
+      define_method(:tap) { "unreachable" }
+    end
+
+    error = assert_raises(SolidObjects::InvalidActor) { actor_class.definition }
+
+    assert_includes error.message, ":tap"
   end
 end

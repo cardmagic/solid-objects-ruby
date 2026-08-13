@@ -11,7 +11,7 @@ module SolidObjects
         now:,
         database_adapter:, duration: SolidObjects.configuration.lease_duration
       )
-        return if held_by_another_live_owner?(instance, activation_token, now)
+        return if held_by_another_live_owner?(instance:, activation_token:, now:)
 
         generation = instance.activation_generation + 1
         expires_at = now + duration
@@ -61,8 +61,8 @@ module SolidObjects
 
       private
 
-      # @rbs (Instance, String, Time) -> bool
-      def held_by_another_live_owner?(instance, activation_token, now)
+      # @rbs (instance: Instance, activation_token: String, now: Time) -> bool
+      def held_by_another_live_owner?(instance:, activation_token:, now:)
         instance.activation_owner_id.present? &&
           instance.activation_token != activation_token &&
           instance.activation_expires_at.present? &&

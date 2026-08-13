@@ -64,7 +64,7 @@ retain an empty arguments hash. This lets a policy authorize a projection such
 as one seat or player:
 
 ```ruby
-configuration.authorize_query = lambda do |actor_type:, actor_id:, message_name:, arguments:, authorization_context:|
+configuration.authorize_query = lambda do |actor_type:, actor_id:, operation:, arguments:, authorization_context:|
   user = authorization_context
   player_id = arguments["player_id"]
 
@@ -126,7 +126,7 @@ SolidObjects.configure do |configuration|
 end
 ```
 
-The policy receives normalized actor type and ID strings, message name and
+The policy receives normalized actor type and ID strings, operation and
 arguments where relevant, and the context supplied by the caller. Avoid
 authorizing from arguments alone; bind the actor identity to the authenticated
 principal and tenant.

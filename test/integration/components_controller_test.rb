@@ -154,14 +154,14 @@ class ComponentsControllerTest < ActionController::TestCase
     authorization_calls = []
     SolidObjects.configuration.authorize_query = lambda do |**arguments|
       authorization_calls << arguments
-      arguments.fetch(:message_name) == "recent_messages"
+      arguments.fetch(:operation) == "recent_messages"
     end
 
     render_component(token, viewer: "alice")
 
     assert_response :forbidden
     assert_equal [ "messages" ],
-      authorization_calls.map { |arguments| arguments.fetch(:message_name) }
+      authorization_calls.map { |arguments| arguments.fetch(:operation) }
   end
 
   test "renders personalized HTML independently for each authorized request" do

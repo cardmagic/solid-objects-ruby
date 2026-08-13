@@ -31,5 +31,21 @@ module SolidObjects
     private
 
     attr_reader :actor_type, :handlers, :dispatch
+
+    RESERVED_REFERENCE_METHOD_NAMES = %i[actor_type actor_id async sync destroy snapshot].freeze
+    RESERVED_OPERATION_NAMES = (
+      public_instance_methods(true) +
+      RESERVED_REFERENCE_METHOD_NAMES
+    ).map(&:to_sym).uniq.freeze
+
+    class << self
+      # @rbs (Symbol | String) -> void
+      def validate_operation_name!(name)
+        operation_name = name.to_sym
+        return unless RESERVED_OPERATION_NAMES.include?(operation_name)
+
+        raise InvalidActor, "#{operation_name.inspect} conflicts with actor dispatch"
+      end
+    end
   end
 end

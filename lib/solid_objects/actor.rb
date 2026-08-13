@@ -2,10 +2,10 @@
 
 module SolidObjects
   class Actor
-    EffectIntent = Data.define(:name, :arguments, :success_message_name, :failure_message_name)
+    EffectIntent = Data.define(:name, :arguments, :success_operation, :failure_operation)
     CommitActionIntent = Data.define(:name, :arguments)
     ReminderIntent = Data.define(:name, :at, :arguments, :interval_seconds, :missed_policy)
-    OutboundMessageIntent = Data.define(:actor_type, :actor_id, :message_name, :arguments, :available_at, :idempotency_key)
+    OutboundMessageIntent = Data.define(:actor_type, :actor_id, :operation, :arguments, :available_at, :idempotency_key)
 
     class << self
       # @rbs (Class) -> void
@@ -72,7 +72,7 @@ module SolidObjects
 
       # @rbs (from: Integer, to: Integer) { (Hash[String, untyped]) -> Hash[String, untyped] } -> ActorDefinition::StateMigration
       def migrate_state(from:, to:, &block)
-        definition.add_state_migration(from, to, block)
+        definition.add_state_migration(from:, to:, block:)
       end
 
       # @rbs () { () -> untyped } -> Proc
@@ -177,8 +177,8 @@ module SolidObjects
       EffectIntent.new(
         name: name.to_s,
         arguments: Serialization.dump(arguments),
-        success_message_name: on_success&.to_s,
-        failure_message_name: on_failure&.to_s
+        success_operation: on_success&.to_s,
+        failure_operation: on_failure&.to_s
       ).tap do |intent|
         effect_intents << intent
       end
@@ -210,9 +210,9 @@ module SolidObjects
       OperationDispatcher.new(
         actor_type: self.class.actor_type,
         handlers: self.class.definition.messages
-      ) do |message_name, arguments|
+      ) do |operation, arguments|
         ReminderIntent.new(
-          name: message_name.to_s,
+          name: operation.to_s,
           at:,
           arguments: Serialization.dump(arguments),
           interval_seconds:,
@@ -230,19 +230,19 @@ module SolidObjects
       OperationDispatcher.new(
         actor_type: reference.actor_type,
         handlers: actor_class.definition.messages
-      ) do |message_name, arguments|
-        stage_outbound_message(reference, message_name, arguments, available_at:, idempotency_key:)
+      ) do |operation, arguments|
+        stage_outbound_message(reference:, operation:, arguments:, available_at:, idempotency_key:)
         nil
       end
     end
 
     # @rbs (Symbol | String, Hash[String, untyped]) -> untyped
-    def invoke(message_name, arguments)
-      handler = self.class.definition.messages[message_name.to_sym] ||
-        self.class.definition.queries[message_name.to_sym]
-      raise UnknownMessage, "unknown message #{message_name.inspect} for #{self.class.actor_type}" unless handler
+    def invoke(operation, arguments)
+      handler = self.class.definition.messages[operation.to_sym] ||
+        self.class.definition.queries[operation.to_sym]
+      raise UnknownMessage, "unknown operation #{operation.inspect} for #{self.class.actor_type}" unless handler
 
-      guard_application_writes(message_name.to_s) do
+      guard_application_writes(operation.to_s) do
         instance_exec(**keyword_arguments(arguments), &handler.block)
       end
     end
@@ -281,12 +281,12 @@ module SolidObjects
       end
     end
 
-    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], ?available_at: Time?, idempotency_key: String?) -> OutboundMessageIntent
-    def stage_outbound_message(reference, message_name, arguments, available_at: nil, idempotency_key: nil)
+    # @rbs (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], ?available_at: Time?, idempotency_key: String?) -> OutboundMessageIntent
+    def stage_outbound_message(reference:, operation:, arguments:, available_at: nil, idempotency_key: nil)
       OutboundMessageIntent.new(
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
-        message_name: message_name.to_s,
+        operation: operation.to_s,
         arguments: Serialization.dump(arguments),
         available_at:,
         idempotency_key:
@@ -344,11 +344,11 @@ module SolidObjects
     end
 
     # @rbs (Symbol | String?) -> void
-    def validate_effect_callback!(message_name)
-      return unless message_name
-      return if self.class.definition.messages.key?(message_name.to_sym)
+    def validate_effect_callback!(operation)
+      return unless operation
+      return if self.class.definition.messages.key?(operation.to_sym)
 
-      raise UnknownMessage, "unknown effect callback message #{message_name.inspect}"
+      raise UnknownMessage, "unknown effect callback operation #{operation.inspect}"
     end
   end
 end

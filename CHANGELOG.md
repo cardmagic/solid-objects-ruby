@@ -13,6 +13,11 @@
 - Validate fluent operations before enqueueing or staging them. Direct and
   configured synchronous calls accept messages and queries, while `async`,
   `send_to`, and `schedule` accept public actor messages only.
+- Use operation terminology throughout invocation persistence and diagnostics.
+  The new migration renames stored message names to `operation`, message kind
+  to `delivery_mode`, and effect callback message names to operation names.
+- Make internal methods with more than two arguments keyword-only so dispatch,
+  persistence, component refresh, and diagnostics call sites name every value.
 - Keep SQLite reconnect failures inside a synchronous lock deadline. Active
   Record can reconnect after a lock error while the lock is still held, and
   configuring WAL then raises `SQLite3::CantOpenException`; it now retries

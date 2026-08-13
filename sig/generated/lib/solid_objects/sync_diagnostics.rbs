@@ -19,8 +19,8 @@ module SolidObjects
     # @rbs (Message) -> String
     def message_status: (Message) -> String
 
-    # @rbs (Message, Instance, Message?) -> String
-    def waiting_reason: (Message, Instance, Message?) -> String
+    # @rbs (message: Message, instance: Instance, blocker: Message?) -> String
+    def waiting_reason: (message: Message, instance: Instance, blocker: Message?) -> String
 
     # @rbs (ReadyMessage?) -> bool
     def future?: (ReadyMessage?) -> bool

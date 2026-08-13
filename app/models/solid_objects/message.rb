@@ -20,7 +20,7 @@ module SolidObjects
 
     before_validation :supply_defaults
 
-    validates :message_kind, inclusion: { in: %w[async sync internal] }
+    validates :delivery_mode, inclusion: { in: %w[async sync internal] }
 
     # @rbs () -> bool
     def ready?

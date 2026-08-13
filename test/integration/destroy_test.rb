@@ -254,10 +254,10 @@ class DestroyTest < ActiveSupport::TestCase
   test "retries an enqueue when the instance disappears before locking" do
     reference = Counter.ref("global")
     message_reference = VanishingInstanceMailbox.new.enqueue(
-      reference,
-      :increment,
-      { amount: 2 },
-      kind: "async"
+      reference:,
+      operation: :increment,
+      arguments: { amount: 2 },
+      delivery_mode: "async"
     )
 
     assert_equal 1, message_reference.sequence

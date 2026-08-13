@@ -56,7 +56,7 @@ class VerticalSliceTest < ActiveSupport::TestCase
     result = CartActor.ref("alice").sync(timeout: 2).items
 
     assert_equal [], result
-    assert_equal "sync", SolidObjects::Message.last.message_kind
+    assert_equal "sync", SolidObjects::Message.last.delivery_mode
   end
 
   test "reads declared attributes through ordered query methods" do
@@ -74,8 +74,8 @@ class VerticalSliceTest < ActiveSupport::TestCase
     assert_raises(FrozenError) { items << { "product_id" => "pants" } }
     assert_equal "completed", message_reference.status
     query = SolidObjects::Message.order(:sequence).last
-    assert_equal "items", query.message_name
-    assert_equal "sync", query.message_kind
+    assert_equal "items", query.operation
+    assert_equal "sync", query.delivery_mode
   end
 
   test "refuses activation when persisted state is newer than running code" do

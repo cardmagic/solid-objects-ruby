@@ -33,16 +33,16 @@ module SolidObjects
 
     # Live invalidations and reconnect replays share this, so a reconnecting
     # client pays the same number of requests a connected one does.
-    # @rbs (Array[ComponentRegistration], Integer, Integer) -> Array[String]
-    def refresh_streams: (Array[ComponentRegistration], Integer, Integer) -> Array[String]
+    # @rbs (changed: Array[ComponentRegistration], instance_id: Integer, revision: Integer) -> Array[String]
+    def refresh_streams: (changed: Array[ComponentRegistration], instance_id: Integer, revision: Integer) -> Array[String]
 
-    # @rbs (ComponentRegistration, Integer, Integer) -> void
-    def record_revision: (ComponentRegistration, Integer, Integer) -> void
+    # @rbs (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> void
+    def record_revision: (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> void
 
-    # @rbs (ComponentRegistration, Integer, Integer) -> String
-    def refresh: (ComponentRegistration, Integer, Integer) -> String
+    # @rbs (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> String
+    def refresh: (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> String
 
-    # @rbs (String, Integer, Integer) -> bool
-    def newer_revision?: (String, Integer, Integer) -> bool
+    # @rbs (dom_id: String, instance_id: Integer, revision: Integer) -> bool
+    def newer_revision?: (dom_id: String, instance_id: Integer, revision: Integer) -> bool
   end
 end

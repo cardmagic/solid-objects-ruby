@@ -68,19 +68,19 @@ module SolidObjects
     # @rbs @timeout: Numeric
     # @rbs @actor_type: String
     # @rbs @actor_id: String
-    # @rbs @message_name: String
+    # @rbs @operation: String
 
-    attr_reader :timeout, :actor_type, :actor_id, :message_name
+    attr_reader :timeout, :actor_type, :actor_id, :operation
 
-    # @rbs (timeout: Numeric, actor_type: String, actor_id: String, message_name: String) -> void
-    def initialize(timeout:, actor_type:, actor_id:, message_name:)
+    # @rbs (timeout: Numeric, actor_type: String, actor_id: String, operation: String) -> void
+    def initialize(timeout:, actor_type:, actor_id:, operation:)
       @timeout = timeout
       @actor_type = actor_type
       @actor_id = actor_id
-      @message_name = message_name
+      @operation = operation
       super(
         "actor invocation could not be durably enqueued within #{timeout} seconds for " \
-          "#{actor_type}(#{actor_id.inspect}).#{message_name}"
+          "#{actor_type}(#{actor_id.inspect}).#{operation}"
       )
     end
   end
@@ -89,7 +89,7 @@ module SolidObjects
     # @rbs @timeout: Numeric
     # @rbs @actor_type: String
     # @rbs @actor_id: String
-    # @rbs @message_name: String
+    # @rbs @operation: String
     # @rbs @message_id: Integer
     # @rbs @request_id: String
     # @rbs @sequence: Integer
@@ -101,7 +101,7 @@ module SolidObjects
     attr_reader :timeout,
       :actor_type,
       :actor_id,
-      :message_name,
+      :operation,
       :message_id,
       :request_id,
       :sequence,
@@ -110,12 +110,12 @@ module SolidObjects
       :activation,
       :blocker
 
-    # @rbs (timeout: Numeric, actor_type: String, actor_id: String, message_name: String, message_id: Integer, request_id: String, sequence: Integer, status: String, waiting_on: String, activation: Hash[String, untyped], blocker: Hash[String, untyped]?) -> void
+    # @rbs (timeout: Numeric, actor_type: String, actor_id: String, operation: String, message_id: Integer, request_id: String, sequence: Integer, status: String, waiting_on: String, activation: Hash[String, untyped], blocker: Hash[String, untyped]?) -> void
     def initialize(
       timeout:,
       actor_type:,
       actor_id:,
-      message_name:,
+      operation:,
       message_id:,
       request_id:,
       sequence:,
@@ -127,7 +127,7 @@ module SolidObjects
       @timeout = timeout
       @actor_type = actor_type
       @actor_id = actor_id
-      @message_name = message_name
+      @operation = operation
       @message_id = message_id
       @request_id = request_id
       @sequence = sequence
@@ -137,7 +137,7 @@ module SolidObjects
       @blocker = Serialization.readonly_copy(blocker)
       super(
         "actor invocation timed out after #{timeout} seconds for " \
-          "#{actor_type}(#{actor_id.inspect}).#{message_name} " \
+          "#{actor_type}(#{actor_id.inspect}).#{operation} " \
           "message_id=#{message_id} sequence=#{sequence} status=#{status} waiting_on=#{waiting_on}"
       )
     end
@@ -157,17 +157,17 @@ module SolidObjects
   class SyncInsideTransaction < Error
     # @rbs @actor_type: String
     # @rbs @actor_id: String
-    # @rbs @message_name: String
+    # @rbs @operation: String
 
-    attr_reader :actor_type, :actor_id, :message_name
+    attr_reader :actor_type, :actor_id, :operation
 
-    # @rbs (actor_type: String, actor_id: String, message_name: String) -> void
-    def initialize(actor_type:, actor_id:, message_name:)
+    # @rbs (actor_type: String, actor_id: String, operation: String) -> void
+    def initialize(actor_type:, actor_id:, operation:)
       @actor_type = actor_type
       @actor_id = actor_id
-      @message_name = message_name
+      @operation = operation
       super(
-        "cannot synchronously invoke #{actor_type}(#{actor_id.inspect}).#{message_name} " \
+        "cannot synchronously invoke #{actor_type}(#{actor_id.inspect}).#{operation} " \
           "inside an open database transaction; call it before the transaction or enqueue it with async"
       )
     end
@@ -176,27 +176,27 @@ module SolidObjects
   class ApplicationWriteForbidden < NonRetryableError
     # @rbs @actor_type: String
     # @rbs @actor_id: String
-    # @rbs @message_name: String
+    # @rbs @operation: String
 
-    attr_reader :actor_type, :actor_id, :message_name
+    attr_reader :actor_type, :actor_id, :operation
 
-    # @rbs (actor_type: String, actor_id: String, message_name: String) -> void
-    def initialize(actor_type:, actor_id:, message_name:)
+    # @rbs (actor_type: String, actor_id: String, operation: String) -> void
+    def initialize(actor_type:, actor_id:, operation:)
       @actor_type = actor_type
       @actor_id = actor_id
-      @message_name = message_name
+      @operation = operation
       super(
-        "#{actor_type}(#{actor_id.inspect}).#{message_name} attempted an Active Record write; " \
+        "#{actor_type}(#{actor_id.inspect}).#{operation} attempted an Active Record write; " \
           "mutate actor state, stage a commit action, or emit a durable effect instead"
       )
     end
   end
 
   class CommitActionUnavailable < NonRetryableError
-    # @rbs (actor_type: String, actor_id: String, message_name: String) -> void
-    def initialize(actor_type:, actor_id:, message_name:)
+    # @rbs (actor_type: String, actor_id: String, operation: String) -> void
+    def initialize(actor_type:, actor_id:, operation:)
       super(
-        "#{actor_type}(#{actor_id.inspect}).#{message_name} staged a commit action, " \
+        "#{actor_type}(#{actor_id.inspect}).#{operation} staged a commit action, " \
           "but Solid Objects uses a separate database from Active Record"
       )
     end

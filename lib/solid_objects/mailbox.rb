@@ -11,8 +11,8 @@ module SolidObjects
       @database_adapter = database_adapter
     end
 
-    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], kind: String, ?available_at: Time?, idempotency_key: String?) -> MessageReference
-    def enqueue(reference, message_name, arguments, kind:, available_at: nil, idempotency_key: nil)
+    # @rbs (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], delivery_mode: String, ?available_at: Time?, idempotency_key: String?) -> MessageReference
+    def enqueue(reference:, operation:, arguments:, delivery_mode:, available_at: nil, idempotency_key: nil)
       actor_class = SolidObjects.registry.fetch(reference.actor_type)
       normalized_arguments = Serialization.dump(
         arguments,
@@ -21,10 +21,10 @@ module SolidObjects
       message = with_instance_retry do
         database_adapter.transaction do
           enqueue_in_transaction(
-            reference,
-            message_name,
-            normalized_arguments,
-            kind:,
+            reference:,
+            operation:,
+            arguments: normalized_arguments,
+            delivery_mode:,
             available_at:,
             idempotency_key:,
             actor_class:
@@ -36,12 +36,12 @@ module SolidObjects
       MessageReference.from_message(message)
     end
 
-    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], kind: String, ?available_at: Time?, idempotency_key: String?, ?actor_class: Class?) -> Message
+    # @rbs (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], delivery_mode: String, ?available_at: Time?, idempotency_key: String?, ?actor_class: Class?) -> Message
     def enqueue_in_transaction(
-      reference,
-      message_name,
-      arguments,
-      kind:,
+      reference:,
+      operation:,
+      arguments:,
+      delivery_mode:,
       available_at: nil,
       idempotency_key: nil,
       actor_class: nil
@@ -55,15 +55,22 @@ module SolidObjects
       instance.lock!
 
       existing = find_idempotent_message(instance, idempotency_key)
-      return validate_idempotent_message!(existing, message_name, kind, normalized_arguments) if existing
+      if existing
+        return validate_idempotent_message!(
+          existing_message: existing,
+          operation:,
+          delivery_mode:,
+          arguments: normalized_arguments
+        )
+      end
 
       enforce_mailbox_limit!(instance)
       create_message(
-        instance,
-        reference,
-        message_name,
-        normalized_arguments,
-        kind:,
+        instance:,
+        reference:,
+        operation:,
+        arguments: normalized_arguments,
+        delivery_mode:,
         available_at:,
         idempotency_key:
       )
@@ -117,12 +124,12 @@ module SolidObjects
       Message.find_by(instance_id: instance.id, idempotency_key:)
     end
 
-    # @rbs (Message, Symbol | String, String, untyped) -> Message
-    def validate_idempotent_message!(message, message_name, kind, arguments)
-      matches = message.message_name == message_name.to_s &&
-        message.message_kind == kind &&
-        message.arguments == arguments
-      return message if matches
+    # @rbs (existing_message: Message, operation: Symbol | String, delivery_mode: String, arguments: untyped) -> Message
+    def validate_idempotent_message!(existing_message:, operation:, delivery_mode:, arguments:)
+      matches = existing_message.operation == operation.to_s &&
+        existing_message.delivery_mode == delivery_mode &&
+        existing_message.arguments == arguments
+      return existing_message if matches
 
       raise IdempotencyConflict, "idempotency key belongs to a different actor invocation"
     end
@@ -136,8 +143,8 @@ module SolidObjects
       raise MailboxFull, "mailbox is full for #{instance.actor_type}(#{instance.actor_id.inspect})"
     end
 
-    # @rbs (Instance, Reference, Symbol | String, untyped, kind: String, available_at: Time?, idempotency_key: String?) -> Message
-    def create_message(instance, reference, message_name, arguments, kind:, available_at:, idempotency_key:)
+    # @rbs (instance: Instance, reference: Reference, operation: Symbol | String, arguments: untyped, delivery_mode: String, available_at: Time?, idempotency_key: String?) -> Message
+    def create_message(instance:, reference:, operation:, arguments:, delivery_mode:, available_at:, idempotency_key:)
       sequence = instance.next_message_sequence
       now = database_adapter.database_now
       scheduled_at = normalize_availability(available_at, now)
@@ -146,8 +153,8 @@ module SolidObjects
         instance:,
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
-        message_name: message_name.to_s,
-        message_kind: kind,
+        operation: operation.to_s,
+        delivery_mode:,
         arguments:,
         sequence:,
         max_attempts: SolidObjects.configuration.max_attempts,
