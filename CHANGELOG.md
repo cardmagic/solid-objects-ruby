@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.12.0 - 2026-08-13
 
 - Replace positional actor dispatch with fluent operation selection. Direct
   committed calls remain `account.disable(...)`; configured committed calls
