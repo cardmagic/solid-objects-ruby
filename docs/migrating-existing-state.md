@@ -71,11 +71,9 @@ Give every bootstrap call an idempotency key derived from the legacy record:
 
 ```ruby
 session.actor.async(
-  :bootstrap,
-  answers: legacy.answers,
   idempotency_key: "legacy-assessment:#{legacy.id}",
   available_at: jittered_time
-)
+).bootstrap(answers: legacy.answers)
 ```
 
 Spread large backfills over a dispatch window and monitor mailbox age,

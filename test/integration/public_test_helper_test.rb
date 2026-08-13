@@ -17,7 +17,7 @@ class PublicTestHelperTest < ActiveSupport::TestCase
 
     def start_work
       self.value += 1
-      schedule :finish_work, at: 1.second.ago, arguments: {}
+      schedule(at: 1.second.ago).finish_work
       emit :record_test_helper_effect
     end
 
@@ -81,7 +81,7 @@ class PublicTestHelperTest < ActiveSupport::TestCase
 
   test "drain actor messages processes queued work deterministically" do
     test_case = ActorTestCase.new("unused")
-    message_reference = HelperActor.ref("async").async(:increment)
+    message_reference = HelperActor.ref("async").async.increment
 
     assert_equal 1, test_case.drain_solid_objects(roles: [ :actors ])
     assert_equal "completed", message_reference.status
@@ -95,7 +95,7 @@ class PublicTestHelperTest < ActiveSupport::TestCase
     end
     SolidObjects.configuration.broadcast_adapter = ->(broadcast) { broadcasts << broadcast.observable_name }
     test_case = ActorTestCase.new("unused")
-    message_reference = HelperActor.ref("workflow").async(:start_work)
+    message_reference = HelperActor.ref("workflow").async.start_work
 
     assert_operator test_case.drain_solid_objects, :>=, 4
 
@@ -138,8 +138,8 @@ class PublicTestHelperTest < ActiveSupport::TestCase
       instance:,
       actor_type: instance.actor_type,
       actor_id: instance.actor_id,
-      message_name: "noop",
-      message_kind: "async",
+      operation: "noop",
+      delivery_mode: "async",
       arguments: {},
       sequence: 1,
       max_attempts: 1,
@@ -159,7 +159,7 @@ class PublicTestHelperTest < ActiveSupport::TestCase
       actor_type: instance.actor_type,
       actor_id: instance.actor_id,
       name: "probe",
-      message_name: "noop",
+      operation: "noop",
       arguments: {},
       next_run_at: now,
       status: "scheduled"
@@ -188,7 +188,7 @@ class PublicTestHelperTest < ActiveSupport::TestCase
       message:,
       actor_type: instance.actor_type,
       actor_id: instance.actor_id,
-      message_name: "noop",
+      operation: "noop",
       arguments: {},
       attempts: 1,
       exception_class: "RuntimeError",

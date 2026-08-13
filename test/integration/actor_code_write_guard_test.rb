@@ -72,13 +72,13 @@ class ActorCodeWriteGuardTest < ActiveSupport::TestCase
       ActivatingActor.ref("one").run
     end
 
-    assert_equal "on_activate", error.message_name
+    assert_equal "on_activate", error.operation
     assert_empty SolidObjectsTestDomainRecord.all
     assert_equal "ready", SolidObjects::MessageReference.from_message(SolidObjects::Message.last).status
   end
 
   test "activation write failures do not crash a worker loop" do
-    message_reference = ActivatingActor.ref("worker").async(:run)
+    message_reference = ActivatingActor.ref("worker").async.run
     worker = SolidObjects::Worker.new
 
     assert_equal 0, worker.run_once
@@ -115,7 +115,7 @@ class ActorCodeWriteGuardTest < ActiveSupport::TestCase
       MigratingActor.ref("one").run
     end
 
-    assert_equal "state_migration", error.message_name
+    assert_equal "state_migration", error.operation
     assert_empty SolidObjectsTestDomainRecord.all
   end
 end

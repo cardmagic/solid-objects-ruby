@@ -156,8 +156,8 @@ module SolidObjects
       locals.merge("component_key" => component_key).freeze
     end
 
-    # @rbs (Array[ComponentRegistration], Integer, Integer) -> String
-    def batch_refresh_url(registrations, instance_id, revision)
+    # @rbs (registrations: Array[ComponentRegistration], instance_id: Integer, revision: Integer) -> String
+    def batch_refresh_url(registrations:, instance_id:, revision:)
       query = URI.encode_www_form(
         [
           [ "instance_id", instance_id ],

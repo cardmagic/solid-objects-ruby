@@ -5,9 +5,11 @@ ENV["RAILS_ENV"] = "test"
 require_relative "config/environment"
 require_relative "../../db/migrate/20260805000000_create_solid_objects_tables"
 require_relative "../../db/migrate/20260806000000_add_state_revision_to_solid_objects_instances"
+require_relative "../../db/migrate/20260813000000_rename_message_dispatch_columns"
 
 CreateSolidObjectsTables.new.migrate(:up)
 AddStateRevisionToSolidObjectsInstances.new.migrate(:up)
+RenameMessageDispatchColumns.new.migrate(:up)
 
 # A reminder that is already due, so the scheduler claims and enqueues it on
 # its first pass rather than waiting.
@@ -22,7 +24,7 @@ reminder = SolidObjects::Reminder.create!(
   actor_type: instance.actor_type,
   actor_id: instance.actor_id,
   name: "deliver_push",
-  message_name: "complete",
+  operation: "complete",
   arguments: {},
   next_run_at: 1.minute.ago,
   status: "scheduled"

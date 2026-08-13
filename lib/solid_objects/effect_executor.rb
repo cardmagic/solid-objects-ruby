@@ -122,18 +122,18 @@ module SolidObjects
         actor_id: arguments.fetch("actor_id")
       )
       actor_class = SolidObjects.registry.fetch(reference.actor_type)
-      message_name = arguments.fetch("message_name")
-      unless actor_class.definition.messages.key?(message_name.to_sym)
-        raise UnknownMessage, "unknown actor-to-actor message #{message_name.inspect}"
+      operation = arguments.fetch("operation")
+      unless actor_class.definition.messages.key?(operation.to_sym)
+        raise UnknownMessage, "unknown actor-to-actor operation #{operation.inspect}"
       end
 
       available_at = arguments["available_at"]
       available_at = Time.iso8601(available_at) if available_at
       Mailbox.new.enqueue(
-        reference,
-        message_name,
-        arguments.fetch("arguments"),
-        kind: "internal",
+        reference:,
+        operation:,
+        arguments: arguments.fetch("arguments"),
+        delivery_mode: "internal",
         available_at:,
         idempotency_key: effect.effect_id
       ).id
@@ -150,10 +150,10 @@ module SolidObjects
         locked_effect = Effect.lock.find(effect.id)
         verify_claim!(locked_effect)
         result_message = enqueue_result_message(
-          locked_effect,
-          locked_effect.success_message_name,
-          "success",
-          { "effect_id" => locked_effect.effect_id, "result" => serialized_result }
+          effect: locked_effect,
+          operation: locked_effect.success_operation,
+          outcome: "success",
+          arguments: { "effect_id" => locked_effect.effect_id, "result" => serialized_result }
         )
         locked_effect.update!(
           status: "completed",
@@ -188,10 +188,10 @@ module SolidObjects
         }
         if dead
           result_message = enqueue_result_message(
-            locked_effect,
-            locked_effect.failure_message_name,
-            "failure",
-            { "effect_id" => locked_effect.effect_id, "error" => error_details }
+            effect: locked_effect,
+            operation: locked_effect.failure_operation,
+            outcome: "failure",
+            arguments: { "effect_id" => locked_effect.effect_id, "error" => error_details }
           )
         end
         locked_effect.update!(
@@ -216,18 +216,18 @@ module SolidObjects
       raise LostActivation, "effect claim changed"
     end
 
-    # @rbs (Effect, String?, String, Hash[String, untyped]) -> Message?
-    def enqueue_result_message(effect, message_name, outcome, arguments)
-      return unless message_name
+    # @rbs (effect: Effect, operation: String?, outcome: String, arguments: Hash[String, untyped]) -> Message?
+    def enqueue_result_message(effect:, operation:, outcome:, arguments:)
+      return unless operation
 
       Mailbox.new.enqueue_in_transaction(
-        Reference.new(
+        reference: Reference.new(
           actor_type: effect.instance.actor_type,
           actor_id: effect.instance.actor_id
         ),
-        message_name,
-        arguments,
-        kind: "internal",
+        operation:,
+        arguments:,
+        delivery_mode: "internal",
         idempotency_key: "effect:#{effect.effect_id}:#{outcome}"
       )
     end

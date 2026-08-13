@@ -60,7 +60,7 @@ module SolidObjects
       authorized = SolidObjects.configuration.authorize_query.call(
         actor_type: snapshot.reference.actor_type,
         actor_id: snapshot.reference.actor_id,
-        message_name: observable_name,
+        operation: observable_name,
         arguments: registration.authorization_arguments,
         authorization_context:
       )

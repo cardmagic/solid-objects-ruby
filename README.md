@@ -27,7 +27,7 @@ current_count = counter.value
 current_snapshot = counter.snapshot.value
 
 # Durable fire-and-forget delivery. A worker processes it later.
-message = counter.async(:increment, amount: 5)
+message = counter.async.increment(amount: 5)
 ```
 
 `Counter / global` is a logical identity. Like a Durable Object named with
@@ -41,10 +41,10 @@ The invocation model is the first adoption decision:
 | Call | Returns | Worker fleet required? |
 | --- | --- | --- |
 | `counter.increment(amount: 5)` | Committed handler result | No |
-| `counter.sync(:increment, amount: 5)` | Committed handler result | No |
+| `counter.sync(timeout: 5.seconds).increment(amount: 5)` | Committed handler result | No |
 | `counter.value` | Ordered, committed query result | No |
 | `counter.snapshot.value` | Current committed state without a mailbox message | No |
-| `counter.async(:increment, amount: 5)` | `MessageReference` immediately | Yes |
+| `counter.async.increment(amount: 5)` | `MessageReference` immediately | Yes |
 
 Direct methods and `sync` durably enqueue the call, then the Rails caller helps
 execute the actor through the same mailbox, lease, and fencing path as a
@@ -155,7 +155,7 @@ durable reminders owned by one logical identity:
 
 ```ruby
 def schedule_expiration
-  schedule :expire, at: 30.minutes.from_now, arguments: {}
+  schedule(at: 30.minutes.from_now).expire
 end
 ```
 
@@ -536,7 +536,7 @@ cart.add_item(product_id: "shirt-123", quantity: 2)
 items = cart.items
 ```
 
-Use `cart.async(:add_item, product_id: "shirt-123", quantity: 2)` to enqueue
+Use `cart.async.add_item(product_id: "shirt-123", quantity: 2)` to enqueue
 without waiting; that call returns a `SolidObjects::MessageReference`. `items`
 is a deeply frozen JSON snapshot, so mutating it cannot bypass the actor
 mailbox. State changes must go through public actor methods or explicit
@@ -638,25 +638,33 @@ Use `async` for durable fire-and-forget work. It returns a
 
 ```ruby
 message = order.async(
-  :submit,
-  idempotency_key: "submit-order-123"
-)
+  idempotency_key: "submit-order-123",
+  authorization_context: Current.user
+).submit
 ```
 
 Use `available_at:` to spread bulk work or delay one message:
 
 ```ruby
-order.async(:evaluate, available_at: 10.minutes.from_now)
+order.async(available_at: 10.minutes.from_now).evaluate
 ```
 
 ### `sync`
 
-Use explicit `sync` when the operation name is dynamic or collides with a
-reference method:
+Use explicit `sync` when the invocation needs a timeout, idempotency key, or
+authorization context different from the defaults:
 
 ```ruby
-status = order.sync(:status, timeout: 5.seconds)
+status = order.sync(
+  timeout: 5.seconds,
+  authorization_context: Current.user
+).status
 ```
+
+Delivery configuration belongs on `async(...)` or `sync(...)` before the
+operation. Keywords on the final method call are always actor message
+arguments, so `order.sync(timeout: 5.seconds).record(timeout: "payload")`
+keeps the invocation timeout separate from the payload value.
 
 Direct calls and `sync` use the same caller-assisted execution path. A healthy
 actor normally needs no worker round trip, making this path suitable for HTTP
@@ -677,7 +685,7 @@ recover its eventual result through the durable message identity:
 
 ```ruby
 begin
-  order.submit(timeout: 250.milliseconds)
+  order.sync(timeout: 250.milliseconds).submit
 rescue SolidObjects::SyncTimeout => error
   result = error.message_reference.wait(
     timeout: 5.seconds,
@@ -699,6 +707,17 @@ commit action.
 Actor code cannot use direct calls or `sync` on another actor; synchronous
 actor-to-actor waits can deadlock in cycles. Use `async` or `send_to` and a
 result message.
+
+```ruby
+send_to(
+  audit_log,
+  available_at: 5.minutes.from_now,
+  idempotency_key: event_id
+).record(event_id:, event_name: "account_disabled")
+```
+
+Actor-to-actor delivery is staged with the current turn, returns `nil`, and is
+discarded if that turn does not commit. It accepts messages, not queries.
 
 ### Domain rejection
 
@@ -831,7 +850,11 @@ API. One-shot and recurring alarms are actor-owned database records:
 
 ```ruby
 def schedule_evaluation
-  schedule :evaluate, at: 1.hour.from_now, every: 1.hour, missed: :latest
+  schedule(
+    at: 1.hour.from_now,
+    every: 1.hour,
+    missed: :latest
+  ).evaluate(account_id:)
 end
 ```
 
@@ -852,7 +875,7 @@ once. It also means this is a data-loss bug:
 # Wrong. Every entry overwrites the previous entry's alarm.
 def add(entry:)
   self.entries = entries + [ entry ]
-  schedule :deliver, at: entry.fetch("wait_until"), arguments: {}
+  schedule(at: entry.fetch("wait_until")).deliver
 end
 ```
 
@@ -882,7 +905,7 @@ def arm_next
   earliest = entries.first
   return unless earliest
 
-  schedule :deliver, at: Time.at(earliest.fetch("wait_until")), arguments: {}
+  schedule(at: Time.at(earliest.fetch("wait_until"))).deliver
 end
 ```
 

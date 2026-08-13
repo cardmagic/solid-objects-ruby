@@ -73,8 +73,8 @@ module SolidObjects
     # @rbs () -> Hash[String, untyped]
     def authorization_arguments: () -> Hash[String, untyped]
 
-    # @rbs (Array[ComponentRegistration], Integer, Integer) -> String
-    def batch_refresh_url: (Array[ComponentRegistration], Integer, Integer) -> String
+    # @rbs (registrations: Array[ComponentRegistration], instance_id: Integer, revision: Integer) -> String
+    def batch_refresh_url: (registrations: Array[ComponentRegistration], instance_id: Integer, revision: Integer) -> String
 
     # @rbs (Integer, Integer) -> String
     def refresh_url: (Integer, Integer) -> String

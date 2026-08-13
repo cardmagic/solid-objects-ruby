@@ -63,14 +63,15 @@ The registry maps a stable persisted actor type string to a Ruby actor class. Re
 A reference contains actor type and normalized actor ID. It is cheap,
 serializable as data, and does not imply an active Ruby object. Declared
 message, query, and attribute methods use synchronous caller-assisted
-invocation. `sync` provides the same behavior for a dynamic operation name,
-while `async` only durably enqueues a message and returns its reference.
+invocation. `sync(...)` configures a caller-assisted invocation before its
+operation is selected, while `async(...)` configures durable enqueue and
+returns its message reference after the operation is selected.
 `destroy` is a reserved synchronous reference operation. Every path authorizes
 through the client.
 
 ### Client and mailbox
 
-The client finds or creates the actor instance and atomically allocates a sequence. It inserts one durable message-history row and one ready-membership row. It validates message names and JSON payloads before writing and enforces idempotency-key uniqueness, payload limits, and the per-actor mailbox cap. It also authorizes and coordinates actor destruction. Distributed rate limiting and global admission control are not implemented.
+The client finds or creates the actor instance and atomically allocates a sequence. It inserts one durable message-history row and one ready-membership row. It validates operations and JSON payloads before writing and enforces idempotency-key uniqueness, payload limits, and the per-actor mailbox cap. It also authorizes and coordinates actor destruction. Distributed rate limiting and global admission control are not implemented.
 
 Message execution state is table membership, not a status column. The durable message remains for results, retention, and diagnostics. Only live work occupies `ready_messages` or `claimed_messages`, so completed history cannot inflate the polling index.
 
@@ -155,8 +156,9 @@ Public instance methods declared on the actor are messages. Declare helpers as
 private or protected. Messages and queries are exposed as methods on a
 reference through the same synchronous caller-assisted path. Returned state
 snapshots are deeply frozen. Use `async` for durable fire-and-forget delivery
-and `sync` for dynamic operation names. The explicit `message` DSL remains
-available for dynamic definitions.
+and configured `sync` when a committed call needs a non-default timeout,
+idempotency key, or authorization context. The explicit `message` DSL remains
+available for declarations defined dynamically.
 
 `reference.snapshot` is the explicit unordered read path. It invokes query
 authorization, reads the most recently committed instance state without
@@ -183,7 +185,7 @@ with application Active Record writes prevented.
 Enqueue uses one transaction:
 
 1. Resolve actor class from the registry.
-2. Validate authorization, message name, actor ID, arguments, and size.
+2. Validate authorization, operation, actor ID, arguments, and size.
 3. `INSERT ... ON CONFLICT` the actor instance if missing.
 4. Lock the instance row.
 5. Enforce the mailbox limit.
@@ -426,7 +428,7 @@ An effect handler receives JSON arguments plus an effect context. Outcome messag
 Actor code sends to another actor through a staged outbox:
 
 ```ruby
-send_to InventoryActor.ref("sku-123"), :reserve, order_id: id, quantity: 2
+send_to(InventoryActor.ref("sku-123")).reserve(order_id: id, quantity: 2)
 ```
 
 The source actor commit never waits for the target. The outbox worker allocates the target's sequence after source commit. There is no global order across actors.
@@ -436,7 +438,7 @@ The source actor commit never waits for the target. The outbox worker allocates 
 A reminder record contains actor identity, a reminder name, target message, JSON arguments, next run time, optional interval, status, and occurrence counter.
 
 ```ruby
-schedule :expire, at: 30.minutes.from_now, arguments: {}
+schedule(at: 30.minutes.from_now).expire
 ```
 
 Reminders are keyed by `(actor, reminder name)`, enforced by a unique index on `(instance_id, name)`. `schedule` is therefore an upsert: scheduling a name that is already armed moves that alarm instead of adding another, which is what makes re-arming safe from a handler that may run more than once. An actor needing several pending items should arm one alarm for the earliest and drain everything due when it fires, rather than one alarm per item; the [reminders guide](../README.md#a-reminder-is-one-named-alarm-per-actor) shows that pattern. A move that changes `next_run_at` emits `solid_objects.reminder.replaced`, because the replacement is otherwise indistinguishable from a first schedule.
@@ -467,7 +469,7 @@ The expected drift categories are actors with a lost alarm, missing actors for l
 
 Bulk repair updates to `solid_objects_instances` are forbidden. They bypass activation ownership and fencing and can overwrite a concurrently committed actor state. Direct reads are observational; writes go through actor messages.
 
-Large repairs use `async(..., available_at:)` to spread work over an application-defined dispatch window. The durable message records the requested availability and ready membership drives the hot polling query. This prevents reconciliation from flooding mailboxes and starving normal traffic.
+Large repairs use `async(available_at: ...).repair(...)` to spread work over an application-defined dispatch window. The durable message records the requested availability and ready membership drives the hot polling query. This prevents reconciliation from flooding mailboxes and starving normal traffic.
 
 ## Realtime integration
 

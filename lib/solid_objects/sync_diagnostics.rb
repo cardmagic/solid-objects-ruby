@@ -8,7 +8,7 @@ module SolidObjects
       instance = Instance.uncached { Instance.find(message.instance_id) }
       blocker = earlier_blocker(message)
       status = message_status(message)
-      waiting_on = waiting_reason(message, instance, blocker)
+      waiting_on = waiting_reason(message:, instance:, blocker:)
       activation = activation_details(instance)
       build_error(
         message,
@@ -38,7 +38,7 @@ module SolidObjects
         timeout:,
         actor_type: message_reference.actor_type,
         actor_id: message_reference.actor_id,
-        message_name: "unknown",
+        operation: "unknown",
         message_id: message_reference.id,
         request_id: message_reference.request_id,
         sequence: message_reference.sequence,
@@ -70,7 +70,7 @@ module SolidObjects
         timeout:,
         actor_type: message.actor_type,
         actor_id: message.actor_id,
-        message_name: message.message_name,
+        operation: message.operation,
         message_id: message.id,
         request_id: message.request_id,
         sequence: message.sequence,
@@ -105,8 +105,8 @@ module SolidObjects
       "unknown"
     end
 
-    # @rbs (Message, Instance, Message?) -> String
-    def waiting_reason(message, instance, blocker)
+    # @rbs (message: Message, instance: Instance, blocker: Message?) -> String
+    def waiting_reason(message:, instance:, blocker:)
       return "actor_paused" if instance.paused_at
       return "activation_held" if live_activation?(instance)
       return "earlier_message" if blocker
@@ -179,7 +179,7 @@ module SolidObjects
       {
         "message_id" => blocker.id,
         "sequence" => blocker.sequence,
-        "message_name" => blocker.message_name,
+        "operation" => blocker.operation,
         "status" => message_status(blocker)
       }
     end

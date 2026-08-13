@@ -17,12 +17,12 @@ class ActorCommunicationTest < ActiveSupport::TestCase
     actor_type "communication-source"
 
     def send_value(target_id:, value:)
-      TargetActor.ref(target_id).async(:receive, value:)
+      TargetActor.ref(target_id).async.receive(value:)
     end
   end
 
   test "stages actor-to-actor async invocation in the source commit" do
-    SourceActor.ref("source").async(:send_value, target_id: "target", value: 42)
+    SourceActor.ref("source").async.send_value(target_id: "target", value: 42)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
 

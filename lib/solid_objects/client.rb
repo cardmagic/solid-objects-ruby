@@ -12,50 +12,50 @@ module SolidObjects
       @mailbox = mailbox
     end
 
-    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference
-    def async(reference, message_name, arguments, available_at: nil, idempotency_key: nil, authorization_context: nil)
+    # @rbs (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference
+    def async(reference:, operation:, arguments:, available_at: nil, idempotency_key: nil, authorization_context: nil)
       actor_class = SolidObjects.registry.fetch(reference.actor_type)
-      message_symbol = message_name.to_sym
-      raise UnknownMessage, "unknown message #{message_name.inspect}" unless actor_class.definition.messages.key?(message_symbol)
+      operation_symbol = operation.to_sym
+      raise UnknownMessage, "unknown operation #{operation.inspect}" unless actor_class.definition.messages.key?(operation_symbol)
 
       authorize!(
-        SolidObjects.configuration.authorize_message,
-        reference,
-        message_name,
-        arguments,
+        hook: SolidObjects.configuration.authorize_message,
+        reference:,
+        operation:,
+        arguments:,
         authorization_context:
       )
       mailbox.enqueue(
-        reference,
-        message_name,
-        arguments,
-        kind: "async",
+        reference:,
+        operation:,
+        arguments:,
+        delivery_mode: "async",
         available_at:,
         idempotency_key:
       )
     end
 
-    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped) -> untyped
-    def sync(reference, message_name, arguments, timeout:, idempotency_key: nil, authorization_context: nil)
+    # @rbs (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped) -> untyped
+    def sync(reference:, operation:, arguments:, timeout:, idempotency_key: nil, authorization_context: nil)
       actor_class = SolidObjects.registry.fetch(reference.actor_type)
-      message_symbol = message_name.to_sym
-      query = actor_class.definition.queries.key?(message_symbol)
-      actor_message = actor_class.definition.messages.key?(message_symbol)
-      raise UnknownMessage, "unknown message #{message_name.inspect}" unless query || actor_message
+      operation_symbol = operation.to_sym
+      query = actor_class.definition.queries.key?(operation_symbol)
+      actor_message = actor_class.definition.messages.key?(operation_symbol)
+      raise UnknownMessage, "unknown operation #{operation.inspect}" unless query || actor_message
 
       authorize!(
-        query ? SolidObjects.configuration.authorize_query : SolidObjects.configuration.authorize_message,
-        reference,
-        message_name,
-        arguments,
+        hook: query ? SolidObjects.configuration.authorize_query : SolidObjects.configuration.authorize_message,
+        reference:,
+        operation:,
+        arguments:,
         authorization_context:
       )
-      reject_sync_inside_transaction!(reference, message_name)
+      reject_sync_inside_transaction!(reference, operation)
       SyncDeadline.with(timeout:) do
         message_reference = enqueue_sync(
-          reference,
-          message_name,
-          arguments,
+          reference:,
+          operation:,
+          arguments:,
           idempotency_key:,
           timeout:
         )
@@ -75,19 +75,19 @@ module SolidObjects
           actor_id: message.actor_id
         )
         actor_class = SolidObjects.registry.fetch(reference.actor_type)
-        query = actor_class.definition.queries.key?(message.message_name.to_sym)
-        actor_message = actor_class.definition.messages.key?(message.message_name.to_sym)
+        query = actor_class.definition.queries.key?(message.operation.to_sym)
+        actor_message = actor_class.definition.messages.key?(message.operation.to_sym)
         unless query || actor_message
-          raise UnknownMessage, "unknown message #{message.message_name.inspect}"
+          raise UnknownMessage, "unknown operation #{message.operation.inspect}"
         end
         authorize!(
-          query ? SolidObjects.configuration.authorize_query : SolidObjects.configuration.authorize_message,
-          reference,
-          message.message_name,
-          message.arguments,
+          hook: query ? SolidObjects.configuration.authorize_query : SolidObjects.configuration.authorize_message,
+          reference:,
+          operation: message.operation,
+          arguments: message.arguments,
           authorization_context:
         )
-        reject_sync_inside_transaction!(reference, message.message_name)
+        reject_sync_inside_transaction!(reference, message.operation)
         SynchronousInvocation.new.call(message_reference, timeout:)
       end
     rescue DatabaseDeadlineExceeded
@@ -98,10 +98,10 @@ module SolidObjects
     def snapshot(reference, authorization_context: nil)
       SolidObjects.registry.fetch(reference.actor_type)
       authorize!(
-        SolidObjects.configuration.authorize_query,
-        reference,
-        "__snapshot__",
-        {},
+        hook: SolidObjects.configuration.authorize_query,
+        reference:,
+        operation: "__snapshot__",
+        arguments: {},
         authorization_context:
       )
       StateSnapshot.new(reference)
@@ -140,13 +140,13 @@ module SolidObjects
 
     attr_reader :mailbox
 
-    # @rbs (Reference, Symbol | String, Hash[Symbol | String, untyped], idempotency_key: String?, timeout: Numeric) -> MessageReference
-    def enqueue_sync(reference, message_name, arguments, idempotency_key:, timeout:)
+    # @rbs (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], idempotency_key: String?, timeout: Numeric) -> MessageReference
+    def enqueue_sync(reference:, operation:, arguments:, idempotency_key:, timeout:)
       mailbox.enqueue(
-        reference,
-        message_name,
-        arguments,
-        kind: "sync",
+        reference:,
+        operation:,
+        arguments:,
+        delivery_mode: "sync",
         idempotency_key:
       )
     rescue DatabaseDeadlineExceeded
@@ -154,13 +154,13 @@ module SolidObjects
         :"sync.enqueue_timeout",
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
-        message_name: message_name.to_s
+        operation: operation.to_s
       )
       raise SyncEnqueueTimeout.new(
         timeout:,
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
-        message_name: message_name.to_s
+        operation: operation.to_s
       )
     end
 
@@ -176,28 +176,28 @@ module SolidObjects
     end
 
     # @rbs (Reference, Symbol | String) -> void
-    def reject_sync_inside_transaction!(reference, message_name)
+    def reject_sync_inside_transaction!(reference, operation)
       return unless SolidObjects::Record.connection.transaction_open?
 
       SolidObjects.instrument(
         :"sync.transaction_rejected",
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
-        message_name: message_name.to_s
+        operation: operation.to_s
       )
       raise SyncInsideTransaction.new(
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
-        message_name: message_name.to_s
+        operation: operation.to_s
       )
     end
 
-    # @rbs (Proc, Reference, Symbol | String, Hash[Symbol | String, untyped], authorization_context: untyped) -> void
-    def authorize!(hook, reference, message_name, arguments, authorization_context:)
+    # @rbs (hook: Proc, reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], authorization_context: untyped) -> void
+    def authorize!(hook:, reference:, operation:, arguments:, authorization_context:)
       authorized = hook.call(
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
-        message_name: message_name.to_s,
+        operation: operation.to_s,
         arguments:,
         authorization_context:
       )

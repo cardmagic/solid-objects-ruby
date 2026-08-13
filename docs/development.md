@@ -56,7 +56,7 @@ Use `drain_solid_objects` to process actor, reminder, effect, callback, and
 broadcast work to a deterministic fixed point without arbitrary sleeps:
 
 ```ruby
-message = Counter.ref("test").async(:increment)
+message = Counter.ref("test").async.increment
 
 assert_equal 1, drain_solid_objects
 assert_equal "completed", message.status

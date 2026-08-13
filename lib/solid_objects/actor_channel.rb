@@ -32,9 +32,9 @@ module SolidObjects
       snapshot = ActorSnapshot.new(reference)
       scalar_observable_names(snapshot).each do |name|
         transmit TurboStreamRenderer.observable_value(
-          reference,
-          name,
-          snapshot.observable_value(name)
+          reference:,
+          name:,
+          value: snapshot.observable_value(name)
         )
       end
       refresh_outdated_components(snapshot)

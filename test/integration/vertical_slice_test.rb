@@ -28,8 +28,8 @@ class VerticalSliceTest < ActiveSupport::TestCase
 
   test "processes one actor mailbox sequentially and persists every turn" do
     reference = CartActor.ref("alice")
-    first_message = reference.async(:add, product_id: "shirt", quantity: 2)
-    second_message = reference.async(:add, product_id: "pants")
+    first_message = reference.async.add(product_id: "shirt", quantity: 2)
+    second_message = reference.async.add(product_id: "pants")
 
     worker = SolidObjects::Worker.new
     processed_count = worker.run_until_idle
@@ -53,15 +53,15 @@ class VerticalSliceTest < ActiveSupport::TestCase
   end
 
   test "sync returns a durable result without another worker" do
-    result = CartActor.ref("alice").sync(:items, timeout: 2)
+    result = CartActor.ref("alice").sync(timeout: 2).items
 
     assert_equal [], result
-    assert_equal "sync", SolidObjects::Message.last.message_kind
+    assert_equal "sync", SolidObjects::Message.last.delivery_mode
   end
 
   test "reads declared attributes through ordered query methods" do
     reference = CartActor.ref("alice")
-    message_reference = reference.async(:add, product_id: "shirt", quantity: 2)
+    message_reference = reference.async.add(product_id: "shirt", quantity: 2)
 
     items = reference.items
 
@@ -74,13 +74,13 @@ class VerticalSliceTest < ActiveSupport::TestCase
     assert_raises(FrozenError) { items << { "product_id" => "pants" } }
     assert_equal "completed", message_reference.status
     query = SolidObjects::Message.order(:sequence).last
-    assert_equal "items", query.message_name
-    assert_equal "sync", query.message_kind
+    assert_equal "items", query.operation
+    assert_equal "sync", query.delivery_mode
   end
 
   test "refuses activation when persisted state is newer than running code" do
     OlderCodeActor.invoked = false
-    message_reference = OlderCodeActor.ref("one").async(:run)
+    message_reference = OlderCodeActor.ref("one").async.run
     instance = SolidObjects::Instance.find_by!(actor_type: "older-code")
     instance.update!(state_version: 2)
     worker = SolidObjects::Worker.new

@@ -55,17 +55,17 @@ module SolidObjects
     # @rbs (MessageContext) -> untyped
     def invoke_actor(message_context)
       Context.with(actor:, message: message_context) do
-        actor.invoke(message.message_name, message.arguments)
+        actor.invoke(message.operation, message.arguments)
       end
     end
 
     # @rbs (Hash[String, untyped]) -> void
     def ensure_query_did_not_mutate_state!(state_before)
-      return unless message.message_kind == "sync"
-      return unless actor.class.definition.queries.key?(message.message_name.to_sym)
+      return unless message.delivery_mode == "sync"
+      return unless actor.class.definition.queries.key?(message.operation.to_sym)
       return if actor.state.to_h == state_before
 
-      raise InvalidActor, "query #{message.message_name.inspect} mutated actor state"
+      raise InvalidActor, "query #{message.operation.inspect} mutated actor state"
     end
 
     # @rbs (Hash[String, untyped], Hash[String, untyped]) -> Hash[String, untyped]
@@ -82,7 +82,7 @@ module SolidObjects
         max_bytes: SolidObjects.configuration.max_state_bytes
       )
       serialized_result = Serialization.dump(
-        (message.message_kind == "sync") ? result : nil,
+        (message.delivery_mode == "sync") ? result : nil,
         max_bytes: SolidObjects.configuration.max_result_bytes
       )
       effect_intents = actor.drain_effect_intents
@@ -112,15 +112,17 @@ module SolidObjects
           error: nil,
           completed_at: SolidObjects.database_adapter.database_now
         )
-        enqueued_effects.concat(enqueue_effects(locked_message, instance, effect_intents))
+        enqueued_effects.concat(
+          enqueue_effects(message: locked_message, instance:, intents: effect_intents)
+        )
         moved_reminders.concat(schedule_reminders(instance, reminder_intents))
         enqueued_effects.concat(
-          enqueue_actor_messages(locked_message, instance, outbound_message_intents)
+          enqueue_actor_messages(message: locked_message, instance:, intents: outbound_message_intents)
         )
         enqueue_broadcasts(
-          locked_message,
-          instance,
-          observable_changes,
+          message: locked_message,
+          instance:,
+          observable_changes:,
           state_changed:
         )
         claimed_message.destroy!
@@ -163,12 +165,12 @@ module SolidObjects
 
       intents.each do |intent|
         handler = SolidObjects.commit_action_registry.fetch(intent.name)
-        execute_commit_action(intent, handler, context)
+        execute_commit_action(intent:, handler:, context:)
       end
     end
 
-    # @rbs (Actor::CommitActionIntent, Proc, CommitActionContext) -> untyped
-    def execute_commit_action(intent, handler, context)
+    # @rbs (intent: Actor::CommitActionIntent, handler: Proc, context: CommitActionContext) -> untyped
+    def execute_commit_action(intent:, handler:, context:)
       payload = {
         commit_action_name: intent.name,
         message_id: message.id,
@@ -198,21 +200,21 @@ module SolidObjects
       raise CommitActionUnavailable.new(
         actor_type: message.actor_type,
         actor_id: message.actor_id,
-        message_name: message.message_name
+        operation: message.operation
       )
     end
 
-    # @rbs (Message, Instance, Array[Actor::EffectIntent]) -> Array[Effect]
-    def enqueue_effects(locked_message, instance, intents)
+    # @rbs (message: Message, instance: Instance, intents: Array[Actor::EffectIntent]) -> Array[Effect]
+    def enqueue_effects(message:, instance:, intents:)
       intents.map do |intent|
         Effect.create!(
-          message: locked_message,
+          message:,
           instance:,
           effect_id: SecureRandom.uuid,
           name: intent.name,
           arguments: intent.arguments,
-          success_message_name: intent.success_message_name,
-          failure_message_name: intent.failure_message_name,
+          success_operation: intent.success_operation,
+          failure_operation: intent.failure_operation,
           status: "pending",
           max_attempts: SolidObjects.configuration.max_attempts,
           available_at: SolidObjects.database_adapter.database_now
@@ -237,7 +239,7 @@ module SolidObjects
         reminder.assign_attributes(
           actor_type: instance.actor_type,
           actor_id: instance.actor_id,
-          message_name: intent.name,
+          operation: intent.name,
           arguments: intent.arguments,
           next_run_at: intent.at,
           interval_seconds: intent.interval_seconds,
@@ -268,18 +270,18 @@ module SolidObjects
       }
     end
 
-    # @rbs (Message, Instance, Array[Actor::OutboundMessageIntent]) -> Array[Effect]
-    def enqueue_actor_messages(locked_message, instance, intents)
+    # @rbs (message: Message, instance: Instance, intents: Array[Actor::OutboundMessageIntent]) -> Array[Effect]
+    def enqueue_actor_messages(message:, instance:, intents:)
       intents.map do |intent|
         Effect.create!(
-          message: locked_message,
+          message:,
           instance:,
           effect_id: SecureRandom.uuid,
           name: EffectExecutor::ACTOR_MESSAGE_EFFECT,
           arguments: {
             "actor_type" => intent.actor_type,
             "actor_id" => intent.actor_id,
-            "message_name" => intent.message_name,
+            "operation" => intent.operation,
             "arguments" => intent.arguments,
             "available_at" => intent.available_at&.iso8601(6),
             "idempotency_key" => intent.idempotency_key
@@ -291,8 +293,8 @@ module SolidObjects
       end
     end
 
-    # @rbs (Message, Instance, Hash[String, untyped], state_changed: bool) -> void
-    def enqueue_broadcasts(locked_message, instance, observable_changes, state_changed:)
+    # @rbs (message: Message, instance: Instance, observable_changes: Hash[String, untyped], state_changed: bool) -> void
+    def enqueue_broadcasts(message:, instance:, observable_changes:, state_changed:)
       broadcasts = observable_changes
       if broadcasts.empty? && state_changed && payload_broadcasts?
         broadcasts = { PayloadBroadcast::REVISION_OBSERVABLE => {} }
@@ -300,7 +302,7 @@ module SolidObjects
 
       broadcasts.each do |observable_name, value|
         Broadcast.create!(
-          message: locked_message,
+          message:,
           instance:,
           broadcast_id: SecureRandom.uuid,
           observable_name:,
@@ -332,7 +334,7 @@ module SolidObjects
 
         if error.is_a?(NonRetryableError) ||
             locked_message.attempt_count >= locked_message.max_attempts
-          create_dead_letter(locked_message, error_details, now)
+          create_dead_letter(message: locked_message, error_details:, now:)
           dead = true
         else
           ReadyMessage.create!(
@@ -410,20 +412,20 @@ module SolidObjects
       )
     end
 
-    # @rbs (Message, Hash[String, untyped], Time) -> DeadLetter
-    def create_dead_letter(locked_message, error_details, now)
+    # @rbs (message: Message, error_details: Hash[String, untyped], now: Time) -> DeadLetter
+    def create_dead_letter(message:, error_details:, now:)
       DeadLetter.create!(
-        message: locked_message,
-        instance: locked_message.instance,
-        actor_type: locked_message.actor_type,
-        actor_id: locked_message.actor_id,
-        message_name: locked_message.message_name,
-        arguments: locked_message.arguments,
-        attempts: locked_message.attempt_count,
+        message:,
+        instance: message.instance,
+        actor_type: message.actor_type,
+        actor_id: message.actor_id,
+        operation: message.operation,
+        arguments: message.arguments,
+        attempts: message.attempt_count,
         exception_class: error_details.fetch("class"),
         exception_message: error_details.fetch("message"),
         backtrace: error_details.fetch("backtrace"),
-        first_failed_at: locked_message.last_failed_at || now,
+        first_failed_at: message.last_failed_at || now,
         last_failed_at: now
       )
     end

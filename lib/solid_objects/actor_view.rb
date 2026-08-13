@@ -154,7 +154,7 @@ module SolidObjects
       authorized = SolidObjects.configuration.authorize_query.call(
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
-        message_name: name.to_s,
+        operation: name.to_s,
         arguments: {},
         authorization_context:
       )

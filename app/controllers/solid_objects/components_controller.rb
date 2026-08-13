@@ -55,7 +55,7 @@ module SolidObjects
           "target" => registration.dom_id,
           "revision" => "#{snapshot.instance_id}:#{snapshot.revision}",
           "refresh_method" => registration.refresh_method,
-          "html" => component_frame(registration, snapshot, rendered)
+          "html" => component_frame(registration:, snapshot:, rendered:)
         }
       end
       response.headers["Cache-Control"] = "private, no-store"
@@ -118,7 +118,7 @@ module SolidObjects
       ).call
       response.headers["Cache-Control"] = "private, no-store"
       payload[:outcome] = "rendered"
-      render html: component_frame(registration, snapshot, rendered)
+      render html: component_frame(registration:, snapshot:, rendered:)
     rescue Unauthorized
       payload[:outcome] = "unauthorized"
       head :forbidden
@@ -182,8 +182,8 @@ module SolidObjects
       end
     end
 
-    # @rbs (ComponentRegistration, ActorSnapshot, untyped) -> String
-    def component_frame(registration, snapshot, rendered)
+    # @rbs (registration: ComponentRegistration, snapshot: ActorSnapshot, rendered: untyped) -> String
+    def component_frame(registration:, snapshot:, rendered:)
       revision = "#{snapshot.instance_id}:#{snapshot.revision}"
       %(<turbo-frame id="#{registration.dom_id}" data-solid-objects-revision="#{revision}" data-solid-objects-refresh="#{registration.refresh_method}">#{rendered}</turbo-frame>).html_safe
     end

@@ -43,9 +43,9 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     actor_type "synchronous-intents"
 
     def configure(target_id:)
-      schedule :refresh, at: 1.hour.from_now, arguments: {}
+      schedule(at: 1.hour.from_now).refresh
       emit :record_configuration
-      CounterActor.ref(target_id).async(:increment)
+      CounterActor.ref(target_id).async.increment
     end
 
     def refresh
@@ -162,7 +162,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     instance = message.instance
 
     assert_equal 2, result
-    assert_equal "sync", message.message_kind
+    assert_equal "sync", message.delivery_mode
     assert message.completed?
     assert_equal({ "value" => 2 }, instance.state)
     assert_empty SolidObjects::ReadyMessage.all
@@ -170,7 +170,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync explicitly invokes an actor method" do
-    result = CounterActor.ref("explicit").sync(:increment, amount: 3)
+    result = CounterActor.ref("explicit").sync.increment(amount: 3)
 
     assert_equal 3, result
     assert_equal(
@@ -196,14 +196,14 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
 
     assert_equal "synchronous-counter", error.actor_type
     assert_equal "transactional", error.actor_id
-    assert_equal "increment", error.message_name
+    assert_equal "increment", error.operation
     assert_empty SolidObjects::Message.where(
       actor_type: "synchronous-counter",
       actor_id: "transactional"
     )
     assert_predicate events, :one?
     assert_equal "synchronous-counter", events.first.fetch(:actor_type)
-    assert_equal "increment", events.first.fetch(:message_name)
+    assert_equal "increment", events.first.fetch(:operation)
   ensure
     ActiveSupport::Notifications.unsubscribe(subscription) if subscription
   end
@@ -290,7 +290,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   test "async durably enqueues and returns immediately" do
     reference = CounterActor.ref("later")
 
-    message_reference = reference.async(:increment, amount: 4)
+    message_reference = reference.async.increment(amount: 4)
 
     assert_instance_of SolidObjects::MessageReference, message_reference
     assert_equal "ready", message_reference.status
@@ -319,7 +319,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
 
   test "sync drains earlier asynchronous messages in sequence" do
     reference = CounterActor.ref("ordered")
-    first_message = reference.async(:increment, amount: 2)
+    first_message = reference.async.increment(amount: 2)
 
     result = reference.increment(amount: 3)
 
@@ -329,13 +329,13 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
 
     assert_equal 5, result
     assert_equal "completed", first_message.status
-    assert_equal [ "async", "sync" ], messages.pluck(:message_kind)
+    assert_equal [ "async", "sync" ], messages.pluck(:delivery_mode)
     assert_equal [ 1, 2 ], messages.pluck(:sequence)
   end
 
   test "sync does not steal an unexpired activation" do
     reference = CounterActor.ref("leased")
-    reference.async(:increment)
+    reference.async.increment
     instance = SolidObjects::Instance.find_by!(
       actor_type: "synchronous-counter",
       actor_id: "leased"
@@ -348,13 +348,13 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     )
 
     error = assert_raises(SolidObjects::SyncTimeout) do
-      reference.sync(:increment, timeout: 0.01)
+      reference.sync(timeout: 0.01).increment
     end
 
     timed_out_message = SolidObjects::Message.find(error.message_id)
     assert_equal "synchronous-counter", error.actor_type
     assert_equal "leased", error.actor_id
-    assert_equal "increment", error.message_name
+    assert_equal "increment", error.operation
     assert_equal timed_out_message.request_id, error.request_id
     assert_equal timed_out_message.sequence, error.sequence
     assert_equal "ready", error.status
@@ -363,7 +363,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     assert_equal "worker", error.activation.fetch("process").fetch("kind")
     assert_equal "test-host", error.activation.fetch("process").fetch("hostname")
     assert_equal 1, error.blocker.fetch("sequence")
-    assert_equal "increment", error.blocker.fetch("message_name")
+    assert_equal "increment", error.blocker.fetch("operation")
     assert_includes error.message, "synchronous-counter(\"leased\").increment"
     assert_includes error.message, "waiting_on=activation_held"
     assert_equal process_record.id, instance.reload.activation_owner_id
@@ -381,7 +381,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "message reference wait enforces invocation authorization" do
-    message_reference = CounterActor.ref("protected").async(:increment)
+    message_reference = CounterActor.ref("protected").async.increment
     SolidObjects.configuration.authorize_message = ->(**) { false }
 
     assert_raises(SolidObjects::Unauthorized) do
@@ -393,10 +393,10 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   test "sync database lock waits are bounded by the invocation deadline" do
     reference = DeadlineActor.ref("locked")
     message_reference = SolidObjects::Mailbox.new.enqueue(
-      reference,
-      :run,
-      {},
-      kind: "sync"
+      reference:,
+      operation: :run,
+      arguments: {},
+      delivery_mode: "sync"
     )
     result = Queue.new
     invocation = Thread.new do
@@ -460,13 +460,17 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     started_at = monotonic_now
 
     error = assert_raises(SolidObjects::SyncEnqueueTimeout) do
-      reference.sync(:increment, timeout: 0.25)
+      reference.sync(timeout: 0.25).increment
     end
 
     assert_operator monotonic_now - started_at, :<, 1.5
     assert_equal "synchronous-counter", error.actor_type
     assert_equal "enqueue-locked", error.actor_id
-    assert_equal "increment", error.message_name
+    assert_equal "increment", error.operation
+    release_lock.push(true)
+    blocker.join
+    release_lock = nil
+    blocker = nil
     assert_equal message_count, SolidObjects::Message.count
   ensure
     release_lock&.push(true)
@@ -477,10 +481,10 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     skip unless database_family == :sqlite
 
     message_reference = SolidObjects::Mailbox.new.enqueue(
-      LockRetryActor.ref("registration"),
-      :increment,
-      {},
-      kind: "sync"
+      reference: LockRetryActor.ref("registration"),
+      operation: :increment,
+      arguments: {},
+      delivery_mode: "sync"
     )
     lock = hold_sqlite_write_lock
 
@@ -609,10 +613,10 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     SolidObjects.configuration.process_heartbeat_interval = 0
     process_record = SolidObjects.caller_process.process_registry.process_record
     message_reference = SolidObjects::Mailbox.new.enqueue(
-      LockRetryActor.ref("heartbeat"),
-      :increment,
-      {},
-      kind: "sync"
+      reference: LockRetryActor.ref("heartbeat"),
+      operation: :increment,
+      arguments: {},
+      delivery_mode: "sync"
     )
     lock = hold_sqlite_write_lock
 
@@ -671,16 +675,16 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     mailbox = SolidObjects::Mailbox.new
     message_references = [
       mailbox.enqueue(
-        BlockingActor.ref("alice"),
-        :append,
-        { value: 1 },
-        kind: "sync"
+        reference: BlockingActor.ref("alice"),
+        operation: :append,
+        arguments: { value: 1 },
+        delivery_mode: "sync"
       ),
       mailbox.enqueue(
-        BlockingActor.ref("bob"),
-        :append,
-        { value: 2 },
-        kind: "sync"
+        reference: BlockingActor.ref("bob"),
+        operation: :append,
+        arguments: { value: 2 },
+        delivery_mode: "sync"
       )
     ]
     results = Queue.new
@@ -704,16 +708,8 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   test "sync reuses an idempotent committed result" do
     reference = CounterActor.ref("idempotent")
 
-    first_result = reference.sync(
-      :increment,
-      amount: 2,
-      idempotency_key: "increment-once"
-    )
-    second_result = reference.sync(
-      :increment,
-      amount: 2,
-      idempotency_key: "increment-once"
-    )
+    first_result = reference.sync(idempotency_key: "increment-once").increment(amount: 2)
+    second_result = reference.sync(idempotency_key: "increment-once").increment(amount: 2)
 
     assert_equal 2, first_result
     assert_equal first_result, second_result
@@ -806,7 +802,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "async rejection is observable without retry or dead letter" do
-    message_reference = CounterActor.ref("async-rejected").async(:increment_if, valid: false)
+    message_reference = CounterActor.ref("async-rejected").async.increment_if(valid: false)
     worker = SolidObjects::Worker.new
 
     assert_equal 1, worker.run_until_idle

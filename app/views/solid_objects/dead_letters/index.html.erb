@@ -15,7 +15,7 @@
     <% @dead_letters.each do |dead_letter| %>
       <tr>
         <td><%= dead_letter.actor_type %>(<%= dead_letter.actor_id %>)</td>
-        <td><%= dead_letter.message_name %></td>
+        <td><%= dead_letter.operation %></td>
         <td><%= dead_letter.attempts %></td>
         <td><%= dead_letter.exception_class %>: <%= dead_letter.exception_message %></td>
         <td><%= dead_letter.last_failed_at %></td>

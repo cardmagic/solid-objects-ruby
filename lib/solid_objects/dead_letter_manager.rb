@@ -16,13 +16,13 @@ module SolidObjects
 
       original_message = dead_letter.message
       message_reference = Mailbox.new.enqueue(
-        Reference.new(
+        reference: Reference.new(
           actor_type: dead_letter.actor_type,
           actor_id: dead_letter.actor_id
         ),
-        dead_letter.message_name,
-        dead_letter.arguments,
-        kind: original_message.message_kind,
+        operation: dead_letter.operation,
+        arguments: dead_letter.arguments,
+        delivery_mode: original_message.delivery_mode,
         idempotency_key: "dead-letter:#{dead_letter.id}"
       )
       dead_letter.update!(retried_message_id: message_reference.id)

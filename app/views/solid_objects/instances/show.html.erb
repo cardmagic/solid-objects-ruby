@@ -26,7 +26,7 @@
     <% @messages.each do |message| %>
       <tr>
         <td><%= message.sequence %></td>
-        <td><%= message.message_name %></td>
+        <td><%= message.operation %></td>
         <td><%= message.attempt_count %></td>
         <td><%= message.completed_at %></td>
       </tr>

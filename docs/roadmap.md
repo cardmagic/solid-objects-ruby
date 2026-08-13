@@ -4,7 +4,7 @@
 
 - Rails engine, install generator, migration, and CLI
 - Explicit actor registry, references, JSON state, and state migrations
-- Direct synchronous RPC, explicit `sync`, and durable `async`
+- Fluent direct synchronous RPC, configured `sync`, and durable `async`
 - Durable message history plus ready/claimed membership tables
 - Concurrent sequence allocation and actor creation
 - Activation leases, renewal, unique activation tokens, generations, and

@@ -25,7 +25,7 @@ class EnqueueLockRetryTest < ActiveSupport::TestCase
 
     message = SolidObjects::Record.connection_pool.with_connection do |connection|
       suspend_sqlite_busy_wait(connection) do
-        reference.async(:add, product_id: "shirt")
+        reference.async.add(product_id: "shirt")
       end
     end
 
@@ -51,7 +51,7 @@ class EnqueueLockRetryTest < ActiveSupport::TestCase
             SolidObjects::Record.connection_pool.with_connection do |thread_connection|
               thread_connection.raw_connection.busy_handler_timeout = 0
               start.pop
-              sequences << reference.async(:add, product_id: "shirt").sequence
+              sequences << reference.async.add(product_id: "shirt").sequence
             rescue => error
               errors << error
             end
@@ -78,7 +78,7 @@ class EnqueueLockRetryTest < ActiveSupport::TestCase
       Timeout.timeout(20) do
         SolidObjects::Record.connection_pool.with_connection do |connection|
           suspend_sqlite_busy_wait(connection) do
-            reference.async(:add, product_id: "shirt")
+            reference.async.add(product_id: "shirt")
           end
         end
       end

@@ -221,7 +221,7 @@ class PayloadDeliveryTest < ActionCable::Channel::TestCase
   test "an unauthorized payload is skipped rather than delivered" do
     reference = deal_to("alice")
     SolidObjects.configuration.authorize_query = lambda do |**arguments|
-      arguments.fetch(:message_name) != "room_state"
+      arguments.fetch(:operation) != "room_state"
     end
     stub_connection(session_id: "alice")
 

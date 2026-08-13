@@ -94,8 +94,8 @@ module SolidObjects
     # @rbs (Integer) -> Integer
     def set_state_version: (Integer) -> Integer
 
-    # @rbs (Integer, Integer, Proc) -> StateMigration
-    def add_state_migration: (Integer, Integer, Proc) -> StateMigration
+    # @rbs (from: Integer, to: Integer, block: Proc) -> StateMigration
+    def add_state_migration: (from: Integer, to: Integer, block: Proc) -> StateMigration
 
     # @rbs (Integer, Hash[String, untyped]) -> Hash[String, untyped]
     def migrate_state: (Integer, Hash[String, untyped]) -> Hash[String, untyped]
@@ -118,7 +118,7 @@ module SolidObjects
     # @rbs (Array[Symbol]) -> void
     def validate_attribute_methods!: (Array[Symbol]) -> void
 
-    # @rbs (Hash[Symbol, Handler], Symbol | String, Proc) -> Handler
-    def add_handler: (Hash[Symbol, Handler], Symbol | String, Proc) -> Handler
+    # @rbs (collection: Hash[Symbol, Handler], name: Symbol | String, block: Proc) -> Handler
+    def add_handler: (collection: Hash[Symbol, Handler], name: Symbol | String, block: Proc) -> Handler
   end
 end

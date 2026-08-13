@@ -20,9 +20,9 @@ module SolidObjects
         ""
       else
         observable_value(
-          reference,
-          broadcast.observable_name,
-          broadcast.value
+          reference:,
+          name: broadcast.observable_name,
+          value: broadcast.value
         )
       end
       metadata = Base64.urlsafe_encode64(
@@ -35,16 +35,16 @@ module SolidObjects
       "#{stream}<!--#{INVALIDATION_MARKER}#{metadata}-->"
     end
 
-    # @rbs (Reference, Symbol | String, untyped) -> String
-    def observable_value(reference, name, value)
+    # @rbs (reference: Reference, name: Symbol | String, value: untyped) -> String
+    def observable_value(reference:, name:, value:)
       target = DomIdentity.observable(reference, name)
       content = ERB::Util.html_escape(display_value(value))
       %(<turbo-stream action="replace" target="#{target}"><template><span id="#{target}">#{content}</span></template></turbo-stream>)
     end
 
-    # @rbs (ComponentRegistration, Integer, Integer) -> String
-    def component_refresh(registration, instance_id, revision)
-      return morph_component_refresh(registration, instance_id, revision) if registration.morph?
+    # @rbs (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> String
+    def component_refresh(registration:, instance_id:, revision:)
+      return morph_component_refresh(registration:, instance_id:, revision:) if registration.morph?
 
       target = registration.dom_id
       source = ERB::Util.html_escape(
@@ -54,13 +54,13 @@ module SolidObjects
       %(<turbo-stream action="replace" target="#{target}"><template><turbo-frame id="#{target}" src="#{source}" data-solid-objects-revision="#{revision_value}" data-solid-objects-refresh="replace"></turbo-frame></template></turbo-stream>)
     end
 
-    # @rbs (Array[ComponentRegistration], Integer, Integer) -> String
-    def batch_refresh(registrations, instance_id, revision)
+    # @rbs (registrations: Array[ComponentRegistration], instance_id: Integer, revision: Integer) -> String
+    def batch_refresh(registrations:, instance_id:, revision:)
       first = registrations.first
       scope = DomIdentity.scope(first.reference)
       batch = ERB::Util.html_escape(first.batch)
       source = ERB::Util.html_escape(
-        first.batch_refresh_url(registrations, instance_id, revision)
+        first.batch_refresh_url(registrations:, instance_id:, revision:)
       )
       targets = ERB::Util.html_escape(registrations.map(&:dom_id).join(" "))
       %(<turbo-stream action="append" target="#{scope}"><template><solid-objects-batch-refresh data-batch="#{batch}" data-revision="#{instance_id}:#{revision}" data-targets="#{targets}" data-source="#{source}"></solid-objects-batch-refresh></template></turbo-stream>)
@@ -104,8 +104,8 @@ module SolidObjects
     end
     private_class_method :display_value
 
-    # @rbs (ComponentRegistration, Integer, Integer) -> String
-    def morph_component_refresh(registration, instance_id, revision)
+    # @rbs (registration: ComponentRegistration, instance_id: Integer, revision: Integer) -> String
+    def morph_component_refresh(registration:, instance_id:, revision:)
       source = ERB::Util.html_escape(
         registration.refresh_url(instance_id, revision)
       )

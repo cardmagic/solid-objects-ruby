@@ -76,7 +76,7 @@ module SolidObjects
     # @rbs (Effect) -> void
     def verify_claim!: (Effect) -> void
 
-    # @rbs (Effect, String?, String, Hash[String, untyped]) -> Message?
-    def enqueue_result_message: (Effect, String?, String, Hash[String, untyped]) -> Message?
+    # @rbs (effect: Effect, operation: String?, outcome: String, arguments: Hash[String, untyped]) -> Message?
+    def enqueue_result_message: (effect: Effect, operation: String?, outcome: String, arguments: Hash[String, untyped]) -> Message?
   end
 end

@@ -16,7 +16,7 @@ module SolidObjects
         raise ApplicationWriteForbidden.new(
           actor_type:,
           actor_id:,
-          message_name: operation
+          operation:
         )
       end
     end

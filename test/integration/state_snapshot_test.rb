@@ -52,7 +52,7 @@ class StateSnapshotTest < ActiveSupport::TestCase
     end
 
     assert_predicate calls, :one?
-    assert_equal "__snapshot__", calls.first.fetch(:message_name)
+    assert_equal "__snapshot__", calls.first.fetch(:operation)
     assert_equal :request, calls.first.fetch(:authorization_context)
   end
 

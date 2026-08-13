@@ -178,7 +178,7 @@ class ActorHelperTest < ActionView::TestCase
     end
 
     assert_includes html, "<turbo-frame"
-    assert_equal "items", authorization_calls.sole.fetch(:message_name)
+    assert_equal "items", authorization_calls.sole.fetch(:operation)
 
     assert_raises(SolidObjects::Unauthorized) do
       solid_object(
@@ -194,7 +194,7 @@ class ActorHelperTest < ActionView::TestCase
     authorization_calls = []
     SolidObjects.configuration.authorize_query = lambda do |**arguments|
       authorization_calls << arguments
-      arguments.fetch(:message_name) == "items"
+      arguments.fetch(:operation) == "items"
     end
 
     assert_raises(SolidObjects::Unauthorized) do
@@ -207,7 +207,7 @@ class ActorHelperTest < ActionView::TestCase
     end
 
     assert_equal [ "summary" ],
-      authorization_calls.map { |arguments| arguments.fetch(:message_name) }
+      authorization_calls.map { |arguments| arguments.fetch(:operation) }
   end
 
   test "rejects observable reads omitted from component dependencies" do

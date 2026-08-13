@@ -13,11 +13,11 @@ module SolidObjects
     # @rbs (actor_type: String, actor_id: String) -> void
     def initialize: (actor_type: String, actor_id: String) -> void
 
-    # @rbs (Symbol | String, ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> MessageReference?
-    def async: (Symbol | String, ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> MessageReference?
+    # @rbs (?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> OperationDispatcher
+    def async: (?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> OperationDispatcher
 
-    # @rbs (Symbol | String, ?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> untyped
-    def sync: (Symbol | String, ?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> untyped
+    # @rbs (?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped) -> OperationDispatcher
+    def sync: (?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped) -> OperationDispatcher
 
     # @rbs (?authorization_context: untyped) -> bool
     def destroy: (?authorization_context: untyped) -> bool
@@ -35,6 +35,9 @@ module SolidObjects
     def to_s: () -> String
 
     private
+
+    # @rbs (Symbol | String, Hash[Symbol, untyped], timeout: Numeric, idempotency_key: String?, authorization_context: untyped) -> untyped
+    def invoke_synchronously: (Symbol | String, Hash[Symbol, untyped], timeout: Numeric, idempotency_key: String?, authorization_context: untyped) -> untyped
 
     # @rbs (Symbol | String) -> bool
     def actor_message?: (Symbol | String) -> bool

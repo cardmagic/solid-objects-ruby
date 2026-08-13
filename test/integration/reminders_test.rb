@@ -9,11 +9,11 @@ class RemindersTest < ActiveSupport::TestCase
     attribute :status, default: "active"
 
     def configure_expiration
-      schedule :expire, at: 1.hour.from_now, arguments: {}
+      schedule(at: 1.hour.from_now).expire
     end
 
     def schedule_recurring
-      schedule :expire, at: 1.minute.ago, every: 60, arguments: {}
+      schedule(at: 1.minute.ago, every: 60).expire
     end
 
     def expire
@@ -28,15 +28,18 @@ class RemindersTest < ActiveSupport::TestCase
 
     def add(wait_until:)
       self.entries = entries + [ wait_until ]
-      schedule :deliver, at: Time.at(wait_until).utc, arguments: {}
+      schedule(at: Time.at(wait_until).utc).deliver
     end
 
     def arm(name:, wait_until:)
-      schedule name.to_sym, at: Time.at(wait_until).utc, arguments: {}
+      schedule(at: Time.at(wait_until).utc).public_send(name.to_sym)
     end
 
     def deliver
       self.entries = []
+    end
+
+    def sweep
     end
   end
 
@@ -67,7 +70,7 @@ class RemindersTest < ActiveSupport::TestCase
       earliest = entries.first
       return unless earliest
 
-      schedule :deliver, at: Time.at(earliest).utc, arguments: {}
+      schedule(at: Time.at(earliest).utc).deliver
     end
   end
 
@@ -75,8 +78,8 @@ class RemindersTest < ActiveSupport::TestCase
     reference = QueueDrainActor.ref("table")
     due = 10.seconds.ago.to_i
     later = 1.hour.from_now.to_i
-    reference.async(:add, wait_until: due)
-    reference.async(:add, wait_until: later)
+    reference.async.add(wait_until: due)
+    reference.async.add(wait_until: later)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     scheduler = SolidObjects::ReminderScheduler.new
@@ -96,13 +99,13 @@ class RemindersTest < ActiveSupport::TestCase
   end
 
   test "persists a reminder in the actor commit" do
-    message_reference = ExpiringActor.ref("one").async(:configure_expiration)
+    message_reference = ExpiringActor.ref("one").async.configure_expiration
     worker = SolidObjects::Worker.new
     worker.run_until_idle
 
     reminder = SolidObjects::Reminder.find_by!(instance: SolidObjects::Message.find(message_reference.id).instance)
     assert_equal "expire", reminder.name
-    assert_equal "expire", reminder.message_name
+    assert_equal "expire", reminder.operation
     assert_equal "scheduled", reminder.status
     assert_operator reminder.next_run_at, :>, Time.current
   ensure
@@ -110,7 +113,7 @@ class RemindersTest < ActiveSupport::TestCase
   end
 
   test "converts a due reminder into an ordinary mailbox message" do
-    ExpiringActor.ref("one").async(:configure_expiration)
+    ExpiringActor.ref("one").async.configure_expiration
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     reminder = SolidObjects::Reminder.first
@@ -129,7 +132,7 @@ class RemindersTest < ActiveSupport::TestCase
   end
 
   test "advances a recurring reminder after enqueueing its callback" do
-    ExpiringActor.ref("one").async(:schedule_recurring)
+    ExpiringActor.ref("one").async.schedule_recurring
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     scheduler = SolidObjects::ReminderScheduler.new
@@ -161,8 +164,8 @@ class RemindersTest < ActiveSupport::TestCase
     reference = QueueActor.ref("table")
     first = 1.hour.from_now.to_i
     second = 2.hours.from_now.to_i
-    reference.async(:add, wait_until: first)
-    reference.async(:add, wait_until: second)
+    reference.async.add(wait_until: first)
+    reference.async.add(wait_until: second)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
 
@@ -174,8 +177,8 @@ class RemindersTest < ActiveSupport::TestCase
 
   test "reminders with different names on one actor coexist" do
     reference = QueueActor.ref("table")
-    reference.async(:arm, name: "deliver", wait_until: 1.hour.from_now.to_i)
-    reference.async(:arm, name: "sweep", wait_until: 2.hours.from_now.to_i)
+    reference.async.arm(name: "deliver", wait_until: 1.hour.from_now.to_i)
+    reference.async.arm(name: "sweep", wait_until: 2.hours.from_now.to_i)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
 
@@ -184,8 +187,8 @@ class RemindersTest < ActiveSupport::TestCase
   end
 
   test "the same reminder name on another actor is a separate reminder" do
-    QueueActor.ref("one").async(:add, wait_until: 1.hour.from_now.to_i)
-    QueueActor.ref("two").async(:add, wait_until: 2.hours.from_now.to_i)
+    QueueActor.ref("one").async.add(wait_until: 1.hour.from_now.to_i)
+    QueueActor.ref("two").async.add(wait_until: 2.hours.from_now.to_i)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
 
@@ -200,8 +203,8 @@ class RemindersTest < ActiveSupport::TestCase
       events << event.payload
     end
     reference = QueueActor.ref("table")
-    reference.async(:add, wait_until: 1.hour.from_now.to_i)
-    reference.async(:add, wait_until: 2.hours.from_now.to_i)
+    reference.async.add(wait_until: 1.hour.from_now.to_i)
+    reference.async.add(wait_until: 2.hours.from_now.to_i)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
 
@@ -261,8 +264,8 @@ class RemindersTest < ActiveSupport::TestCase
     end
     wait_until = 1.hour.from_now.to_i
     reference = QueueActor.ref("table")
-    reference.async(:add, wait_until:)
-    reference.async(:add, wait_until:)
+    reference.async.add(wait_until:)
+    reference.async.add(wait_until:)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
 

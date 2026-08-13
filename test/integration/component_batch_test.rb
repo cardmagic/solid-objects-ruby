@@ -211,7 +211,7 @@ class ComponentBatchTest < ActiveSupport::TestCase
   test "the batch url requests every changed component once" do
     group = registrations(player: "playmat", controls: "playmat")
 
-    url = group.first.batch_refresh_url(group, 5, 9)
+    url = group.first.batch_refresh_url(registrations: group, instance_id: 5, revision: 9)
 
     assert_includes url, "/solid_objects/components/batch?"
     assert_equal 2, url.scan("tokens%5B%5D=").length
