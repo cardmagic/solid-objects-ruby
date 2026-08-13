@@ -169,8 +169,9 @@ turn. `SolidObjects.mutable_copy` creates an independent mutable JSON value.
 `message` and `query` both execute as durable mailbox turns. A query may not
 mutate state. The executor detects query mutation and fails the message. An
 observable is a named projection of state used by server rendering and realtime
-updates. Its durable broadcast row stores the projected value by default;
-`broadcast: :invalidation` stores only an empty invalidation marker.
+updates. Its durable broadcast row stores only an empty invalidation marker by
+default. `broadcast: :value` explicitly opts into storing and sharing the
+projected value.
 
 Lifecycle hooks are deterministic local hooks:
 

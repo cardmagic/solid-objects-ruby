@@ -13,12 +13,19 @@
 <% end %>
 ```
 
-Every observable gets a stable opaque DOM ID. Multiple values share the one
-actor subscription and Action Cable multiplexes actor subscriptions over the
-browser's physical WebSocket.
+Every value-broadcast observable gets a stable opaque DOM ID. Multiple values
+share the one actor subscription and Action Cable multiplexes actor
+subscriptions over the browser's physical WebSocket.
 
 Scalar observable calls such as `cart.items_count` render stable `<span>`
-targets. Their broadcast remains a direct escaped text replacement.
+targets. Their broadcast remains a direct escaped text replacement, and their
+declaration must explicitly opt in with `broadcast: :value`:
+
+```ruby
+observable :items_count, broadcast: :value do
+  items.sum { |item| item.fetch("quantity") }
+end
+```
 
 A reactive component declares one or more explicit observable dependencies.
 `actor.component(:summary, observes: ...)` resolves the host partial by
@@ -65,16 +72,12 @@ listed in `observes:` raises `UnknownComponentDependency`. This keeps
 invalidation correct and prevents a partial from silently depending on state
 that cannot wake it.
 
-Observable values are shared projections. By default, each changed value is
-stored in the broadcast outbox and can be sent as a scalar Turbo replacement to
-every subscriber that passes `authorize_subscription`. Authorization to the
-actor stream is not a per-viewer projection.
-
-For a component dependency whose value must never enter the durable outbox or
-Action Cable frame, declare it invalidation-only:
+Observables are invalidation-only by default. Their values never enter the
+durable outbox or Action Cable frame, so the ordinary declaration is the safe
+choice for component dependencies:
 
 ```ruby
-observable :player_one, broadcast: :invalidation do
+observable :player_one do
   player_in_seat(1)
 end
 ```
@@ -85,6 +88,10 @@ replacement. An invalidation-only observable therefore cannot be used as a
 scalar value such as `actor.player_one`. The component endpoint reads the
 latest committed value and authorizes it again; subscriber-specific state
 belongs in `broadcast_payload`.
+
+Use `broadcast: :value` only for a shared projection that may be stored and
+sent to every subscriber that passes `authorize_subscription`. Authorization
+to the actor stream is not a per-viewer projection.
 
 ```erb
 <ul>
@@ -437,8 +444,9 @@ component key, locals, or DOM ID.
 ## Broadcast durability
 
 The actor's fenced commit compares observables before and after the turn and
-inserts one broadcast row per changed observable. Value-broadcast observables
-store the changed JSON value; invalidation-only observables store `{}`. The actor state, monotonic
+inserts one broadcast row per changed observable. Invalidation-only
+observables, the default, store `{}`. Observables declared with
+`broadcast: :value` store the changed JSON value. The actor state, monotonic
 `state_revision`, message completion, and broadcast rows commit atomically. A
 rolled-back or fenced-out turn therefore cannot invalidate a component.
 

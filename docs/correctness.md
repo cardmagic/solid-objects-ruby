@@ -131,9 +131,9 @@ rendering invokes query authorization, Cable separately invokes subscription
 authorization, and the cookie-bearing refresh request invokes query
 authorization again for the component name and every dependency.
 
-The actor stream token separately signs the scalar observable targets rendered
-into its scope. A component dependency that has no scalar target carries only
-its name and revision over Cable, not its serialized value.
+The actor stream token separately signs the explicitly value-broadcast scalar
+observable targets rendered into its scope. A default component dependency
+carries only its name and revision over Cable, not its serialized value.
 
 Cable compares `(instance_id, state_revision)` pairs, coalesces dependencies
 changed by the same turn, and ignores an older pair after a newer one. A new

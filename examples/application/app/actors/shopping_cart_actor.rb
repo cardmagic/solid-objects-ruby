@@ -5,11 +5,11 @@ class ShoppingCartActor < SolidObjects::Actor
   attribute :checkout_status, default: "open"
   attribute :payment_id
 
-  observable :items_count do
+  observable :items_count, broadcast: :value do
     items.sum { |item| item.fetch("quantity") }
   end
 
-  observable :subtotal_cents do
+  observable :subtotal_cents, broadcast: :value do
     items.sum do |item|
       item.fetch("quantity") * item.fetch("unit_price_cents")
     end

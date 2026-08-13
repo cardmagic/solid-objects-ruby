@@ -6,7 +6,7 @@ class ChatRoomActor < SolidObjects::Actor
   attribute :members, default: -> { [] }
   attribute :recent_messages, default: -> { [] }
 
-  observable :presence do
+  observable :presence, broadcast: :value do
     members.length
   end
 

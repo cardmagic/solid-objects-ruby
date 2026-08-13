@@ -24,10 +24,11 @@
   listed here while broken in that worker: the scheduler reached a constant the
   caller path happened to load, so reminders never fired in production and
   every in-process test still passed
-- Durable value or invalidation-only observable broadcasts, scalar Turbo
-  replacement, keyed ERB components, signed component locals, and authorized
-  replace or morph refresh. Invalidation-only observables retain component
-  change detection while storing and broadcasting no projected value
+- Durable invalidation-only observable broadcasts by default, explicit
+  `broadcast: :value` scalar Turbo replacement, keyed ERB components, signed
+  component locals, and authorized replace or morph refresh. Default
+  observables retain component change detection while storing and broadcasting
+  no projected value
 - Batched component refreshes: components sharing a signed `batch:` collapse to
   one browser request per revision, served as HTML frames in a JSON envelope
 - Personalized state payload broadcasts computed per subscriber under that

@@ -53,7 +53,7 @@ module SolidObjects
       end
 
       # @rbs (Symbol | String, ?broadcast: Symbol) ?{ () -> untyped } -> ActorDefinition::Handler
-      def observable(name, broadcast: :value, &block)
+      def observable(name, broadcast: :invalidation, &block)
         definition.add_observable(name, block, broadcast:)
       end
 

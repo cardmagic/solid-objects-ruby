@@ -36,13 +36,13 @@ Opaque stream and DOM names reduce accidental disclosure but do not replace
 authorization. Signed stream tokens are readable by their recipient and prove
 integrity only.
 
-Every normal observable value is stored in the broadcast outbox and can reach
-every subscriber that passes `authorize_subscription` for the actor. Never put
-credentials, session identifiers, private cards, hidden library order, or any
-other subscriber-specific state in a value-broadcast observable. Declare a
-component dependency with `broadcast: :invalidation` when only change metadata
-may cross the shared stream, or use `broadcast_payload` for a projection that
-must be computed separately for each authorized connection.
+Observables are invalidation-only by default, so their durable rows and shared
+actor stream carry no projected value. `broadcast: :value` deliberately stores
+the value in the broadcast outbox and may send it to every subscriber that
+passes `authorize_subscription` for the actor. Never opt credentials, session
+identifiers, private cards, hidden library order, or any other
+subscriber-specific state into value broadcasting. Use `broadcast_payload` for
+a projection that must be computed separately for each authorized connection.
 
 ## Serialization
 

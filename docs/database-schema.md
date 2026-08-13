@@ -92,10 +92,11 @@ Status/availability/ID drives delivery; completion/ID drives cleanup.
 ### `broadcasts`
 
 Durable observable-change outbox. The unique message/observable key prevents
-duplicate rows for one actor turn. Rows contain the observable JSON value, or
-`{}` for an invalidation-only observable, plus message/instance references used to derive invalidation metadata, never
-personalized rendered HTML. Claim and delivery indexes support retries and
-cleanup.
+duplicate rows for one actor turn. Rows contain `{}` for the default
+invalidation-only observable, or the observable JSON value after an explicit
+`broadcast: :value` opt-in, plus message/instance references used to derive
+invalidation metadata, never personalized rendered HTML. Claim and delivery
+indexes support retries and cleanup.
 
 ### `dead_letters`
 

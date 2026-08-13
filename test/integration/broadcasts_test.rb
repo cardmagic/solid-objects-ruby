@@ -20,12 +20,24 @@ class BroadcastsTest < ActiveSupport::TestCase
     end
   end
 
+  class PublicCounterActor < SolidObjects::Actor
+    actor_type "public-broadcast-counter"
+
+    attribute :count, default: 0
+
+    observable :count, broadcast: :value
+
+    def increment
+      self.count += 1
+    end
+  end
+
   class PrivateRoomActor < SolidObjects::Actor
     actor_type "private-broadcast-room"
 
     attribute :secret, default: nil
 
-    observable :secret, broadcast: :invalidation
+    observable :secret
 
     def reveal(secret:)
       self.secret = secret
@@ -36,7 +48,7 @@ class BroadcastsTest < ActiveSupport::TestCase
     SolidObjects.configuration.retry_delay = ->(_attempt) { 0 }
   end
 
-  test "enqueues changed observables in the state commit" do
+  test "observables default to invalidation-only broadcasts" do
     message_reference = CounterActor.ref("one").async.increment
     worker = SolidObjects::Worker.new
 
@@ -44,11 +56,25 @@ class BroadcastsTest < ActiveSupport::TestCase
 
     broadcast = SolidObjects::Broadcast.find_by!(message_id: message_reference.id)
     assert_equal "count", broadcast.observable_name
-    assert_equal 1, broadcast.value
+    assert_equal({}, broadcast.value)
+    refute broadcast.broadcasts_value?
     assert_equal "pending", broadcast.status
     assert_equal 1, broadcast.state_version
     assert_equal 1, broadcast.activation_generation
     assert_equal message_reference.sequence, broadcast.instance.state_revision
+  ensure
+    worker&.stop
+  end
+
+  test "value broadcasts require an explicit opt-in" do
+    message_reference = PublicCounterActor.ref("one").async.increment
+    worker = SolidObjects::Worker.new
+
+    worker.run_until_idle
+
+    broadcast = SolidObjects::Broadcast.find_by!(message_id: message_reference.id)
+    assert_equal 1, broadcast.value
+    assert broadcast.broadcasts_value?
   ensure
     worker&.stop
   end
@@ -85,7 +111,7 @@ class BroadcastsTest < ActiveSupport::TestCase
   test "delivers the durable broadcast after commit" do
     delivered = Queue.new
     SolidObjects.configuration.broadcast_adapter = ->(broadcast) { delivered << broadcast.value }
-    CounterActor.ref("one").async.increment
+    PublicCounterActor.ref("one").async.increment
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcast_executor = SolidObjects::BroadcastExecutor.new

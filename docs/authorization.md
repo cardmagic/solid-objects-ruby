@@ -53,9 +53,9 @@ Component partials receive the resolved value as the
 `authorization_context` local, allowing two authorized viewers to render
 different projections. Responses use `Cache-Control: private, no-store`.
 Durable outbox rows and shared Cable messages never contain component HTML.
-The stream token also signs the scalar observable targets rendered into that
-specific scope. Component-only dependencies send invalidation metadata but not
-their state value to the browser.
+The stream token also signs explicitly value-broadcast scalar observable
+targets rendered into that specific scope. Default component dependencies send
+invalidation metadata but not their state value to the browser.
 
 Keyed components sign their `component_key` and declared JSON-compatible
 locals into the component token. Initial rendering and every refresh pass those
