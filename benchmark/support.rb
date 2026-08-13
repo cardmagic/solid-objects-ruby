@@ -98,13 +98,13 @@ module SolidObjectsBenchmark
     def enqueue
       reference = CounterActor.ref("enqueue")
       measure("enqueue #{count} messages") do
-        count.times { reference.async(:increment) }
+        count.times { reference.async.increment }
       end
     end
 
     # @rbs () -> void
     def claim
-      count.times { |index| CounterActor.ref("claim-#{index}").async(:increment) }
+      count.times { |index| CounterActor.ref("claim-#{index}").async.increment }
       process_registry = SolidObjects::ProcessRegistry.new
       owner_id = process_registry.register.id
       activation_manager = SolidObjects::ActivationManager.new(owner_id:)
@@ -137,7 +137,7 @@ module SolidObjectsBenchmark
 
     # @rbs () -> void
     def cold_actors
-      count.times { |index| CounterActor.ref("cold-#{index}").async(:increment) }
+      count.times { |index| CounterActor.ref("cold-#{index}").async.increment }
       worker = SolidObjects::Worker.new
       measure("process #{count} cold actors") { drain(worker) }
     ensure
@@ -147,7 +147,7 @@ module SolidObjectsBenchmark
     # @rbs () -> void
     def hot_actor
       reference = CounterActor.ref("hot")
-      count.times { reference.async(:increment) }
+      count.times { reference.async.increment }
       worker = SolidObjects::Worker.new
       measure("process #{count} messages for one hot actor") { drain(worker) }
     ensure
@@ -172,7 +172,7 @@ module SolidObjectsBenchmark
 
       count.times do |index|
         started_at = monotonic_now
-        CounterActor.ref("sync-#{index}").sync(:count, timeout: 5)
+        CounterActor.ref("sync-#{index}").sync(timeout: 5).count
         samples << monotonic_now - started_at
       end
 
@@ -211,7 +211,7 @@ module SolidObjectsBenchmark
     # @rbs () -> void
     def activation_cache
       reference = CounterActor.ref("cache")
-      count.times { reference.async(:increment) }
+      count.times { reference.async.increment }
       activations = 0
       subscriber = ActiveSupport::Notifications.subscribe("solid_objects.activation.started") do
         activations += 1
@@ -303,7 +303,7 @@ module SolidObjectsBenchmark
     # Runs the turn on the measuring thread, so nothing else can contribute.
     # @rbs () -> Integer
     def message_turn_query_count
-      CounterActor.ref("queries").async(:increment)
+      CounterActor.ref("queries").async.increment
       worker = SolidObjects::Worker.new
       count_queries { worker.run_once }
     ensure
@@ -322,8 +322,8 @@ module SolidObjectsBenchmark
       reference = CounterActor.ref("sync-queries")
       worker = SolidObjects::Worker.new
       runner = Thread.new { worker.run }
-      reference.sync(:increment)
-      count_queries { reference.sync(:increment) }
+      reference.sync.increment
+      count_queries { reference.sync.increment }
     ensure
       worker&.request_shutdown
       runner&.join(5)
@@ -428,7 +428,7 @@ module SolidObjectsBenchmark
     def enqueue_round_robin
       actor_count = [ concurrency * 10, count ].min
       references = Array.new(actor_count) { |index| CounterActor.ref("actor-#{index}") }
-      count.times { |index| references[index % actor_count].async(:increment) }
+      count.times { |index| references[index % actor_count].async.increment }
     end
 
     # @rbs (SolidObjects::Worker) -> Integer

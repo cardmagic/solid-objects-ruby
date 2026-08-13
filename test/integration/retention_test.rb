@@ -42,7 +42,7 @@ class RetentionTest < ActiveSupport::TestCase
     end
 
     def schedule_increment
-      schedule :increment, at: 1.day.from_now, arguments: {}
+      schedule(at: 1.day.from_now).increment
     end
   end
 
@@ -117,7 +117,7 @@ class RetentionTest < ActiveSupport::TestCase
 
   test "instance pruning preserves actors with pending mailbox work" do
     reference = ExpiringActor.ref("pending")
-    reference.async(:increment, available_at: 1.day.from_now)
+    reference.async(available_at: 1.day.from_now).increment
     instance = expiring_instance("pending")
     instance.update!(created_at: 31.days.ago, updated_at: 31.days.ago)
     SolidObjects.configuration.instance_retention_by_actor_type = {

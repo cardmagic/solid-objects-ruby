@@ -117,7 +117,7 @@ class LeaseTest < ActiveSupport::TestCase
     subscription = ActiveSupport::Notifications.subscribe("solid_objects.activation.renewed") do
       renewed << true
     end
-    message_reference = SlowActor.ref("slow").async(:run)
+    message_reference = SlowActor.ref("slow").async.run
     worker = SolidObjects::Worker.new
 
     thread = Thread.new { worker.run_once }

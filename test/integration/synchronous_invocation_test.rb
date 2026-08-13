@@ -43,9 +43,9 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     actor_type "synchronous-intents"
 
     def configure(target_id:)
-      schedule :refresh, at: 1.hour.from_now, arguments: {}
+      schedule(at: 1.hour.from_now).refresh
       emit :record_configuration
-      CounterActor.ref(target_id).async(:increment)
+      CounterActor.ref(target_id).async.increment
     end
 
     def refresh
@@ -170,7 +170,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync explicitly invokes an actor method" do
-    result = CounterActor.ref("explicit").sync(:increment, amount: 3)
+    result = CounterActor.ref("explicit").sync.increment(amount: 3)
 
     assert_equal 3, result
     assert_equal(
@@ -290,7 +290,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   test "async durably enqueues and returns immediately" do
     reference = CounterActor.ref("later")
 
-    message_reference = reference.async(:increment, amount: 4)
+    message_reference = reference.async.increment(amount: 4)
 
     assert_instance_of SolidObjects::MessageReference, message_reference
     assert_equal "ready", message_reference.status
@@ -319,7 +319,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
 
   test "sync drains earlier asynchronous messages in sequence" do
     reference = CounterActor.ref("ordered")
-    first_message = reference.async(:increment, amount: 2)
+    first_message = reference.async.increment(amount: 2)
 
     result = reference.increment(amount: 3)
 
@@ -335,7 +335,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
 
   test "sync does not steal an unexpired activation" do
     reference = CounterActor.ref("leased")
-    reference.async(:increment)
+    reference.async.increment
     instance = SolidObjects::Instance.find_by!(
       actor_type: "synchronous-counter",
       actor_id: "leased"
@@ -348,7 +348,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     )
 
     error = assert_raises(SolidObjects::SyncTimeout) do
-      reference.sync(:increment, timeout: 0.01)
+      reference.sync(timeout: 0.01).increment
     end
 
     timed_out_message = SolidObjects::Message.find(error.message_id)
@@ -381,7 +381,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "message reference wait enforces invocation authorization" do
-    message_reference = CounterActor.ref("protected").async(:increment)
+    message_reference = CounterActor.ref("protected").async.increment
     SolidObjects.configuration.authorize_message = ->(**) { false }
 
     assert_raises(SolidObjects::Unauthorized) do
@@ -460,7 +460,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     started_at = monotonic_now
 
     error = assert_raises(SolidObjects::SyncEnqueueTimeout) do
-      reference.sync(:increment, timeout: 0.25)
+      reference.sync(timeout: 0.25).increment
     end
 
     assert_operator monotonic_now - started_at, :<, 1.5
@@ -704,16 +704,8 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   test "sync reuses an idempotent committed result" do
     reference = CounterActor.ref("idempotent")
 
-    first_result = reference.sync(
-      :increment,
-      amount: 2,
-      idempotency_key: "increment-once"
-    )
-    second_result = reference.sync(
-      :increment,
-      amount: 2,
-      idempotency_key: "increment-once"
-    )
+    first_result = reference.sync(idempotency_key: "increment-once").increment(amount: 2)
+    second_result = reference.sync(idempotency_key: "increment-once").increment(amount: 2)
 
     assert_equal 2, first_result
     assert_equal first_result, second_result
@@ -806,7 +798,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "async rejection is observable without retry or dead letter" do
-    message_reference = CounterActor.ref("async-rejected").async(:increment_if, valid: false)
+    message_reference = CounterActor.ref("async-rejected").async.increment_if(valid: false)
     worker = SolidObjects::Worker.new
 
     assert_equal 1, worker.run_until_idle

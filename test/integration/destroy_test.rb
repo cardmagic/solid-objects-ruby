@@ -18,7 +18,7 @@ class DestroyTest < ActiveSupport::TestCase
 
     def configure
       self.value += 1
-      schedule :increment, at: 1.hour.from_now, arguments: { amount: 1 }
+      schedule(at: 1.hour.from_now).increment(amount: 1)
       emit :record_counter, value:, on_success: :recorded
     end
 
@@ -90,12 +90,12 @@ class DestroyTest < ActiveSupport::TestCase
 
   test "destroys the actor and all of its durable work" do
     reference = Counter.ref("global")
-    reference.async(:poison)
+    reference.async.poison
     worker = SolidObjects::Worker.new
     worker.run_until_idle
-    reference.async(:configure)
+    reference.async.configure
     worker.run_until_idle
-    reference.async(:increment, amount: 2, available_at: 1.hour.from_now)
+    reference.async(available_at: 1.hour.from_now).increment(amount: 2)
     instance = SolidObjects::Instance.find_by!(
       actor_type: reference.actor_type,
       actor_id: reference.actor_id
@@ -170,7 +170,7 @@ class DestroyTest < ActiveSupport::TestCase
 
   test "recreates a destroyed identity with fresh state and sequence" do
     reference = Counter.ref("global")
-    original_message = reference.async(:increment, amount: 5)
+    original_message = reference.async.increment(amount: 5)
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     original_instance = SolidObjects::Instance.find_by!(
@@ -180,7 +180,7 @@ class DestroyTest < ActiveSupport::TestCase
 
     assert reference.destroy
 
-    recreated_message = reference.async(:increment, amount: 2)
+    recreated_message = reference.async.increment(amount: 2)
     recreated_instance = SolidObjects::Instance.find_by!(
       actor_type: reference.actor_type,
       actor_id: reference.actor_id
@@ -197,7 +197,7 @@ class DestroyTest < ActiveSupport::TestCase
 
   test "rejects a stale actor commit after destruction" do
     reference = BlockingCounter.ref("global")
-    reference.async(:increment)
+    reference.async.increment
     worker = SolidObjects::Worker.new
     thread = Thread.new { worker.run_once }
     Timeout.timeout(2) { BlockingCounter.started.pop }
@@ -222,7 +222,7 @@ class DestroyTest < ActiveSupport::TestCase
 
   test "does not let a claimed reminder recreate a destroyed actor" do
     reference = Counter.ref("global")
-    reference.async(:configure)
+    reference.async.configure
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     SolidObjects::Reminder.first.update!(next_run_at: 1.second.ago)
@@ -269,7 +269,7 @@ class DestroyTest < ActiveSupport::TestCase
 
   test "does not let an in-flight effect callback recreate the actor" do
     reference = Counter.ref("global")
-    reference.async(:configure)
+    reference.async.configure
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     instance_id = SolidObjects::Effect.first.instance_id
@@ -306,7 +306,7 @@ class DestroyTest < ActiveSupport::TestCase
 
   test "does not let an in-flight broadcast recreate the actor" do
     reference = Counter.ref("global")
-    reference.async(:increment)
+    reference.async.increment
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     instance_id = SolidObjects::Broadcast.first.instance_id
@@ -338,7 +338,7 @@ class DestroyTest < ActiveSupport::TestCase
 
   test "wakes a sync caller when its actor is destroyed" do
     reference = Counter.ref("global")
-    reference.async(:increment)
+    reference.async.increment
     instance = SolidObjects::Instance.find_by!(
       actor_type: reference.actor_type,
       actor_id: reference.actor_id
@@ -362,7 +362,7 @@ class DestroyTest < ActiveSupport::TestCase
     end
     result = Queue.new
     thread = Thread.new do
-      reference.sync(:value, timeout: 2)
+      reference.sync(timeout: 2).value
     rescue => error
       result << error
     end

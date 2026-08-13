@@ -77,7 +77,7 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     assert subscription.confirmed?
     assert_has_stream SolidObjects::StreamName.for(reference)
 
-    reference.async(:update_missing)
+    reference.async.update_missing
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcast = SolidObjects::Broadcast.find_by!(observable_name: "missing")
@@ -110,7 +110,7 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     assert subscription.confirmed?
     assert_has_stream SolidObjects::StreamName.for(reference)
 
-    reference.async(:update_missing)
+    reference.async.update_missing
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcast = SolidObjects::Broadcast.find_by!(observable_name: "missing")
@@ -153,7 +153,7 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     assert_equal ActiveSupport::JSON, channel.stream_coder
     connection.transmissions.clear
 
-    reference.async(:update_missing)
+    reference.async.update_missing
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcast = SolidObjects::Broadcast.find_by!(observable_name: "missing")
@@ -244,7 +244,7 @@ class ActorChannelTest < ActionCable::Channel::TestCase
         ]
       )
     )
-    ChannelActor.ref("actor-1").async(:update_all)
+    ChannelActor.ref("actor-1").async.update_all
     worker = SolidObjects::Worker.new
     worker.run_until_idle
 
@@ -276,7 +276,7 @@ class ActorChannelTest < ActionCable::Channel::TestCase
         ]
       )
     )
-    ChannelActor.ref("actor-1").async(:update_missing)
+    ChannelActor.ref("actor-1").async.update_missing
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcast = SolidObjects::Broadcast.find_by!(observable_name: "missing")
@@ -307,7 +307,7 @@ class ActorChannelTest < ActionCable::Channel::TestCase
         ]
       )
     )
-    reference.async(:update_missing)
+    reference.async.update_missing
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcast = SolidObjects::Broadcast.find_by!(observable_name: "missing")
@@ -367,7 +367,7 @@ class ActorChannelTest < ActionCable::Channel::TestCase
         ]
       )
     )
-    2.times { reference.async(:update_missing) }
+    2.times { reference.async.update_missing }
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcasts = SolidObjects::Broadcast
@@ -420,7 +420,7 @@ class ActorChannelTest < ActionCable::Channel::TestCase
         end
       )
     )
-    reference.async(:update_all)
+    reference.async.update_all
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcast = SolidObjects::Broadcast.find_by!(observable_name: "status")
@@ -480,7 +480,7 @@ class ActorChannelTest < ActionCable::Channel::TestCase
         ]
       )
     )
-    reference.async(:update_missing)
+    reference.async.update_missing
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcast = SolidObjects::Broadcast.find_by!(observable_name: "missing")
@@ -513,7 +513,7 @@ class ActorChannelTest < ActionCable::Channel::TestCase
         ]
       )
     )
-    reference.async(:update_all)
+    reference.async.update_all
     worker = SolidObjects::Worker.new
     worker.run_until_idle
     broadcast = SolidObjects::Broadcast.find_by!(observable_name: "status")

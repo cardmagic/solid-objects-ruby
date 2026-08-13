@@ -16,41 +16,50 @@ module SolidObjects
       freeze
     end
 
-    # @rbs (Symbol | String, ?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> MessageReference?
-    def async(message_name, available_at: nil, idempotency_key: nil, authorization_context: nil, **arguments)
-      if (actor = Context.current_actor)
-        actor.stage_outbound_message(
+    # @rbs (?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> OperationDispatcher
+    def async(available_at: nil, idempotency_key: nil, authorization_context: nil)
+      OperationDispatcher.new(
+        actor_type:,
+        handlers: actor_definition.messages
+      ) do |message_name, arguments|
+        if (actor = Context.current_actor)
+          actor.stage_outbound_message(
+            self,
+            message_name,
+            arguments,
+            available_at:,
+            idempotency_key:
+          )
+          next
+        end
+
+        SolidObjects.client.async(
           self,
           message_name,
           arguments,
           available_at:,
-          idempotency_key:
+          idempotency_key:,
+          authorization_context:
         )
-        return
       end
-
-      SolidObjects.client.async(
-        self,
-        message_name,
-        arguments,
-        available_at:,
-        idempotency_key:,
-        authorization_context:
-      )
     end
 
-    # @rbs (Symbol | String, ?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped, **untyped) -> untyped
-    def sync(message_name, timeout: 5.seconds, idempotency_key: nil, authorization_context: nil, **arguments)
+    # @rbs (?timeout: Numeric, ?idempotency_key: String?, ?authorization_context: untyped) -> OperationDispatcher
+    def sync(timeout: 5.seconds, idempotency_key: nil, authorization_context: nil)
       raise ActorCallCycle, "actors cannot synchronously wait for another actor" if Context.current_actor
 
-      SolidObjects.client.sync(
-        self,
-        message_name,
-        arguments,
-        timeout:,
-        idempotency_key:,
-        authorization_context:
-      )
+      OperationDispatcher.new(
+        actor_type:,
+        handlers: actor_definition.messages.merge(actor_definition.queries)
+      ) do |message_name, arguments|
+        invoke_synchronously(
+          message_name,
+          arguments,
+          timeout:,
+          idempotency_key:,
+          authorization_context:
+        )
+      end
     end
 
     # @rbs (?authorization_context: untyped) -> bool
@@ -66,7 +75,15 @@ module SolidObjects
     # @rbs (Symbol, *untyped, **untyped) -> untyped
     def method_missing(name, *arguments, **keywords)
       return super if arguments.any? || block_given?
-      return sync(name, **keywords) if actor_message?(name) || actor_query?(name)
+      if actor_message?(name) || actor_query?(name)
+        return invoke_synchronously(
+          name,
+          keywords,
+          timeout: 5.seconds,
+          idempotency_key: nil,
+          authorization_context: nil
+        )
+      end
 
       super
     end
@@ -82,6 +99,20 @@ module SolidObjects
     end
 
     private
+
+    # @rbs (Symbol | String, Hash[Symbol, untyped], timeout: Numeric, idempotency_key: String?, authorization_context: untyped) -> untyped
+    def invoke_synchronously(message_name, arguments, timeout:, idempotency_key:, authorization_context:)
+      raise ActorCallCycle, "actors cannot synchronously wait for another actor" if Context.current_actor
+
+      SolidObjects.client.sync(
+        self,
+        message_name,
+        arguments,
+        timeout:,
+        idempotency_key:,
+        authorization_context:
+      )
+    end
 
     # @rbs (Symbol | String) -> bool
     def actor_message?(name)

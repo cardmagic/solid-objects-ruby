@@ -50,6 +50,9 @@ module SolidObjects
       def deadline_error?: (Exception) -> bool
 
       # @rbs (Exception) -> bool
+      def reconnect_blocked_error?: (Exception) -> bool
+
+      # @rbs (Exception) -> bool
       def busy_error?: (Exception) -> bool
 
       # @rbs (Integer) -> void

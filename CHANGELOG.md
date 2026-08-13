@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+- Replace positional actor dispatch with fluent operation selection. Direct
+  committed calls remain `account.disable(...)`; configured committed calls
+  use `account.sync(timeout: ...).status`; asynchronous calls use
+  `account.async(...).disable(...)`; actor outbox delivery uses
+  `send_to(account, ...).disable(...)`; and reminders use
+  `schedule(at: ...).evaluate(...)`. Delivery and reminder options are now
+  unambiguously separate from actor message arguments. The former positional
+  `async`, `sync`, `send_to`, and `schedule` forms are removed.
+- Validate fluent operations before enqueueing or staging them. Direct and
+  configured synchronous calls accept messages and queries, while `async`,
+  `send_to`, and `schedule` accept public actor messages only.
+- Keep SQLite reconnect failures inside a synchronous lock deadline. Active
+  Record can reconnect after a lock error while the lock is still held, and
+  configuring WAL then raises `SQLite3::CantOpenException`; it now retries
+  within the original deadline and surfaces the documented sync timeout.
+
 ## 0.11.0 - 2026-08-11
 
 - Add `SolidObjects.configuration.register_component`. An extension gem can now

@@ -157,11 +157,11 @@ module SolidObjects
     # @rbs (Symbol | String, **untyped) -> nil
     def commit_action: (Symbol | String, **untyped) -> nil
 
-    # @rbs (Symbol | String, at: Time, ?every: Numeric?, ?missed: Symbol | String, arguments: Hash[Symbol | String, untyped]) -> nil
-    def schedule: (Symbol | String, at: Time, arguments: Hash[Symbol | String, untyped], ?every: Numeric?, ?missed: Symbol | String) -> nil
+    # @rbs (at: Time, ?every: Numeric?, ?missed: Symbol | String) -> OperationDispatcher
+    def schedule: (at: Time, ?every: Numeric?, ?missed: Symbol | String) -> OperationDispatcher
 
-    # @rbs (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> nil
-    def send_to: (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> nil
+    # @rbs (Reference, ?available_at: Time?, ?idempotency_key: String?) -> OperationDispatcher
+    def send_to: (Reference, ?available_at: Time?, ?idempotency_key: String?) -> OperationDispatcher
 
     # @rbs (Symbol | String, Hash[String, untyped]) -> untyped
     def invoke: (Symbol | String, Hash[String, untyped]) -> untyped

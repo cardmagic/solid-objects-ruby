@@ -196,8 +196,8 @@ module SolidObjects
       nil
     end
 
-    # @rbs (Symbol | String, at: Time, ?every: Numeric?, ?missed: Symbol | String, arguments: Hash[Symbol | String, untyped]) -> nil
-    def schedule(name, at:, every: nil, missed: :latest, arguments: {})
+    # @rbs (at: Time, ?every: Numeric?, ?missed: Symbol | String) -> OperationDispatcher
+    def schedule(at:, every: nil, missed: :latest)
       interval_seconds = every&.to_f
       if interval_seconds && !interval_seconds.positive?
         raise ArgumentError, "reminder interval must be positive"
@@ -207,22 +207,33 @@ module SolidObjects
         raise ArgumentError, "missed reminder policy must be all or latest"
       end
 
-      ReminderIntent.new(
-        name: name.to_s,
-        at:,
-        arguments: Serialization.dump(arguments),
-        interval_seconds:,
-        missed_policy:
-      ).tap do |intent|
-        reminder_intents << intent
+      OperationDispatcher.new(
+        actor_type: self.class.actor_type,
+        handlers: self.class.definition.messages
+      ) do |message_name, arguments|
+        ReminderIntent.new(
+          name: message_name.to_s,
+          at:,
+          arguments: Serialization.dump(arguments),
+          interval_seconds:,
+          missed_policy:
+        ).tap do |intent|
+          reminder_intents << intent
+        end
+        nil
       end
-      nil
     end
 
-    # @rbs (Reference, Symbol | String, ?available_at: Time?, ?idempotency_key: String?, **untyped) -> nil
-    def send_to(reference, message_name, available_at: nil, idempotency_key: nil, **arguments)
-      stage_outbound_message(reference, message_name, arguments, available_at:, idempotency_key:)
-      nil
+    # @rbs (Reference, ?available_at: Time?, ?idempotency_key: String?) -> OperationDispatcher
+    def send_to(reference, available_at: nil, idempotency_key: nil)
+      actor_class = SolidObjects.registry.fetch(reference.actor_type)
+      OperationDispatcher.new(
+        actor_type: reference.actor_type,
+        handlers: actor_class.definition.messages
+      ) do |message_name, arguments|
+        stage_outbound_message(reference, message_name, arguments, available_at:, idempotency_key:)
+        nil
+      end
     end
 
     # @rbs (Symbol | String, Hash[String, untyped]) -> untyped

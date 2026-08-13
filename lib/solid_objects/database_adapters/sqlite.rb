@@ -141,7 +141,13 @@ module SolidObjects
       def deadline_error?(error)
         return false unless SyncDeadline.active?
 
-        busy_error?(error)
+        busy_error?(error) || reconnect_blocked_error?(error)
+      end
+
+      # @rbs (Exception) -> bool
+      def reconnect_blocked_error?(error)
+        error.message.include?("SQLite3::CantOpenException") &&
+          error.message.include?("PRAGMA journal_mode='wal'")
       end
 
       # @rbs (Exception) -> bool

@@ -78,7 +78,7 @@ class ActorCodeWriteGuardTest < ActiveSupport::TestCase
   end
 
   test "activation write failures do not crash a worker loop" do
-    message_reference = ActivatingActor.ref("worker").async(:run)
+    message_reference = ActivatingActor.ref("worker").async.run
     worker = SolidObjects::Worker.new
 
     assert_equal 0, worker.run_once

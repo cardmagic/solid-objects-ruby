@@ -1,0 +1,28 @@
+# Generated from lib/solid_objects/operation_dispatcher.rb with RBS::Inline
+
+module SolidObjects
+  class OperationDispatcher
+    @actor_type: String
+
+    @handlers: Hash[Symbol, ActorDefinition::Handler]
+
+    @dispatch: Proc
+
+    # @rbs (actor_type: String, handlers: Hash[Symbol, ActorDefinition::Handler]) { (Symbol, Hash[Symbol, untyped]) -> untyped } -> void
+    def initialize: (actor_type: String, handlers: Hash[Symbol, ActorDefinition::Handler]) { (Symbol, Hash[Symbol, untyped]) -> untyped } -> void
+
+    # @rbs (Symbol, *untyped, **untyped) -> untyped
+    def method_missing: (Symbol, *untyped, **untyped) -> untyped
+
+    # @rbs (Symbol, bool) -> bool
+    def respond_to_missing?: (Symbol, bool) -> bool
+
+    private
+
+    attr_reader actor_type: untyped
+
+    attr_reader handlers: untyped
+
+    attr_reader dispatch: untyped
+  end
+end
