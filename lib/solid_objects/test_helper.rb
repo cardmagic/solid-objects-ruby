@@ -68,6 +68,22 @@ module SolidObjects
       runners&.uniq&.each(&:stop)
     end
 
+    # @rbs (now: Time, ?max_reminders: Integer) -> Integer
+    def run_due_reminders(now:, max_reminders: 10_000)
+      unless max_reminders.is_a?(Integer) && max_reminders.positive?
+        raise ArgumentError, "max_reminders must be a positive integer"
+      end
+
+      scheduler = ReminderScheduler.new
+      processed = 0
+      while processed < max_reminders && scheduler.run_once(now:)
+        processed += 1
+      end
+      processed
+    ensure
+      scheduler&.stop
+    end
+
     private
 
     # @rbs (Array[Symbol]) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]

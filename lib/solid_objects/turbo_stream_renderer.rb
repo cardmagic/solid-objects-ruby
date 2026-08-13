@@ -16,14 +16,14 @@ module SolidObjects
         actor_type: broadcast.instance.actor_type,
         actor_id: broadcast.instance.actor_id
       )
-      stream = if broadcast.observable_name == PayloadBroadcast::REVISION_OBSERVABLE
-        ""
-      else
+      stream = if broadcast.broadcasts_value?
         observable_value(
           reference:,
           name: broadcast.observable_name,
           value: broadcast.value
         )
+      else
+        ""
       end
       metadata = Base64.urlsafe_encode64(
         JSON.generate(

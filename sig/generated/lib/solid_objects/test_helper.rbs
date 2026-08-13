@@ -26,6 +26,9 @@ module SolidObjects
     # @rbs (?roles: Array[Symbol], ?max_passes: Integer) -> Integer
     def drain_solid_objects: (?roles: Array[Symbol], ?max_passes: Integer) -> Integer
 
+    # @rbs (now: Time, ?max_reminders: Integer) -> Integer
+    def run_due_reminders: (now: Time, ?max_reminders: Integer) -> Integer
+
     private
 
     # @rbs (Array[Symbol]) -> Array[Worker | EffectExecutor | ReminderScheduler | BroadcastExecutor]

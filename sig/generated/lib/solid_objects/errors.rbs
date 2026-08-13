@@ -179,6 +179,9 @@ module SolidObjects
   class UnknownCommitAction < NonRetryableError
   end
 
+  class InvalidRejectionCode < NonRetryableError
+  end
+
   class Rejected < Error
     @code: String
 

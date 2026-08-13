@@ -133,6 +133,16 @@ class ActorTest < ActiveSupport::TestCase
     assert_equal({ "count" => 3 }, actor.observable_values)
   end
 
+  test "rejects unknown observable broadcast modes" do
+    error = assert_raises(SolidObjects::InvalidActor) do
+      Class.new(SolidObjects::Actor) do
+        observable :value, broadcast: :secret
+      end
+    end
+
+    assert_includes error.message, ":value or :invalidation"
+  end
+
   test "rejects synchronous invocations from actor context" do
     reference = CartActor.ref("other")
 

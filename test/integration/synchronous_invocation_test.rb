@@ -20,6 +20,10 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
 
       self.value += 1
     end
+
+    def reject_with(code:)
+      reject code, "The rejection code was accepted"
+    end
   end
 
   class BlockingActor < SolidObjects::Actor
@@ -809,6 +813,30 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     assert_equal "rejected", message_reference.status
     assert_equal "validation_failed", SolidObjects::Message.find(message_reference.id).rejection.fetch("code")
     assert_empty SolidObjects::DeadLetter.all
+  ensure
+    worker&.stop
+  end
+
+  test "reject accepts identifier-style symbol codes" do
+    error = assert_raises(SolidObjects::Rejected) do
+      CounterActor.ref("symbol-rejection").reject_with(code: :validationFailed)
+    end
+
+    assert_equal "validationFailed", error.code
+  end
+
+  test "an invalid rejection code fails without retrying" do
+    SolidObjects.configuration.max_attempts = 3
+    SolidObjects.configuration.retry_delay = ->(_attempt) { 0 }
+    message_reference = CounterActor.ref("invalid-rejection").async.reject_with(code: "not-valid")
+    worker = SolidObjects::Worker.new
+
+    assert_equal 1, worker.run_until_idle
+
+    message = SolidObjects::Message.find(message_reference.id)
+    assert_equal 1, message.attempt_count
+    assert_equal "dead", message_reference.status
+    assert_equal "SolidObjects::InvalidRejectionCode", message.dead_letter.exception_class
   ensure
     worker&.stop
   end

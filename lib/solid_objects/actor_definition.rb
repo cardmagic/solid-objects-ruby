@@ -9,6 +9,7 @@ module SolidObjects
     # @rbs @messages: Hash[Symbol, Handler]
     # @rbs @queries: Hash[Symbol, Handler]
     # @rbs @observables: Hash[Symbol, Handler]
+    # @rbs @observable_broadcasts: Hash[Symbol, Symbol]
     # @rbs @payload_broadcasts: Hash[Symbol, Handler]
     # @rbs @state_version: Integer
     # @rbs @state_migrations: Array[StateMigration]
@@ -33,6 +34,7 @@ module SolidObjects
       @messages = {}
       @queries = {}
       @observables = {}
+      @observable_broadcasts = {}
       @payload_broadcasts = {}
       @state_version = 1
       @state_migrations = []
@@ -76,15 +78,24 @@ module SolidObjects
       add_handler(collection: queries, name:, block:)
     end
 
-    # @rbs (Symbol | String, Proc?) -> Handler
-    def add_observable(name, block = nil)
+    # @rbs (Symbol | String, Proc?, broadcast: Symbol) -> Handler
+    def add_observable(name, block = nil, broadcast:)
       observable_name = name.to_sym
       raise InvalidActor, "#{observable_name.inspect} observable is already defined" if observables.key?(observable_name)
+      unless %i[value invalidation].include?(broadcast)
+        raise InvalidActor, "observable broadcast must be :value or :invalidation"
+      end
 
       observable_block = block || -> { state.fetch(observable_name) }
       Handler.new(name: observable_name, block: observable_block).tap do |handler|
         observables[observable_name] = handler
+        observable_broadcasts[observable_name] = broadcast
       end
+    end
+
+    # @rbs (Symbol | String) -> bool
+    def broadcasts_observable_value?(name)
+      observable_broadcasts.fetch(name.to_sym) == :value
     end
 
     # @rbs (Symbol | String, Proc) -> Handler
@@ -168,6 +179,7 @@ module SolidObjects
         copy.instance_variable_set(:@messages, messages.dup)
         copy.instance_variable_set(:@queries, queries.dup)
         copy.instance_variable_set(:@observables, observables.dup)
+        copy.instance_variable_set(:@observable_broadcasts, observable_broadcasts.dup)
         copy.instance_variable_set(:@payload_broadcasts, payload_broadcasts.dup)
         copy.instance_variable_set(:@state_version, state_version)
         copy.instance_variable_set(:@state_migrations, state_migrations.dup)
@@ -180,7 +192,7 @@ module SolidObjects
 
     private
 
-    attr_reader :attribute_queries, :method_messages
+    attr_reader :attribute_queries, :method_messages, :observable_broadcasts
 
     # @rbs (Symbol) -> Handler
     def add_method_message(name)

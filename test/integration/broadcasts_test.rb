@@ -20,6 +20,18 @@ class BroadcastsTest < ActiveSupport::TestCase
     end
   end
 
+  class PrivateRoomActor < SolidObjects::Actor
+    actor_type "private-broadcast-room"
+
+    attribute :secret, default: nil
+
+    observable :secret, broadcast: :invalidation
+
+    def reveal(secret:)
+      self.secret = secret
+    end
+  end
+
   setup do
     SolidObjects.configuration.retry_delay = ->(_attempt) { 0 }
   end
@@ -49,6 +61,23 @@ class BroadcastsTest < ActiveSupport::TestCase
 
     assert_empty SolidObjects::Broadcast.all
     assert_equal 0, SolidObjects::Instance.first.state_revision
+  ensure
+    worker&.stop
+  end
+
+  test "invalidation-only observables do not persist or render their values" do
+    PrivateRoomActor.ref("one").async.reveal(secret: "Black Lotus")
+    worker = SolidObjects::Worker.new
+
+    worker.run_until_idle
+
+    broadcast = SolidObjects::Broadcast.find_by!(observable_name: "secret")
+    assert_equal({}, broadcast.value)
+
+    stream = SolidObjects::TurboStreamRenderer.observable(broadcast)
+    refute_includes stream, "Black Lotus"
+    refute_includes stream, "turbo-stream"
+    refute_nil SolidObjects::TurboStreamRenderer.invalidation(stream)
   ensure
     worker&.stop
   end

@@ -52,9 +52,9 @@ module SolidObjects
         definition.add_query(name, block)
       end
 
-      # @rbs (Symbol | String) ?{ () -> untyped } -> ActorDefinition::Handler
-      def observable(name, &block)
-        definition.add_observable(name, block)
+      # @rbs (Symbol | String, ?broadcast: Symbol) ?{ () -> untyped } -> ActorDefinition::Handler
+      def observable(name, broadcast: :value, &block)
+        definition.add_observable(name, block, broadcast:)
       end
 
       # @rbs (Symbol | String) { (untyped, untyped) -> untyped } -> ActorDefinition::Handler
@@ -163,8 +163,9 @@ module SolidObjects
     # @rbs (Symbol | String, String, ?details: Hash[String | Symbol, untyped]) -> bot
     def reject(code, message, details: {})
       rejection_code = code.to_s
-      unless rejection_code.match?(/\A[a-z][a-z0-9_]*\z/)
-        raise ArgumentError, "rejection code must contain lowercase letters, digits, and underscores"
+      unless rejection_code.match?(/\A[A-Za-z_][A-Za-z0-9_]*\z/)
+        raise InvalidRejectionCode,
+          "invalid rejection code #{rejection_code.inspect}; expected a letter or underscore followed by letters, digits, or underscores"
       end
 
       raise Rejected.new(code: rejection_code, message:, details:)

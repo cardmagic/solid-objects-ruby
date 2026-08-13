@@ -24,8 +24,13 @@ module SolidObjects
     # @rbs (Symbol | String) -> untyped
     def value(name)
       observable_name = name.to_sym
-      handler = snapshot.actor_class.definition.observables[observable_name]
+      definition = snapshot.actor_class.definition
+      handler = definition.observables[observable_name]
       raise UnknownMessage, "unknown observable #{name.inspect}" unless handler
+      unless definition.broadcasts_observable_value?(observable_name)
+        raise ArgumentError,
+          "invalidation-only observable #{observable_name.inspect} cannot render as a scalar target"
+      end
 
       authorize_read!(observable_name)
       value = snapshot.observable_value(observable_name)

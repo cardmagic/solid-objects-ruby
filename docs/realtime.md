@@ -65,6 +65,27 @@ listed in `observes:` raises `UnknownComponentDependency`. This keeps
 invalidation correct and prevents a partial from silently depending on state
 that cannot wake it.
 
+Observable values are shared projections. By default, each changed value is
+stored in the broadcast outbox and can be sent as a scalar Turbo replacement to
+every subscriber that passes `authorize_subscription`. Authorization to the
+actor stream is not a per-viewer projection.
+
+For a component dependency whose value must never enter the durable outbox or
+Action Cable frame, declare it invalidation-only:
+
+```ruby
+observable :player_one, broadcast: :invalidation do
+  player_in_seat(1)
+end
+```
+
+The runtime still compares the value around each successful turn and uses a
+change to refresh components, but stores `{}` and renders no scalar Turbo
+replacement. An invalidation-only observable therefore cannot be used as a
+scalar value such as `actor.player_one`. The component endpoint reads the
+latest committed value and authorizes it again; subscriber-specific state
+belongs in `broadcast_payload`.
+
 ```erb
 <ul>
   <% actor.recent_messages.each do |message| %>
@@ -416,7 +437,8 @@ component key, locals, or DOM ID.
 ## Broadcast durability
 
 The actor's fenced commit compares observables before and after the turn and
-inserts one broadcast row per changed value. The actor state, monotonic
+inserts one broadcast row per changed observable. Value-broadcast observables
+store the changed JSON value; invalidation-only observables store `{}`. The actor state, monotonic
 `state_revision`, message completion, and broadcast rows commit atomically. A
 rolled-back or fenced-out turn therefore cannot invalidate a component.
 
@@ -456,8 +478,8 @@ response revision fencing.
 ## Cost model
 
 The durable row cost is unchanged: one broadcast row per changed observable,
-containing its JSON value and the message/instance references needed to derive
-invalidation metadata. No rendered document is stored. Each affected component
+containing either its JSON value or an empty invalidation marker plus the
+message/instance references needed to derive invalidation metadata. No rendered document is stored. Each affected component
 adds one authorized GET and one partial render per non-coalesced state
 revision. A repeated keyed component adds one GET and render per key. Signed
 locals increase page and Cable subscription bytes but do not create durable

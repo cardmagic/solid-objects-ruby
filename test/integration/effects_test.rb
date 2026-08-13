@@ -28,12 +28,12 @@ class EffectsTest < ActiveSupport::TestCase
       )
     end
 
-    def payment_charged(effect_id:, result:)
-      self.status = "#{effect_id}:#{result.fetch("provider_id")}"
+    def payment_charged(effect_id:, arguments:, result:)
+      self.status = "#{effect_id}:#{arguments.fetch("payment_id")}:#{result.fetch("provider_id")}"
     end
 
-    def payment_failed(effect_id:, error:)
-      self.status = "#{effect_id}:#{error.fetch("class")}"
+    def payment_failed(effect_id:, arguments:, error:)
+      self.status = "#{effect_id}:#{arguments.fetch("payment_id")}:#{error.fetch("class")}"
     end
   end
 
@@ -110,10 +110,11 @@ class EffectsTest < ActiveSupport::TestCase
     )
     assert_equal "payment_charged", result_message.operation
     assert_equal effect.effect_id, result_message.arguments.fetch("effect_id")
+    assert_equal effect.arguments, result_message.arguments.fetch("arguments")
 
     worker.run_until_idle
     assert_equal(
-      "#{effect.effect_id}:provider-1",
+      "#{effect.effect_id}:payment-1:provider-1",
       SolidObjects::Instance.find_by!(actor_id: "order-1").state.fetch("status")
     )
   ensure
@@ -137,7 +138,14 @@ class EffectsTest < ActiveSupport::TestCase
       idempotency_key: "effect:#{effect.effect_id}:failure"
     )
     assert_equal "payment_failed", failure_message.operation
+    assert_equal effect.arguments, failure_message.arguments.fetch("arguments")
     assert_equal "RuntimeError", failure_message.arguments.dig("error", "class")
+
+    worker.run_until_idle
+    assert_equal(
+      "#{effect.effect_id}:payment-1:RuntimeError",
+      SolidObjects::Instance.find_by!(actor_id: "order-1").state.fetch("status")
+    )
   ensure
     effect_executor&.stop
     worker&.stop

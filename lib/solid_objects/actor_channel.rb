@@ -165,13 +165,13 @@ module SolidObjects
     def validate_scalar_observables!
       return unless scalar_observables
 
-      observables = SolidObjects
+      definition = SolidObjects
         .registry
         .fetch(reference.actor_type)
         .definition
-        .observables
       unknown = scalar_observables.find do |name|
-        !observables.key?(name.to_sym)
+        !definition.observables.key?(name.to_sym) ||
+          !definition.broadcasts_observable_value?(name)
       end
       return unless unknown
 
@@ -182,7 +182,10 @@ module SolidObjects
     def scalar_observable_names(snapshot)
       return scalar_observables if scalar_observables
 
-      snapshot.actor_class.definition.observables.keys.map(&:to_s)
+      definition = snapshot.actor_class.definition
+      definition.observables.keys.filter_map do |name|
+        name.to_s if definition.broadcasts_observable_value?(name)
+      end
     end
   end
 end

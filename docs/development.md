@@ -65,6 +65,18 @@ assert_equal "completed", message.status
 Pass `roles: [:actors]` when a test intentionally wants to leave outboxes or
 reminders pending.
 
+Rails time travel does not move the database clock used by reminder claims. Run
+future reminders against an explicit test instant instead of updating runtime
+rows or sleeping:
+
+```ruby
+assert_equal 1, run_due_reminders(now: 5.minutes.from_now)
+assert_equal 1, drain_solid_objects(roles: [ :actors ])
+```
+
+The explicit instant controls due selection and recurring schedule advancement.
+Claim timestamps and stale-process recovery still use database time.
+
 `SolidObjects::TestHelper.reset_actors!` is also available for explicit suite
 boundaries. It deletes every actor-owned row itself rather than deleting actor
 instances and letting the database cascade remove the rest: SQLite has to be

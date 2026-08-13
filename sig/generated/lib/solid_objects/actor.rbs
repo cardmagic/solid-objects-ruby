@@ -87,8 +87,8 @@ module SolidObjects
     # @rbs (Symbol | String) { (*untyped, **untyped) -> untyped } -> ActorDefinition::Handler
     def self.query: (Symbol | String) { (*untyped, **untyped) -> untyped } -> ActorDefinition::Handler
 
-    # @rbs (Symbol | String) ?{ () -> untyped } -> ActorDefinition::Handler
-    def self.observable: (Symbol | String) ?{ () -> untyped } -> ActorDefinition::Handler
+    # @rbs (Symbol | String, ?broadcast: Symbol) ?{ () -> untyped } -> ActorDefinition::Handler
+    def self.observable: (Symbol | String, ?broadcast: Symbol) ?{ () -> untyped } -> ActorDefinition::Handler
 
     # @rbs (Symbol | String) { (untyped, untyped) -> untyped } -> ActorDefinition::Handler
     def self.broadcast_payload: (Symbol | String) { (untyped, untyped) -> untyped } -> ActorDefinition::Handler
