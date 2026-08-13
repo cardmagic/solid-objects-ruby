@@ -21,6 +21,9 @@ class ActorHelperTest < ActionView::TestCase
 
     observable :items
     observable :status
+    observable :private_status, broadcast: :invalidation do
+      status
+    end
 
     def replace_items(items:)
       self.items = items
@@ -86,6 +89,15 @@ class ActorHelperTest < ActionView::TestCase
     token = html[/data-token="([^"]+)"/, 1]
     identity = SolidObjects::StreamToken.verify(token)
     assert_equal [ "items_count" ], identity.fetch("observables")
+  end
+
+  test "invalidation-only observables do not render as scalar targets" do
+    reference = CartActor.ref("alice")
+
+    error = assert_raises(ArgumentError) do
+      solid_object(reference) { |actor| actor.private_status }
+    end
+    assert_includes error.message, "invalidation-only"
   end
 
   test "authorizes initial actor state reads" do

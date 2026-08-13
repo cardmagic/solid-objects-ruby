@@ -12,7 +12,8 @@
 - Bounded activation passes, idle cache, hot-actor yield, and process records
 - At-least-once retries, terminal domain rejection, strict poison ordering,
   dead letters, and tail retry
-- Transactional effects with success/failure actor messages
+- Transactional effects with success/failure actor messages carrying the
+  originally staged arguments for callback correlation
 - Actor-to-actor asynchronous outbox delivery. Effects and broadcasts use
   portable status rows with polling indexes and database check constraints on
   status, which works on all three adapters; a future version may add narrow
@@ -23,8 +24,10 @@
   listed here while broken in that worker: the scheduler reached a constant the
   caller path happened to load, so reminders never fired in production and
   every in-process test still passed
-- Durable observable invalidations, scalar Turbo replacement, keyed ERB
-  components, signed component locals, and authorized replace or morph refresh
+- Durable value or invalidation-only observable broadcasts, scalar Turbo
+  replacement, keyed ERB components, signed component locals, and authorized
+  replace or morph refresh. Invalidation-only observables retain component
+  change detection while storing and broadcasting no projected value
 - Batched component refreshes: components sharing a signed `batch:` collapse to
   one browser request per revision, served as HTML frames in a JSON envelope
 - Personalized state payload broadcasts computed per subscriber under that
@@ -45,7 +48,8 @@
 - Bounded message/process pruning, actor-type opt-in instance expiration,
   graceful caller shutdown, committed state snapshots, and an opt-in Minitest
   helper that clears every actor-owned table itself rather than relying on the
-  database cascade, which a host application may not enforce
+  database cascade, which a host application may not enforce, and runs due
+  reminders against an explicit test time without moving the database clock
 - Supervisor role replacement: a role whose thread dies is restarted until
   shutdown is requested, and dead process records plus expired message and
   process history are pruned on their own intervals without an application

@@ -205,6 +205,9 @@ module SolidObjects
   class UnknownCommitAction < NonRetryableError
   end
 
+  class InvalidRejectionCode < NonRetryableError
+  end
+
   class Rejected < Error
     # @rbs @code: String
     # @rbs @details: Hash[String, untyped]

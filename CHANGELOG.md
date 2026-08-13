@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.12.1 - 2026-08-13
+
+- Add invalidation-only observables with `broadcast: :invalidation`. They still
+  detect changes and refresh reactive components, but persist `{}` and send no
+  scalar value over Action Cable. Document that ordinary observable values are
+  shared with every authorized actor subscriber and that subscriber-specific
+  state belongs in a payload projection.
+- **Breaking:** include the originally staged `arguments:` in effect success
+  and failure callbacks so actors can correlate concurrent effects.
+- Accept identifier-style rejection codes, including camelCase and symbols,
+  and fail malformed codes once with non-retryable
+  `SolidObjects::InvalidRejectionCode` diagnostics.
+- Add `run_due_reminders(now:)` to `SolidObjects::TestHelper` for deterministic
+  reminder tests without sleeping or mutating runtime rows.
+
 ## 0.12.0 - 2026-08-13
 
 - Replace positional actor dispatch with fluent operation selection. Direct

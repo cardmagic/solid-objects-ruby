@@ -301,12 +301,18 @@ module SolidObjects
       end
 
       broadcasts.each do |observable_name, value|
+        stored_value = if observable_name != PayloadBroadcast::REVISION_OBSERVABLE &&
+            actor.class.definition.broadcasts_observable_value?(observable_name)
+          value
+        else
+          {}
+        end
         Broadcast.create!(
           message:,
           instance:,
           broadcast_id: SecureRandom.uuid,
           observable_name:,
-          value:,
+          value: stored_value,
           state_version: actor.class.state_version,
           activation_generation: activation.lease.generation,
           status: "pending",

@@ -19,15 +19,16 @@ module SolidObjects
       @shutdown_requested = false
     end
 
-    # @rbs () -> bool
-    def run_once
+    # @rbs (?now: Time?) -> bool
+    def run_once(now: nil)
       return false if stopped?
 
+      now = normalize_test_time(now)
       process_registry.heartbeat
-      reminder = claim_next
+      reminder = claim_next(now:)
       return false unless reminder
 
-      enqueue(reminder).present?
+      enqueue(reminder, now:).present?
     rescue
       release(reminder) if reminder
       raise
@@ -74,13 +75,14 @@ module SolidObjects
 
     attr_reader :process_registry, :database_adapter
 
-    # @rbs () -> Reminder?
-    def claim_next
+    # @rbs (now: Time?) -> Reminder?
+    def claim_next(now:)
       database_adapter.transaction do
-        now = database_adapter.database_now
-        stale_at = now - SolidObjects.configuration.process_alive_threshold
+        database_now = database_adapter.database_now
+        due_at = now || database_now
+        stale_at = database_now - SolidObjects.configuration.process_alive_threshold
         relation = Reminder
-          .where(status: "scheduled", next_run_at: ..now)
+          .where(status: "scheduled", next_run_at: ..due_at)
           .where("claimed_by IS NULL OR claimed_at <= ?", stale_at)
           .order(:next_run_at, :id)
         reminder = database_adapter.lock_candidates(relation).first
@@ -88,14 +90,14 @@ module SolidObjects
 
         reminder.update!(
           claimed_by: process_registry.process_record.id,
-          claimed_at: now
+          claimed_at: database_now
         )
         reminder
       end
     end
 
-    # @rbs (Reminder) -> MessageReference?
-    def enqueue(reminder)
+    # @rbs (Reminder, now: Time?) -> MessageReference?
+    def enqueue(reminder, now:)
       actor_class = SolidObjects.registry.fetch(reminder.actor_type)
       unless actor_class.definition.messages.key?(reminder.operation.to_sym)
         raise UnknownMessage, "unknown reminder operation #{reminder.operation.inspect}"
@@ -109,7 +111,7 @@ module SolidObjects
         locked_reminder = Reminder.lock.find_by(id: reminder.id)
         next unless locked_reminder
         verify_claim!(locked_reminder)
-        now = database_adapter.database_now
+        schedule_now = now || database_adapter.database_now
         message = mailbox.enqueue_in_transaction(
           reference: Reference.new(actor_type: instance.actor_type, actor_id: instance.actor_id),
           operation: locked_reminder.operation,
@@ -122,7 +124,7 @@ module SolidObjects
         locked_reminder.update!(
           status: recurring ? "scheduled" : "completed",
           occurrence: locked_reminder.occurrence + 1,
-          next_run_at: recurring ? next_run_at(locked_reminder, now) : locked_reminder.next_run_at,
+          next_run_at: recurring ? next_run_at(locked_reminder, schedule_now) : locked_reminder.next_run_at,
           claimed_by: nil,
           claimed_at: nil
         )
@@ -163,6 +165,18 @@ module SolidObjects
 
       missed_intervals = ((now - next_run) / interval).floor + 1
       next_run + (missed_intervals * interval)
+    end
+
+    # @rbs (Time?) -> Time?
+    def normalize_test_time(now)
+      return unless now
+
+      time = now.to_time
+      return time if time.to_f.finite?
+
+      raise ArgumentError
+    rescue ArgumentError, NoMethodError, RangeError
+      raise ArgumentError, "reminder test time must be a valid time"
     end
   end
 end

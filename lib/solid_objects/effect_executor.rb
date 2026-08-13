@@ -153,7 +153,11 @@ module SolidObjects
           effect: locked_effect,
           operation: locked_effect.success_operation,
           outcome: "success",
-          arguments: { "effect_id" => locked_effect.effect_id, "result" => serialized_result }
+          arguments: {
+            "effect_id" => locked_effect.effect_id,
+            "arguments" => locked_effect.arguments,
+            "result" => serialized_result
+          }
         )
         locked_effect.update!(
           status: "completed",
@@ -191,7 +195,11 @@ module SolidObjects
             effect: locked_effect,
             operation: locked_effect.failure_operation,
             outcome: "failure",
-            arguments: { "effect_id" => locked_effect.effect_id, "error" => error_details }
+            arguments: {
+              "effect_id" => locked_effect.effect_id,
+              "arguments" => locked_effect.arguments,
+              "error" => error_details
+            }
           )
         end
         locked_effect.update!(

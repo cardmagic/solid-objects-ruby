@@ -22,7 +22,7 @@ class DestroyTest < ActiveSupport::TestCase
       emit :record_counter, value:, on_success: :recorded
     end
 
-    def recorded(effect_id:, result:)
+    def recorded(effect_id:, arguments:, result:)
       self.value += result.fetch("amount")
     end
 
@@ -51,18 +51,18 @@ class DestroyTest < ActiveSupport::TestCase
     # @rbs (claimed: Thread::Queue, release: Thread::Queue) -> void
     def initialize(claimed:, release:)
       @claimed = claimed
-      @release = release
+      @release_queue = release
       super()
     end
 
     private
 
-    attr_reader :claimed, :release
+    attr_reader :claimed, :release_queue
 
-    # @rbs (SolidObjects::Reminder) -> SolidObjects::MessageReference?
-    def enqueue(reminder)
+    # @rbs (SolidObjects::Reminder, now: Time?) -> SolidObjects::MessageReference?
+    def enqueue(reminder, now:)
       claimed << true
-      release.pop
+      release_queue.pop
       super
     end
   end

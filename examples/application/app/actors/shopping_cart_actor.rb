@@ -64,14 +64,14 @@ class ShoppingCartActor < SolidObjects::Actor
     )
   end
 
-  def payment_succeeded(effect_id:, result:)
+  def payment_succeeded(effect_id:, arguments:, result:)
     return unless checkout_status == "pending"
-    return unless result.fetch("payment_id") == payment_id
+    return unless arguments.fetch("payment_id") == payment_id
 
     self.checkout_status = "paid"
   end
 
-  def payment_failed(effect_id:, error:)
+  def payment_failed(effect_id:, arguments:, error:)
     return unless checkout_status == "pending"
 
     self.checkout_status = "payment_failed"

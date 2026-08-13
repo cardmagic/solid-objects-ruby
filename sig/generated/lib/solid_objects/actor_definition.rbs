@@ -44,6 +44,8 @@ module SolidObjects
 
     @payload_broadcasts: Hash[Symbol, Handler]
 
+    @observable_broadcasts: Hash[Symbol, Symbol]
+
     @observables: Hash[Symbol, Handler]
 
     @queries: Hash[Symbol, Handler]
@@ -82,8 +84,11 @@ module SolidObjects
     # @rbs (Symbol | String, Proc) -> Handler
     def add_query: (Symbol | String, Proc) -> Handler
 
-    # @rbs (Symbol | String, Proc?) -> Handler
-    def add_observable: (Symbol | String, Proc?) -> Handler
+    # @rbs (Symbol | String, Proc?, broadcast: Symbol) -> Handler
+    def add_observable: (Symbol | String, Proc?, broadcast: Symbol) -> Handler
+
+    # @rbs (Symbol | String) -> bool
+    def broadcasts_observable_value?: (Symbol | String) -> bool
 
     # @rbs (Symbol | String, Proc) -> Handler
     def add_payload_broadcast: (Symbol | String, Proc) -> Handler
@@ -108,6 +113,8 @@ module SolidObjects
     attr_reader attribute_queries: untyped
 
     attr_reader method_messages: untyped
+
+    attr_reader observable_broadcasts: untyped
 
     # @rbs (Symbol) -> Handler
     def add_method_message: (Symbol) -> Handler

@@ -113,7 +113,7 @@ The supervisor starts configured worker, effect, reminder, and broadcast thread 
 
 ### Effect worker
 
-An effect worker claims due effect rows through the database coordination adapter, invokes a registered handler outside a database transaction, then records success or retryable failure. The handler receives the effect UUID as its idempotency key. Optional outcome messages are normal actor mailbox messages.
+An effect worker claims due effect rows through the database coordination adapter, invokes a registered handler outside a database transaction, then records success or retryable failure. The handler receives the effect UUID as its idempotency key. Optional outcome messages are normal actor mailbox messages and receive the effect ID, originally staged arguments, and result or error.
 
 ### Reminder scheduler
 
@@ -169,7 +169,8 @@ turn. `SolidObjects.mutable_copy` creates an independent mutable JSON value.
 `message` and `query` both execute as durable mailbox turns. A query may not
 mutate state. The executor detects query mutation and fails the message. An
 observable is a named projection of state used by server rendering and realtime
-updates; it is not independently persisted.
+updates. Its durable broadcast row stores the projected value by default;
+`broadcast: :invalidation` stores only an empty invalidation marker.
 
 Lifecycle hooks are deterministic local hooks:
 

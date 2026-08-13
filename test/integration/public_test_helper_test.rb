@@ -24,6 +24,14 @@ class PublicTestHelperTest < ActiveSupport::TestCase
     def finish_work
       self.value += 1
     end
+
+    def start_future_work(run_at:)
+      schedule(at: Time.iso8601(run_at)).finish_work
+    end
+
+    def start_recurring_work(run_at:)
+      schedule(at: Time.iso8601(run_at), every: 1.minute).finish_work
+    end
   end
 
   class ActorTestCase < ActiveSupport::TestCase
@@ -120,6 +128,34 @@ class PublicTestHelperTest < ActiveSupport::TestCase
     end
 
     assert_includes error.message, "unknown"
+  end
+
+  test "run due reminders uses an explicit test time" do
+    test_case = ActorTestCase.new("unused")
+    run_at = 5.minutes.from_now
+    reference = HelperActor.ref("future-work")
+    reference.async.start_future_work(run_at: run_at.iso8601(6))
+    test_case.drain_solid_objects(roles: [ :actors ])
+
+    assert_equal 0, test_case.run_due_reminders(now: run_at - 1.second)
+    assert_equal 1, test_case.run_due_reminders(now: run_at)
+    assert_equal 1, test_case.drain_solid_objects(roles: [ :actors ])
+    assert_equal({ "value" => 1 }, SolidObjects::Instance.find_by!(actor_id: "future-work").state)
+  end
+
+  test "run due reminders advances recurrence from the explicit test time" do
+    test_case = ActorTestCase.new("unused")
+    run_at = 5.minutes.from_now
+    reference = HelperActor.ref("recurring-work")
+    reference.async.start_recurring_work(run_at: run_at.iso8601(6))
+    test_case.drain_solid_objects(roles: [ :actors ])
+
+    test_now = run_at + 5.minutes
+    assert_equal 1, test_case.run_due_reminders(now: test_now)
+
+    reminder = SolidObjects::Reminder.find_by!(actor_id: "recurring-work")
+    assert_operator reminder.next_run_at, :>, test_now
+    assert_operator reminder.next_run_at, :<=, test_now + 1.minute
   end
 
   private

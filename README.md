@@ -205,6 +205,21 @@ dependencies changes:
 <% end %>
 ```
 
+An observable's value is shared with every authorized subscriber by default
+and is stored in `solid_objects_broadcasts`. Use an invalidation-only observable
+for component dependencies whose value is private or subscriber-specific:
+
+```ruby
+observable :player_one, broadcast: :invalidation do
+  player_in_seat(1)
+end
+```
+
+Its value is still available to the authorized component renderer, but the
+durable row and Action Cable frame carry only invalidation metadata. It cannot
+be rendered as a scalar `<span>`. Put per-viewer state in `broadcast_payload`,
+which computes a fresh projection for each connection.
+
 Component names can repeat when each instance has a stable key. Signed
 JSON-compatible locals let one conventional partial render the matching
 projection:
@@ -736,8 +751,8 @@ JSON-compatible details. The rejected message remains durable for audit, actor
 state is rolled back, and no later mailbox turn is blocked.
 
 `Rejected#code` is a `String`, even when `reject` receives a symbol. Codes must
-match `\A[a-z][a-z0-9_]*\z`; invalid codes raise `ArgumentError` when the
-handler calls `reject`.
+match `\A[A-Za-z_][A-Za-z0-9_]*\z`. Invalid codes raise
+`SolidObjects::InvalidRejectionCode` and fail the turn without retrying.
 
 ### Redelivery
 
@@ -819,11 +834,11 @@ def checkout(payment_id:, amount_cents:)
   )
 end
 
-def payment_succeeded(effect_id:, result:)
+def payment_succeeded(effect_id:, arguments:, result:)
   self.checkout_status = "paid"
 end
 
-def payment_failed(effect_id:, error:)
+def payment_failed(effect_id:, arguments:, error:)
   self.checkout_status = "failed"
 end
 ```
@@ -842,6 +857,10 @@ end
 
 The provider call can repeat if a process dies after external success but
 before recording completion. The stable effect ID is the idempotency key.
+Success callbacks receive `effect_id:`, the originally staged `arguments:`,
+and `result:`. Failure callbacks receive `effect_id:`, `arguments:`, and
+`error:`, so an actor can correlate concurrent effects without storing a
+separate callback ledger.
 
 ## Reminders
 

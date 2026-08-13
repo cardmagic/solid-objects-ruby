@@ -19,10 +19,12 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     attribute :missing, default: 0
     attribute :status, default: "open"
     attribute :unrelated, default: 0
+    attribute :secret, default: nil
 
     observable :missing
     observable :status
     observable :unrelated
+    observable :secret, broadcast: :invalidation
 
     def update_all
       self.missing += 1
@@ -32,6 +34,10 @@ class ActorChannelTest < ActionCable::Channel::TestCase
 
     def update_missing
       self.missing += 1
+    end
+
+    def update_secret(secret:)
+      self.secret = secret
     end
   end
 
@@ -492,6 +498,32 @@ class ActorChannelTest < ActionCable::Channel::TestCase
 
     assert_empty component_refreshes(reference, :player, key: "alice")
     assert_equal 1, component_refreshes(reference, :player, key: "bob").length
+  ensure
+    worker&.stop
+  end
+
+  test "refreshes components without transmitting invalidation-only values" do
+    reference = ChannelActor.ref("actor-1")
+    SolidObjects.configuration.authorize_subscription = ->(**) { true }
+    subscribe(
+      token: SolidObjects::StreamToken.generate(reference, observables: []),
+      components: JSON.generate(
+        [ component_token(reference, component_name: "private", dependencies: %w[secret], revision: 0) ]
+      )
+    )
+    reference.async.update_secret(secret: "Black Lotus")
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    broadcast = SolidObjects::Broadcast.find_by!(observable_name: "secret")
+
+    subscription.__send__(
+      :receive_broadcast,
+      SolidObjects::TurboStreamRenderer.observable(broadcast)
+    )
+
+    assert_equal({}, broadcast.value)
+    assert_equal 1, component_refreshes(reference, :private).length
+    refute transmissions.any? { |transmission| transmission.include?("Black Lotus") }
   ensure
     worker&.stop
   end
