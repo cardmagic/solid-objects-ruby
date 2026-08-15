@@ -178,7 +178,7 @@ class ChatRoom < SolidObjects::Actor
   attribute :recent_messages, default: -> { [] }
   attribute :status, default: "open"
 
-  observable :message_count do
+  observable :message_count, broadcast: :value do
     recent_messages.length
   end
 
@@ -205,20 +205,22 @@ dependencies changes:
 <% end %>
 ```
 
-An observable's value is shared with every authorized subscriber by default
-and is stored in `solid_objects_broadcasts`. Use an invalidation-only observable
-for component dependencies whose value is private or subscriber-specific:
+Observables are invalidation-only by default. Their values remain available to
+authorized component rendering, while durable rows and Action Cable frames
+carry only change metadata. Explicitly opt a scalar observable into sharing its
+value with every authorized actor subscriber:
 
 ```ruby
-observable :player_one, broadcast: :invalidation do
-  player_in_seat(1)
+observable :message_count, broadcast: :value do
+  recent_messages.length
 end
 ```
 
-Its value is still available to the authorized component renderer, but the
-durable row and Action Cable frame carry only invalidation metadata. It cannot
-be rendered as a scalar `<span>`. Put per-viewer state in `broadcast_payload`,
-which computes a fresh projection for each connection.
+Only `broadcast: :value` observables can render as scalar `<span>` targets.
+Their changed values are stored in `solid_objects_broadcasts` and can reach
+every subscriber that passes `authorize_subscription` for the actor. Put
+per-viewer state in `broadcast_payload`, which computes a fresh projection for
+each connection.
 
 Component names can repeat when each instance has a stable key. Signed
 JSON-compatible locals let one conventional partial render the matching
@@ -530,7 +532,7 @@ class ShoppingCart < SolidObjects::Actor
     end
   end
 
-  observable :items_count do
+  observable :items_count, broadcast: :value do
     items.sum { |item| item.fetch("quantity") }
   end
 end

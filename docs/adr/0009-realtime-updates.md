@@ -9,7 +9,11 @@ Action Cable broadcasts are online-only. A transaction can roll back, a broadcas
 
 ## Decision
 
-The executor evaluates declared observables before and after a successful message. Changed values create broadcast outbox records inside the message commit. A broadcast worker delivers Turbo Stream replacements after commit.
+The executor evaluates declared observables before and after a successful
+message. Changes create invalidation-only broadcast outbox records inside the
+message commit by default. An explicit `broadcast: :value` declaration stores
+the projection and lets a broadcast worker deliver scalar Turbo Stream
+replacements after commit.
 
 One `solid_object` block creates one signed Action Cable subscription and
 contains stable targets for multiple observables and components. Component

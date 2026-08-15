@@ -133,6 +133,18 @@ class ActorTest < ActiveSupport::TestCase
     assert_equal({ "count" => 3 }, actor.observable_values)
   end
 
+  test "observables default to invalidation-only" do
+    refute CartActor.definition.broadcasts_observable_value?(:count)
+  end
+
+  test "observables explicitly opt into value broadcasts" do
+    actor_class = Class.new(SolidObjects::Actor) do
+      observable :value, broadcast: :value
+    end
+
+    assert actor_class.definition.broadcasts_observable_value?(:value)
+  end
+
   test "rejects unknown observable broadcast modes" do
     error = assert_raises(SolidObjects::InvalidActor) do
       Class.new(SolidObjects::Actor) do

@@ -21,10 +21,10 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     attribute :unrelated, default: 0
     attribute :secret, default: nil
 
-    observable :missing
-    observable :status
-    observable :unrelated
-    observable :secret, broadcast: :invalidation
+    observable :missing, broadcast: :value
+    observable :status, broadcast: :value
+    observable :unrelated, broadcast: :value
+    observable :secret
 
     def update_all
       self.missing += 1
@@ -219,6 +219,19 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     SolidObjects.configuration.authorize_subscription = ->(**) { false }
 
     subscribe token: SolidObjects::StreamToken.generate(reference)
+
+    assert subscription.rejected?
+    assert_no_streams
+  end
+
+  test "rejects default observables as scalar subscriptions" do
+    reference = ChannelActor.ref("actor-1")
+    SolidObjects.configuration.authorize_subscription = ->(**) { true }
+
+    subscribe token: SolidObjects::StreamToken.generate(
+      reference,
+      observables: %w[secret]
+    )
 
     assert subscription.rejected?
     assert_no_streams

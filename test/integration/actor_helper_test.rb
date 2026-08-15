@@ -15,13 +15,13 @@ class ActorHelperTest < ActionView::TestCase
     attribute :items, default: -> { [] }
     attribute :status, default: "open"
 
-    observable :items_count do
+    observable :items_count, broadcast: :value do
       items.length
     end
 
     observable :items
     observable :status
-    observable :private_status, broadcast: :invalidation do
+    observable :private_status do
       status
     end
 
@@ -91,7 +91,7 @@ class ActorHelperTest < ActionView::TestCase
     assert_equal [ "items_count" ], identity.fetch("observables")
   end
 
-  test "invalidation-only observables do not render as scalar targets" do
+  test "observables default to invalidation-only scalar targets" do
     reference = CartActor.ref("alice")
 
     error = assert_raises(ArgumentError) do

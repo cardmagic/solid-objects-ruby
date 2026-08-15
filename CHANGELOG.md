@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.13.0 - 2026-08-13
+
+- **Breaking:** make observables invalidation-only by default. An ordinary
+  `observable :status` continues to detect changes and refresh reactive
+  components, but persists `{}` and sends no scalar value over Action Cable.
+  Declare `observable :status, broadcast: :value` to deliberately store and
+  share the projection with every authorized actor subscriber. Applications
+  upgrading from 0.12.x must add that opt-in to observables rendered as scalar
+  targets.
+
 ## 0.12.1 - 2026-08-13
 
 - Add invalidation-only observables with `broadcast: :invalidation`. They still
