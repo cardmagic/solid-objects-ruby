@@ -1,0 +1,35 @@
+<section class="panel">
+  <h2>Mailbox</h2>
+  <%= erb(:_status_filter, statuses: SolidObjects::Web::Application::MAILBOX_MEMBERSHIPS, selected: @membership, all: false) %>
+
+  <% if @paginator.records.empty? %>
+    <p class="empty">No message is <%= h(@membership) %>.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr>
+          <th>Actor</th>
+          <th>Sequence</th>
+          <th>Operation</th>
+          <th>Delivery</th>
+          <th>Attempts</th>
+          <th>Available</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @paginator.records.each do |message| %>
+          <tr>
+            <td><a href="<%= h(path_to("/instances/#{message.instance_id}")) %>"><%= actor_label(message) %></a></td>
+            <td><a href="<%= h(path_to("/messages/#{message.id}")) %>"><%= number(message.sequence) %></a></td>
+            <td><%= h(message.operation) %></td>
+            <td><%= status_label(message.delivery_mode) %></td>
+            <td><%= number(message.attempt_count) %> / <%= number(message.max_attempts) %></td>
+            <td><%= relative_time(message.available_at) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <%= erb(:_paging) %>
+</section>

@@ -1,0 +1,15 @@
+<header class="bar">
+  <a class="brand" href="<%= h(path_to("/")) %>">
+    <span class="brand-mark">SO</span>
+    <span class="brand-name">Solid Objects</span>
+  </a>
+  <nav class="tabs">
+    <% tabs.each do |label, path| %>
+      <a class="tab<%= current_tab?(path) ? " tab-current" : "" %>" href="<%= h(path_to(path)) %>"><%= h(label) %></a>
+    <% end %>
+  </nav>
+  <div class="bar-right">
+    <span class="environment"><%= h(environment_name) %></span>
+    <button type="button" class="poll-toggle" data-poll-toggle aria-pressed="false">Live</button>
+  </div>
+</header>

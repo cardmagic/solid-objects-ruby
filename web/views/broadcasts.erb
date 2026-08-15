@@ -1,0 +1,35 @@
+<section class="panel">
+  <h2>Broadcasts</h2>
+  <%= erb(:_status_filter, statuses: SolidObjects::Web::Statistics::BROADCAST_STATUSES, selected: @status) %>
+
+  <% if @paginator.records.empty? %>
+    <p class="empty">No broadcast matches this filter.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr>
+          <th>Observable</th>
+          <th>Actor</th>
+          <th>Status</th>
+          <th>State version</th>
+          <th>Attempts</th>
+          <th>Delivered</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @paginator.records.each do |broadcast| %>
+          <tr>
+            <td><%= h(broadcast.observable_name) %></td>
+            <td><a href="<%= h(path_to("/instances/#{broadcast.instance_id}")) %>">instance <%= number(broadcast.instance_id) %></a></td>
+            <td><%= status_label(broadcast.status) %></td>
+            <td><%= number(broadcast.state_version) %></td>
+            <td><%= number(broadcast.attempt_count) %></td>
+            <td><%= relative_time(broadcast.delivered_at) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <%= erb(:_paging) %>
+</section>

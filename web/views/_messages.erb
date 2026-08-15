@@ -1,0 +1,29 @@
+<h3><%= h(locals.fetch(:title)) %></h3>
+<% if locals.fetch(:messages).empty? %>
+  <p class="empty"><%= h(locals.fetch(:empty, "None.")) %></p>
+<% else %>
+  <table>
+    <thead>
+      <tr>
+        <th>Sequence</th>
+        <th>Operation</th>
+        <th>Delivery</th>
+        <th>Attempts</th>
+        <th>Available</th>
+        <th>Completed</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% locals.fetch(:messages).each do |message| %>
+        <tr>
+          <td><a href="<%= h(path_to("/messages/#{message.id}")) %>"><%= number(message.sequence) %></a></td>
+          <td><%= h(message.operation) %></td>
+          <td><%= status_label(message.delivery_mode) %></td>
+          <td><%= number(message.attempt_count) %> / <%= number(message.max_attempts) %></td>
+          <td><%= relative_time(message.available_at) %></td>
+          <td><%= relative_time(message.completed_at) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

@@ -21,7 +21,16 @@ class LoadContractTest < ActiveSupport::TestCase
     "errors" => "defines error classes individually, so no SolidObjects::Errors exists",
     "sync_diagnostics" => "the caller path, required with the client",
     "synchronous_invocation" => "the caller path, required with the client",
-    "test_helper" => "opt-in, required by host application tests"
+    "test_helper" => "opt-in, required by host application tests",
+    "web" => "the operator dashboard, required by an application that mounts it",
+    "web/action" => "loaded with the dashboard",
+    "web/application" => "loaded with the dashboard",
+    "web/csrf_protection" => "loaded with the dashboard",
+    "web/helpers" => "loaded with the dashboard",
+    "web/paginator" => "loaded with the dashboard",
+    "web/route" => "loaded with the dashboard",
+    "web/router" => "loaded with the dashboard",
+    "web/statistics" => "loaded with the dashboard"
   }.freeze
 
   test "requiring the gem defines everything a runtime role reaches for" do

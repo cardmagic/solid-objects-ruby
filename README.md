@@ -86,6 +86,7 @@ tested, but the project does not yet claim production readiness. See
 - [State migrations](#state-migrations)
 - [Configuration](#configuration)
 - [Workers and operations](#workers-and-operations)
+- [Dashboard](#dashboard)
 - [Database support](#database-support)
 - [Guarantees](#guarantees)
 - [When to use it](#when-to-use-it)
@@ -1083,6 +1084,50 @@ an initializer.
 
 See the [operations guide](docs/operations.md) for monitoring, reconciliation,
 shutdown, retention, and backup guidance.
+
+## Dashboard
+
+`SolidObjects::Web` is a Rack application that shows instances and their state,
+the mailbox, reminders, effects, broadcasts, dead letters, and the registered
+processes. Mount it inside the application routes, so the Rails session
+middleware runs first:
+
+```ruby
+# config/routes.rb
+require "solid_objects/web"
+
+Rails.application.routes.draw do
+  mount SolidObjects::Web => "/solid_objects/dashboard"
+end
+```
+
+It is not loaded by `require "solid_objects"`: a worker process must not carry
+a web stack. The dashboard and the engine are separate mounts, so an
+application that uses reactive ERB mounts both on different paths.
+
+Every page asks `authorize_administration` before its handler runs, and that
+policy denies by default, so a mount alone exposes nothing. The block receives
+the route's own `action:` and `resource:`, and an `authorization_context:` that
+answers `request`, `session`, and `env`.
+
+The dashboard changes only two things. Retrying a dead letter goes through
+`SolidObjects.dead_letters.retry`, which is idempotent. Pausing an instance
+sets `paused_at` so the activation manager stops claiming that identity; a pass
+already in flight finishes its turn, and a synchronous caller waiting on a
+paused instance times out rather than receiving a result.
+
+The dashboard draws instances per actor type, mailbox depth, and outbox status
+with Chart.js, loaded from a CDN with a subresource integrity hash. A
+deployment with no outbound network access can vendor the file, or turn the
+charts off:
+
+```ruby
+SolidObjects::Web.chart_library_url = "/javascripts/chart.umd.min.js"
+SolidObjects::Web.chart_library_integrity = nil
+```
+
+Read the [dashboard guide](docs/dashboard.md) for the full policy table,
+extension registration, and query cost.
 
 ## Database support
 

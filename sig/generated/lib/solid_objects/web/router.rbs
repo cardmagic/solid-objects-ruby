@@ -1,0 +1,29 @@
+# Generated from lib/solid_objects/web/router.rb with RBS::Inline
+
+module SolidObjects
+  class Web
+    # Declares the pages of the dashboard. Every route carries the
+    # administration policy it needs, and a route declared without one raises
+    # at load time. A new page therefore cannot reach the database before an
+    # application has said who may read it.
+    module Router
+      # @rbs (String, policy: Hash[Symbol, String]?) { () -> untyped } -> void
+      def head: (String, policy: Hash[Symbol, String]?) { () -> untyped } -> void
+
+      # @rbs (String, policy: Hash[Symbol, String]?) { () -> untyped } -> void
+      def get: (String, policy: Hash[Symbol, String]?) { () -> untyped } -> void
+
+      # @rbs (String, policy: Hash[Symbol, String]?) { () -> untyped } -> void
+      def post: (String, policy: Hash[Symbol, String]?) { () -> untyped } -> void
+
+      # @rbs (String, String, policy: Hash[Symbol, String]?) { () -> untyped } -> void
+      def route: (String, String, policy: Hash[Symbol, String]?) { () -> untyped } -> void
+
+      # @rbs () -> Hash[String, Array[Route]]
+      def routes: () -> Hash[String, Array[Route]]
+
+      # @rbs (String, String) -> Route?
+      def match: (String, String) -> Route?
+    end
+  end
+end

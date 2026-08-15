@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+- Add `SolidObjects::Web`, a mountable Rack dashboard for the actor runtime.
+  It covers instances and their committed state, the ready and claimed
+  mailbox, reminders, effects, broadcasts, dead letters, and processes, with
+  actor-type and actor-id filtering, status filters, paging, and a polled
+  `GET /stats` endpoint. Mount it with
+  `mount SolidObjects::Web => "/solid_objects/dashboard"` after
+  `require "solid_objects/web"`; requiring the gem does not load it, so a
+  worker process carries no web stack.
+- Authorize every dashboard route through `authorize_administration`. Each
+  route declares its own `action` and `resource`, and a route declared without
+  a policy raises at load time. The policy receives a context that answers
+  `request`, `session`, and `env`.
+- Add two dashboard actions: an idempotent dead letter retry through
+  `SolidObjects.dead_letters.retry`, and instance pause/resume, which sets and
+  clears `paused_at` so the activation manager stops claiming that identity. A
+  retry the mailbox refuses, such as an actor class that no longer exists,
+  renders the reason with a 422 rather than failing the request.
+- Draw instances per actor type, mailbox depth, and outbox and reminder status
+  with Chart.js, loaded from a CDN with a subresource integrity hash. The CDN
+  host is the only external origin the content security policy names. Point
+  `SolidObjects::Web.chart_library_url` at a vendored copy for a deployment
+  with no outbound network access, or set it to nil to render without charts.
+- Add `SolidObjects::Web.register` for extension tabs, routes, and view
+  directories, and `SolidObjects::Web.use` for Rack middleware in front of the
+  dashboard.
+- Add `rack` as an explicit dependency at `>= 3.1`, and package the `web/`
+  directory in the gem.
+
 ## 0.13.0 - 2026-08-13
 
 - **Breaking:** make observables invalidation-only by default. An ordinary

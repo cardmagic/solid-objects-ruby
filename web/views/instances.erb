@@ -1,0 +1,49 @@
+<section class="panel">
+  <h2>Instances</h2>
+
+  <form class="filters-form" method="get" action="<%= h(path_to("/instances")) %>">
+    <label>
+      Actor type
+      <input type="search" name="actor_type" list="actor-types" value="<%= h(url_params("actor_type")) %>" />
+    </label>
+    <datalist id="actor-types">
+      <% @actor_types.each do |actor_type| %>
+        <option value="<%= h(actor_type) %>"></option>
+      <% end %>
+    </datalist>
+    <label>
+      Actor id contains
+      <input type="search" name="actor_id" value="<%= h(url_params("actor_id")) %>" />
+    </label>
+    <button type="submit">Filter</button>
+  </form>
+
+  <% if @paginator.records.empty? %>
+    <p class="empty">No instance matches this filter.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr>
+          <th>Actor</th>
+          <th>Lease</th>
+          <th>State version</th>
+          <th>Next sequence</th>
+          <th>Last used</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @paginator.records.each do |instance| %>
+          <tr data-instance-row="<%= h(instance.id) %>">
+            <td><%= instance_link(instance) %></td>
+            <td><%= status_label(lease_state(instance)) %></td>
+            <td><%= number(instance.state_version) %></td>
+            <td><%= number(instance.next_message_sequence) %></td>
+            <td><%= relative_time(instance.last_used_at) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <%= erb(:_paging) %>
+</section>

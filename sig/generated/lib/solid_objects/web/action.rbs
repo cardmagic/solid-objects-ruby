@@ -1,0 +1,78 @@
+# Generated from lib/solid_objects/web/action.rb with RBS::Inline
+
+module SolidObjects
+  class Web
+    # One request. A route handler runs inside an instance of this class, so a
+    # handler and the template it renders share the same helpers and the same
+    # request.
+    class Action
+      include Helpers
+
+      @response_status: Integer
+
+      @layout_rendered: bool
+
+      @request: untyped
+
+      @captures: Hash[Symbol, String?]
+
+      @route: Route
+
+      @env: Hash[String, untyped]
+
+      attr_reader env: untyped
+
+      attr_reader route: untyped
+
+      attr_reader response_status: untyped
+
+      # @rbs (env: Hash[String, untyped], route: Route) -> void
+      def initialize: (env: Hash[String, untyped], route: Route) -> void
+
+      # Sets the status a rendered page is served with. `halt` and `redirect`
+      # stop the handler, so a page that must render its own body and still
+      # report a failure needs this instead.
+      # @rbs (Integer) -> void
+      def status: (Integer) -> void
+
+      # @rbs () -> untyped
+      def request: () -> untyped
+
+      # @rbs () -> Hash[untyped, untyped]?
+      def session: () -> Hash[untyped, untyped]?
+
+      # @rbs (Symbol) -> String?
+      def route_params: (Symbol) -> String?
+
+      # @rbs (String) -> untyped
+      def url_params: (String) -> untyped
+
+      # @rbs () -> untyped
+      def call: () -> untyped
+
+      # The layout is rendered once per request. The flag is raised before the
+      # page body runs so a partial the body renders returns its own fragment
+      # rather than a second whole page. The layout reads the page it wraps
+      # from `locals.fetch(:content)`.
+      # @rbs (Symbol, ?Hash[Symbol, untyped]) -> String
+      def erb: (Symbol, ?Hash[Symbol, untyped]) -> String
+
+      # @rbs (Integer, ?String) -> void
+      def halt: (Integer, ?String) -> void
+
+      # @rbs (String) -> void
+      def redirect: (String) -> void
+
+      # @rbs (untyped) -> void
+      def json: (untyped) -> void
+
+      private
+
+      # `locals` is a local variable of this method, so a template reads it by
+      # name, and every helper is reachable because the template runs against
+      # this object.
+      # @rbs (untyped, Hash[Symbol, untyped]) -> String
+      def evaluate: (untyped, Hash[Symbol, untyped]) -> String
+    end
+  end
+end

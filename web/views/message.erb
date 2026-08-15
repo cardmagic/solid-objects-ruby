@@ -1,0 +1,34 @@
+<section class="panel">
+  <div class="panel-head">
+    <h2><%= h(@message.operation) %></h2>
+    <div class="actions">
+      <%= status_label(@message.delivery_mode) %>
+      <a href="<%= h(path_to("/instances/#{@message.instance_id}")) %>"><%= actor_label(@message) %></a>
+    </div>
+  </div>
+
+  <dl class="attributes">
+    <div><dt>Sequence</dt><dd><%= number(@message.sequence) %></dd></div>
+    <div><dt>Attempts</dt><dd><%= number(@message.attempt_count) %> / <%= number(@message.max_attempts) %></dd></div>
+    <div><dt>Request id</dt><dd><%= h(@message.request_id) %></dd></div>
+    <div><dt>Idempotency key</dt><dd><%= h(@message.idempotency_key || "none") %></dd></div>
+    <div><dt>Enqueued</dt><dd><%= relative_time(@message.enqueued_at) %></dd></div>
+    <div><dt>Available</dt><dd><%= relative_time(@message.available_at) %></dd></div>
+    <div><dt>Started</dt><dd><%= relative_time(@message.started_at) %></dd></div>
+    <div><dt>Completed</dt><dd><%= relative_time(@message.completed_at) %></dd></div>
+    <div><dt>Rejected</dt><dd><%= relative_time(@message.rejected_at) %></dd></div>
+    <div><dt>Last failed</dt><dd><%= relative_time(@message.last_failed_at) %></dd></div>
+  </dl>
+
+  <h3>Arguments</h3>
+  <%= json_block(@message.arguments) %>
+
+  <h3>Result</h3>
+  <%= json_block(@message.result) %>
+
+  <h3>Error</h3>
+  <%= json_block(@message.error) %>
+
+  <h3>Rejection</h3>
+  <%= json_block(@message.rejection) %>
+</section>

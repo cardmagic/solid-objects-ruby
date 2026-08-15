@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = ">= 3.3"
 
   spec.files = Dir[
-    "{app,benchmark,config,db,docs,examples,exe,lib,sig}/**/*",
+    "{app,benchmark,config,db,docs,examples,exe,lib,sig,web}/**/*",
     "CHANGELOG.md",
     "README.md",
     "Rakefile",
@@ -40,6 +40,10 @@ Gem::Specification.new do |spec|
   spec.add_dependency "actionview", ">= 8.0"
   spec.add_dependency "activerecord", ">= 8.0"
   spec.add_dependency "activesupport", ">= 8.0"
+  # The operator dashboard is a Rack application. Rack arrives with Action Pack
+  # in every supported Rails version; the floor is stated because the dashboard
+  # writes lowercase response headers, which Rack 3 requires.
+  spec.add_dependency "rack", ">= 3.1"
   spec.add_dependency "railties", ">= 8.0"
   spec.add_dependency "thor", ">= 1.3"
 

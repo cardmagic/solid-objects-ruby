@@ -1,0 +1,50 @@
+# Generated from lib/solid_objects/web/application.rb with RBS::Inline
+
+module SolidObjects
+  class Web
+    # The pages. Each route states the administration policy it needs, and
+    # `call` asks that policy before the handler runs, so a page cannot read
+    # the actor tables on behalf of an unauthorized request.
+    class Application
+      extend Router
+
+      SCRIPT_PLACEHOLDER: ::String
+
+      CONTENT_SECURITY_POLICY: untyped
+
+      MAILBOX_MEMBERSHIPS: untyped
+
+      RECENT_LIMIT: ::Integer
+
+      CHART_TYPE_LIMIT: ::Integer
+
+      # @rbs (Hash[String, untyped]) -> Array[untyped]
+      def call: (Hash[String, untyped]) -> Array[untyped]
+
+      private
+
+      # @rbs (Action, untyped) -> Array[untyped]
+      def respond: (Action, untyped) -> Array[untyped]
+
+      # @rbs (Action) -> bool
+      def authorized?: (Action) -> bool
+
+      # @rbs (Hash[String, untyped]) -> Hash[String, String]
+      def page_headers: (Hash[String, untyped]) -> Hash[String, String]
+
+      # The chart host is named only when one is configured, so a deployment
+      # that vendors the library or turns charts off never advertises a third
+      # party origin it does not use.
+      # @rbs (Hash[String, untyped]) -> String
+      def content_security_policy: (Hash[String, untyped]) -> String
+
+      # The cascade header lets a host application serve its own 404 for a path
+      # below the mount that the dashboard does not define.
+      # @rbs () -> Array[untyped]
+      def not_found: () -> Array[untyped]
+
+      # @rbs () -> Array[untyped]
+      def forbidden: () -> Array[untyped]
+    end
+  end
+end

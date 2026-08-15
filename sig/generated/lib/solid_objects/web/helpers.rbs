@@ -1,0 +1,118 @@
+# Generated from lib/solid_objects/web/helpers.rb with RBS::Inline
+
+module SolidObjects
+  class Web
+    # The methods a view may call. Everything a template prints goes through
+    # `h`, because an actor id, an operation name, and an exception message are
+    # all application supplied strings that reach this page unchanged.
+    module Helpers
+      # Only these survive a page link. A filter an operator set stays set when
+      # they turn the page; anything else the query string carries does not
+      # come back.
+      FORWARDED_PARAMS: untyped
+
+      TRUNCATION_LIMIT: ::Integer
+
+      # @rbs (untyped) -> String
+      def h: (untyped) -> String
+
+      # @rbs () -> String
+      def root_path: () -> String
+
+      # @rbs (String) -> String
+      def path_to: (String) -> String
+
+      # @rbs () -> String
+      def current_path: () -> String
+
+      # @rbs (String) -> bool
+      def current_tab?: (String) -> bool
+
+      # @rbs () -> Hash[String, String]
+      def tabs: () -> Hash[String, String]
+
+      # @rbs () -> String?
+      def csp_nonce: () -> String?
+
+      # @rbs () -> String
+      def csrf_tag: () -> String
+
+      # @rbs (String) -> String
+      def form_to: (String) -> String
+
+      # @rbs (untyped) -> String
+      def relative_time: (untyped) -> String
+
+      # @rbs (untyped) -> String
+      def number: (untyped) -> String
+
+      # @rbs (Numeric?) -> String
+      def duration: (Numeric?) -> String
+
+      # @rbs (untyped, ?Integer) -> String
+      def json_block: (untyped, ?Integer) -> String
+
+      # @rbs (String, ?Integer) -> String
+      def truncate: (String, ?Integer) -> String
+
+      # @rbs (String?) -> String
+      def status_label: (String?) -> String
+
+      # @rbs (untyped) -> String
+      def actor_label: (untyped) -> String
+
+      # @rbs (untyped) -> String
+      def instance_link: (untyped) -> String
+
+      # @rbs (?Hash[String, untyped]) -> String
+      def query_string: (?Hash[String, untyped]) -> String
+
+      # @rbs (?Hash[String, untyped]) -> String
+      def page_link: (?Hash[String, untyped]) -> String
+
+      # @rbs (Instance) -> String
+      def lease_state: (Instance) -> String
+
+      # @rbs () -> Statistics
+      def statistics: () -> Statistics
+
+      # @rbs (untyped) -> Paginator
+      def paginate: (untyped) -> Paginator
+
+      # An unrecognized filter falls back to the default rather than returning
+      # nothing, so a hand edited query string cannot make a page look empty.
+      # @rbs (Array[String], ?default: String?) -> String?
+      def filter_value: (Array[String], ?default: String?) -> String?
+
+      # @rbs () -> Instance
+      def find_instance: () -> Instance
+
+      # @rbs () -> untyped
+      def filtered_instances: () -> untyped
+
+      # @rbs (String) -> untyped
+      def mailbox_messages: (String) -> untyped
+
+      # Chart data travels in an attribute rather than an inline script block,
+      # so the page needs no script-src exception and an actor type cannot
+      # close the attribute and open a tag.
+      #
+      # The container is not decoration. Chart.js measures a responsive canvas
+      # against its parent, so the parent has to have a height of its own; a
+      # panel that sizes to its children would grow a little on every redraw.
+      # @rbs (String, untyped) -> String
+      def chart: (String, untyped) -> String
+
+      # A vendored copy is a path below the mount; a CDN copy is an absolute
+      # URL and is left alone.
+      # @rbs () -> String
+      def chart_library_source: () -> String
+
+      # @rbs () -> String
+      def chart_library_integrity_attributes: () -> String
+
+      # @rbs () -> String
+      def environment_name: () -> String
+    end
+  end
+end

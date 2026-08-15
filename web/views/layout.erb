@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Solid Objects</title>
+    <link rel="stylesheet" href="<%= h(path_to("/stylesheets/application.css")) %>" />
+    <script src="<%= h(path_to("/javascripts/application.js")) %>" nonce="<%= h(csp_nonce) %>" defer></script>
+    <% if SolidObjects::Web.charts? && current_tab?("/") %>
+      <script src="<%= h(chart_library_source) %>"<%= chart_library_integrity_attributes %> defer></script>
+      <script src="<%= h(path_to("/javascripts/charts.js")) %>" nonce="<%= h(csp_nonce) %>" defer></script>
+    <% end %>
+  </head>
+  <body data-stats-path="<%= h(path_to("/stats")) %>">
+    <%= erb(:_navigation) %>
+    <main class="page">
+      <%= erb(:_summary) %>
+      <%= locals.fetch(:content) %>
+    </main>
+  </body>
+</html>

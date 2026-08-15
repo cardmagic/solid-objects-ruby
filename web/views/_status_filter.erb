@@ -1,0 +1,8 @@
+<nav class="filters" aria-label="Status filter">
+  <% if locals.fetch(:all, true) %>
+    <a class="filter<%= locals[:selected].nil? ? " filter-current" : "" %>" href="<%= page_link("status" => nil, "page" => nil) %>">All</a>
+  <% end %>
+  <% locals.fetch(:statuses).each do |status| %>
+    <a class="filter<%= (locals[:selected] == status) ? " filter-current" : "" %>" href="<%= page_link("status" => status, "page" => nil) %>"><%= h(status) %></a>
+  <% end %>
+</nav>

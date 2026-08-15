@@ -108,8 +108,25 @@
   handing the block a raw Cable connection.
 - Backpressure: mailbox/payload/state/result caps and fair yields exist;
   distributed per-actor rate limits and global admission control do not.
-- Administration: actor and dead-letter views plus policy hooks exist; richer
-  filtering, audit records, and bulk-safe tools do not.
+- Administration: `SolidObjects::Web` is a mountable Rack dashboard covering
+  instances, mailbox, reminders, effects, broadcasts, dead letters, and
+  processes, with actor-type and actor-id filtering, status filters, paging, a
+  polled stats endpoint, Chart.js charts, and extension registration. The chart
+  library is fetched from a CDN with a subresource integrity hash, which a
+  deployment without outbound network access must replace with a vendored copy
+  or turn off. Every route declares its
+  own administration policy and a route declared without one raises at load
+  time, so the deny-by-default posture is enforced by construction rather than
+  by remembering to add a check. It changes only two things: an idempotent dead
+  letter retry and instance pause/resume. What does not exist is audit records
+  of who pressed what, and bulk-safe tools: retry is one dead letter at a time,
+  because `DeadLetterManager` exposes no bulk operation. Pause is an operator
+  brake and not a stop, since a pass already in flight finishes its turn and a
+  synchronous caller waiting on a paused instance times out. The page cost was
+  reasoned about rather than measured: the summary bar issues a fixed set of
+  indexed aggregate queries per page, which is why `HEAD /` exists for uptime
+  monitors, but no dashboard latency has been benchmarked against a large
+  table.
 
 ## Next milestones
 

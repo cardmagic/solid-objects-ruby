@@ -1,0 +1,35 @@
+<section class="panel">
+  <h2>Effects</h2>
+  <%= erb(:_status_filter, statuses: SolidObjects::Web::Statistics::EFFECT_STATUSES, selected: @status) %>
+
+  <% if @paginator.records.empty? %>
+    <p class="empty">No effect matches this filter.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Actor</th>
+          <th>Status</th>
+          <th>Attempts</th>
+          <th>Available</th>
+          <th>Completed</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @paginator.records.each do |effect| %>
+          <tr>
+            <td><%= h(effect.name) %></td>
+            <td><a href="<%= h(path_to("/instances/#{effect.instance_id}")) %>">instance <%= number(effect.instance_id) %></a></td>
+            <td><%= status_label(effect.status) %></td>
+            <td><%= number(effect.attempt_count) %> / <%= number(effect.max_attempts) %></td>
+            <td><%= relative_time(effect.available_at) %></td>
+            <td><%= relative_time(effect.completed_at) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <%= erb(:_paging) %>
+</section>
