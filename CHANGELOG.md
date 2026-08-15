@@ -1,7 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.13.0 - 2026-08-15
 
+- **Breaking:** make observables invalidation-only by default. An ordinary
+  `observable :status` continues to detect changes and refresh reactive
+  components, but persists `{}` and sends no scalar value over Action Cable.
+  Declare `observable :status, broadcast: :value` to deliberately store and
+  share the projection with every authorized actor subscriber. Applications
+  upgrading from 0.12.x must add that opt-in to observables rendered as scalar
+  targets.
 - Add `SolidObjects::Web`, a mountable Rack dashboard for the actor runtime.
   It covers instances and their committed state, the ready and claimed
   mailbox, reminders, effects, broadcasts, dead letters, and processes, with
@@ -29,16 +36,6 @@
   dashboard.
 - Add `rack` as an explicit dependency at `>= 3.1`, and package the `web/`
   directory in the gem.
-
-## 0.13.0 - 2026-08-13
-
-- **Breaking:** make observables invalidation-only by default. An ordinary
-  `observable :status` continues to detect changes and refresh reactive
-  components, but persists `{}` and sends no scalar value over Action Cable.
-  Declare `observable :status, broadcast: :value` to deliberately store and
-  share the projection with every authorized actor subscriber. Applications
-  upgrading from 0.12.x must add that opt-in to observables rendered as scalar
-  targets.
 
 ## 0.12.1 - 2026-08-13
 
