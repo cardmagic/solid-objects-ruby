@@ -50,7 +50,9 @@ def pause(request, path, cookie, token)
   request.post("#{path}/pause", options)
 end
 
-forged = pause(request, detail_path, cookie, "forged")
+# Well formed and the right length, so it reaches the comparison rather than
+# being turned away by the length check on the way in.
+forged = pause(request, detail_path, cookie, SecureRandom.base64(32))
 forged_paused = instance.reload.paused_at
 
 paused = pause(request, detail_path, cookie, token)

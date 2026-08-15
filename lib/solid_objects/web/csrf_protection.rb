@@ -64,9 +64,13 @@ module SolidObjects
         token = decode(given)
         return false unless token
 
-        # The session token is replaced whether or not this comparison
-        # succeeds, so a token cannot be replayed after it is spent.
-        session[:csrf] = SecureRandom.base64(TOKEN_BYTES)
+        # The secret is not rotated here. A page renders one Retry form per
+        # dead letter, and a browser keeps pages open in other tabs, so
+        # spending the secret on the first submission would answer 403 to
+        # every other form already rendered. Single use is not what a CSRF
+        # token provides: it proves the request came from a page this session
+        # was served, and the per-request mask below is what keeps the value
+        # on the wire from repeating.
         matches?(token, stored)
       end
 

@@ -157,6 +157,45 @@ class WebTest < WebTestCase
     assert_nil instance.reload.paused_at
   end
 
+  test "rejects a token that was not derived from this session" do
+    instance = create_instance
+    get("/")
+
+    response = request(
+      "/instances/#{instance.id}/pause",
+      method: "POST",
+      params: { "authenticity_token" => SecureRandom.base64(32) }
+    )
+
+    assert_equal 403, response.status
+    assert_nil instance.reload.paused_at
+  end
+
+  # The dead-letter list renders one Retry form per row, and a browser keeps
+  # pages open in other tabs. Spending the session secret on the first
+  # submission would answer 403 to every other form the same page rendered.
+  test "accepts every form a page rendered, not only the first" do
+    instance = create_instance
+    token = rendered_token("/instances/#{instance.id}")
+
+    paused = submit("/instances/#{instance.id}/pause", token)
+    resumed = submit("/instances/#{instance.id}/resume", token)
+
+    assert_equal 302, paused.status
+    assert_equal 302, resumed.status, "a second form from the same page must still be accepted"
+    assert_nil instance.reload.paused_at
+  end
+
+  test "issues a differently masked token on each request" do
+    instance = create_instance
+    first = rendered_token("/instances/#{instance.id}")
+    second = rendered_token("/instances/#{instance.id}")
+
+    refute_equal first, second, "an unchanging token on the wire is what masking prevents"
+    assert_equal 302, submit("/instances/#{instance.id}/pause", first).status
+    assert_equal 302, submit("/instances/#{instance.id}/resume", second).status
+  end
+
   test "lists ready and claimed mailbox messages" do
     instance = create_instance
     mark_ready(create_message(instance, operation: "increment"))

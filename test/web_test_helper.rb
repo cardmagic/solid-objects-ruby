@@ -45,6 +45,18 @@ class WebTestCase < ActiveSupport::TestCase
     request(path, method: "POST", params:)
   end
 
+  # The masked token a page actually put in its forms, rather than the session
+  # value behind it.
+  # @rbs (String) -> String
+  def rendered_token(path)
+    get(path).body[/name="authenticity_token" value="([^"]+)"/, 1]
+  end
+
+  # @rbs (String, String, ?Hash[String, untyped]) -> Rack::MockResponse
+  def submit(path, token, params = {})
+    request(path, method: "POST", params: params.merge("authenticity_token" => token))
+  end
+
   # @rbs (String, method: String, params: Hash[String, untyped]) -> Rack::MockResponse
   def request(path, method:, params:)
     environment = Rack::MockRequest.env_for(
