@@ -1,0 +1,37 @@
+<section class="panel">
+  <h2>Reminders</h2>
+  <%= erb(:_status_filter, statuses: SolidObjects::Web::Statistics::REMINDER_STATUSES, selected: @status) %>
+
+  <% if @paginator.records.empty? %>
+    <p class="empty">No reminder matches this filter.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr>
+          <th>Actor</th>
+          <th>Name</th>
+          <th>Operation</th>
+          <th>Status</th>
+          <th>Next run</th>
+          <th>Interval</th>
+          <th>Occurrence</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @paginator.records.each do |reminder| %>
+          <tr>
+            <td><a href="<%= h(path_to("/instances/#{reminder.instance_id}")) %>"><%= actor_label(reminder) %></a></td>
+            <td><%= h(reminder.name) %></td>
+            <td><%= h(reminder.operation) %></td>
+            <td><%= status_label(reminder.status) %></td>
+            <td><%= relative_time(reminder.next_run_at) %></td>
+            <td><%= duration(reminder.interval_seconds) %></td>
+            <td><%= number(reminder.occurrence) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <%= erb(:_paging) %>
+</section>

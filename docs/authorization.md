@@ -13,7 +13,7 @@ intentionally inert until the host application defines its trust boundary.
 | `authorize_query` | Attribute reads, declared queries, committed snapshots, scalar observable reads, initial component rendering, and every component refresh dependency | Explicit call context, the context passed to `solid_object`, or the request context resolved for a component refresh | Actor state or personalized projections can leak across users or tenants |
 | `authorize_destroy` | `reference.destroy` | Value passed as `authorization_context:` | Complete actor state, mailbox, reminders, and pending outboxes can be deleted |
 | `authorize_subscription` | Action Cable subscription to one actor stream | The `ActionCable::Connection` object | Clients can receive future observable updates for other actors |
-| `authorize_administration` | Engine administration controllers, process inspection/cleanup/pruning, message pruning, and dead-letter inspection/retry | Rails controller or `{ source: "cli" }` | Operational metadata, arguments, errors, deletion, and retries become exposed or mutable |
+| `authorize_administration` | Engine administration controllers, every `SolidObjects::Web` page, process inspection/cleanup/pruning, message pruning, and dead-letter inspection/retry | Rails controller, a `SolidObjects::Web` request that answers `request`/`session`/`env`, or `{ source: "cli" }` | Operational metadata, arguments, errors, deletion, and retries become exposed or mutable |
 
 Waiting again through `MessageReference#wait` reauthorizes the stored
 invocation as a message or query. Internal reminder, effect-callback, and
@@ -153,6 +153,13 @@ configuration.authorize_administration = lambda do |authorization_context:, **|
     authorization_context[:source] == "cli"
 end
 ```
+
+That policy also denies every `SolidObjects::Web` page, which is the correct
+result for a host whose only administration boundary is shell access. A policy
+that opens the dashboard should separate reading from writing, because
+`action` distinguishes them: `index` and `show` read, while `pause`, `resume`,
+and `retry` change the runtime. The [dashboard guide](dashboard.md) lists the
+action and resource of every page.
 
 Run `bin/rails solid_objects:doctor` after configuration. Its neutral policy
 probe is deliberately conservative: a context-aware policy may correctly warn

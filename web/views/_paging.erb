@@ -1,0 +1,17 @@
+<nav class="paging" aria-label="Pages">
+  <span class="paging-range">
+    <% if @paginator.total.zero? %>
+      No rows
+    <% else %>
+      <%= number(@paginator.first_record) %>&ndash;<%= number(@paginator.last_record) %> of <%= number(@paginator.total) %>
+    <% end %>
+  </span>
+  <span class="paging-links">
+    <% if @paginator.previous_page %>
+      <a href="<%= page_link("page" => @paginator.previous_page) %>">Previous</a>
+    <% end %>
+    <% if @paginator.next_page %>
+      <a href="<%= page_link("page" => @paginator.next_page) %>">Next</a>
+    <% end %>
+  </span>
+</nav>

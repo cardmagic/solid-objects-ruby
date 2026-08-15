@@ -1,0 +1,128 @@
+<% if SolidObjects::Web.charts? %>
+  <section class="charts">
+    <article class="panel chart-panel">
+      <h2>Instances by actor type</h2>
+      <%= chart("instances_by_type", @instances_by_type) %>
+    </article>
+    <article class="panel chart-panel">
+      <h2>Mailbox</h2>
+      <%= chart("mailbox_depth", {
+        "Ready" => @statistics.dig(:mailbox, :ready),
+        "Due" => @statistics.dig(:mailbox, :due),
+        "Claimed" => @statistics.dig(:mailbox, :claimed)
+      }) %>
+    </article>
+    <article class="panel chart-panel chart-wide">
+      <h2>Outboxes and reminders by status</h2>
+      <%= chart("work_by_status", {
+        "Effects" => @statistics.fetch(:effects),
+        "Broadcasts" => @statistics.fetch(:broadcasts),
+        "Reminders" => @statistics.fetch(:reminders).except(:due)
+      }) %>
+    </article>
+  </section>
+<% end %>
+
+<section class="cards">
+  <article class="card">
+    <h2>Instances</h2>
+    <dl>
+      <div><dt>Total</dt><dd><%= number(@statistics.dig(:instances, :total)) %></dd></div>
+      <div><dt>Activated</dt><dd><%= number(@statistics.dig(:instances, :activated)) %></dd></div>
+      <div><dt>Paused</dt><dd><%= number(@statistics.dig(:instances, :paused)) %></dd></div>
+    </dl>
+  </article>
+
+  <article class="card">
+    <h2>Mailbox</h2>
+    <dl>
+      <div><dt>Ready</dt><dd><%= number(@statistics.dig(:mailbox, :ready)) %></dd></div>
+      <div><dt>Due</dt><dd><%= number(@statistics.dig(:mailbox, :due)) %></dd></div>
+      <div><dt>Claimed</dt><dd><%= number(@statistics.dig(:mailbox, :claimed)) %></dd></div>
+      <div><dt>Oldest due</dt><dd><%= duration(@statistics.dig(:mailbox, :latency)) %></dd></div>
+    </dl>
+  </article>
+
+  <article class="card">
+    <h2>Effects</h2>
+    <dl>
+      <% @statistics.fetch(:effects).each do |status, count| %>
+        <div><dt><%= h(status) %></dt><dd><%= number(count) %></dd></div>
+      <% end %>
+    </dl>
+  </article>
+
+  <article class="card">
+    <h2>Broadcasts</h2>
+    <dl>
+      <% @statistics.fetch(:broadcasts).each do |status, count| %>
+        <div><dt><%= h(status) %></dt><dd><%= number(count) %></dd></div>
+      <% end %>
+    </dl>
+  </article>
+
+  <article class="card">
+    <h2>Reminders</h2>
+    <dl>
+      <% @statistics.fetch(:reminders).each do |status, count| %>
+        <div><dt><%= h(status) %></dt><dd><%= number(count) %></dd></div>
+      <% end %>
+    </dl>
+  </article>
+
+  <article class="card">
+    <h2>Processes</h2>
+    <dl>
+      <% @statistics.fetch(:processes).each do |state, count| %>
+        <div><dt><%= h(state) %></dt><dd><%= number(count) %></dd></div>
+      <% end %>
+    </dl>
+  </article>
+</section>
+
+<section class="panel">
+  <h2>Processes</h2>
+  <% if @processes.empty? %>
+    <p class="empty">No process has registered. Start one with <code>solid_objects start</code>.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr><th>Kind</th><th>Host</th><th>PID</th><th>State</th><th>Last heartbeat</th></tr>
+      </thead>
+      <tbody>
+        <% @processes.each do |process_record| %>
+          <tr>
+            <td><%= h(process_record.kind) %></td>
+            <td><%= h(process_record.hostname) %></td>
+            <td><%= h(process_record.pid) %></td>
+            <td><%= status_label(process_record.shutdown_state) %></td>
+            <td><%= relative_time(process_record.last_heartbeat_at) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>
+
+<section class="panel">
+  <h2>Recent dead letters</h2>
+  <% if @dead_letters.empty? %>
+    <p class="empty">No message has exhausted its attempts.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr><th>Actor</th><th>Operation</th><th>Exception</th><th>Last failed</th></tr>
+      </thead>
+      <tbody>
+        <% @dead_letters.each do |dead_letter| %>
+          <tr>
+            <td><a href="<%= h(path_to("/dead_letters/#{dead_letter.id}")) %>"><%= actor_label(dead_letter) %></a></td>
+            <td><%= h(dead_letter.operation) %></td>
+            <td><%= h(dead_letter.exception_class) %></td>
+            <td><%= relative_time(dead_letter.last_failed_at) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>

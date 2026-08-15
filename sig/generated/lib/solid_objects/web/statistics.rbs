@@ -1,0 +1,46 @@
+# Generated from lib/solid_objects/web/statistics.rb with RBS::Inline
+
+module SolidObjects
+  class Web
+    # The counts behind the dashboard and behind `GET /stats`. Both read the
+    # same object, so the polled JSON and the rendered page can never disagree
+    # about what a number means.
+    class Statistics
+      EFFECT_STATUSES: untyped
+
+      BROADCAST_STATUSES: untyped
+
+      REMINDER_STATUSES: untyped
+
+      PROCESS_STATES: untyped
+
+      @now: Time
+
+      attr_reader now: untyped
+
+      # @rbs (?now: Time) -> void
+      def initialize: (?now: Time) -> void
+
+      # @rbs () -> Hash[Symbol, untyped]
+      def to_h: () -> Hash[Symbol, untyped]
+
+      # @rbs () -> Hash[Symbol, Integer]
+      def instances: () -> Hash[Symbol, Integer]
+
+      # The oldest ready message that is already due is the queue latency of
+      # this runtime: how far behind the workers are, in seconds.
+      # @rbs () -> Hash[Symbol, untyped]
+      def mailbox: () -> Hash[Symbol, untyped]
+
+      # @rbs () -> Hash[Symbol, Integer]
+      def reminders: () -> Hash[Symbol, Integer]
+
+      private
+
+      # A status the schema allows but the table does not currently hold still
+      # reports zero, so a row of counts keeps the same shape between polls.
+      # @rbs (untyped, Symbol, Array[String]) -> Hash[Symbol, Integer]
+      def grouped: (untyped, Symbol, Array[String]) -> Hash[Symbol, Integer]
+    end
+  end
+end

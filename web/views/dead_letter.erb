@@ -1,0 +1,40 @@
+<section class="panel">
+  <div class="panel-head">
+    <h2><%= h(@dead_letter.operation) %></h2>
+    <div class="actions">
+      <a href="<%= h(path_to("/instances/#{@dead_letter.instance_id}")) %>"><%= actor_label(@dead_letter) %></a>
+      <% if @dead_letter.retried_message_id %>
+        <a href="<%= h(path_to("/messages/#{@dead_letter.retried_message_id}")) %>">Retried</a>
+      <% else %>
+        <%= form_to("/dead_letters/#{@dead_letter.id}/retry") %>
+          <button type="submit">Retry</button>
+        </form>
+      <% end %>
+    </div>
+  </div>
+
+  <% if @error %>
+    <p class="note note-error">The retry was refused. <%= h(@error) %></p>
+  <% end %>
+
+  <p class="note">
+    A retry enqueues the original operation again under an idempotency key, so
+    pressing it twice produces one message rather than two.
+  </p>
+
+  <dl class="attributes">
+    <div><dt>Attempts</dt><dd><%= number(@dead_letter.attempts) %></dd></div>
+    <div><dt>Exception</dt><dd><%= h(@dead_letter.exception_class) %></dd></div>
+    <div><dt>First failed</dt><dd><%= relative_time(@dead_letter.first_failed_at) %></dd></div>
+    <div><dt>Last failed</dt><dd><%= relative_time(@dead_letter.last_failed_at) %></dd></div>
+  </dl>
+
+  <h3>Message</h3>
+  <pre class="payload"><%= h(truncate(@dead_letter.exception_message)) %></pre>
+
+  <h3>Arguments</h3>
+  <%= json_block(@dead_letter.arguments) %>
+
+  <h3>Backtrace</h3>
+  <pre class="payload"><%= h(truncate(Array(@dead_letter.backtrace).join("\n"))) %></pre>
+</section>

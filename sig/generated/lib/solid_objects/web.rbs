@@ -1,0 +1,129 @@
+# Generated from lib/solid_objects/web.rb with RBS::Inline
+
+module SolidObjects
+  # An operator dashboard for the actor runtime, served as a Rack application:
+  #
+  #   Rails.application.routes.draw do
+  #     mount SolidObjects::Web => "/solid_objects"
+  #   end
+  #
+  # It is deliberately not loaded by `require "solid_objects"`. A worker
+  # process must not carry a web stack, and an application that never mounts
+  # the dashboard must not pay for it.
+  #
+  # Every page asks `configuration.authorize_administration` first. That block
+  # denies by default, so a mount alone exposes nothing until an application
+  # states who may read it.
+  class Web
+    ROOT: untyped
+
+    VIEWS: untyped
+
+    ASSETS: untyped
+
+    NONCE_KEY: ::String
+
+    CSRF_TOKEN_KEY: ::String
+
+    NONCE_BYTES: ::Integer
+
+    ASSET_CACHE_SECONDS: ::Integer
+
+    TEMPLATE_NAME: ::Regexp
+
+    # The dashboard charts need a charting library, and this one is fetched
+    # from a public CDN with a subresource integrity hash, so a compromised CDN
+    # cannot substitute other code. A deployment with no outbound network
+    # access should vendor the file and point `chart_library_url` at it, or set
+    # that to nil to render the dashboard without charts.
+    CHART_LIBRARY_URL: ::String
+
+    CHART_LIBRARY_INTEGRITY: ::String
+
+    DEFAULT_TABS: untyped
+
+    LOCK: untyped
+
+    # A path below the mount serves a vendored copy; an absolute URL is
+    # fetched from that host and is named in the content security policy.
+    # nil renders the dashboard without charts.
+    # @rbs @chart_library_url: String?
+    # @rbs @chart_library_integrity: String?
+    attr_writer chart_library_url: untyped
+
+    # A path below the mount serves a vendored copy; an absolute URL is
+    # fetched from that host and is named in the content security policy.
+    # nil renders the dashboard without charts.
+    # @rbs @chart_library_url: String?
+    # @rbs @chart_library_integrity: String?
+    attr_writer chart_library_integrity: untyped
+
+    # @rbs () -> String?
+    def self.chart_library_url: () -> String?
+
+    # @rbs () -> String?
+    def self.chart_library_integrity: () -> String?
+
+    # @rbs () -> bool
+    def self.charts?: () -> bool
+
+    # The origin the content security policy has to allow. A vendored copy
+    # served from the mount has none, so the policy stays at 'self'.
+    # @rbs () -> String?
+    def self.chart_library_origin: () -> String?
+
+    # @rbs () -> Hash[String, String]
+    def self.tabs: () -> Hash[String, String]
+
+    # Searched in order, so an extension directory added first wins over the
+    # packaged one and an application can replace a single page.
+    # @rbs () -> Array[String]
+    def self.views: () -> Array[String]
+
+    # @rbs () -> Array[[Array[untyped], Proc?]]
+    def self.middlewares: () -> Array[[ Array[untyped], Proc? ]]
+
+    # The built stack is memoized, so a middleware added after the first
+    # request would otherwise be dropped without a word.
+    # @rbs (*untyped) ?{ () -> untyped } -> void
+    def self.use: (*untyped) ?{ () -> untyped } -> void
+
+    # Adds pages to the dashboard. The extension receives the application
+    # class and declares its own routes on it, which means its routes carry
+    # an authorization policy like every other route.
+    #
+    # @rbs (untyped, tab: String, path: String, ?views: String?) -> void
+    def self.register: (untyped, tab: String, path: String, ?views: String?) -> void
+
+    # @rbs (Symbol) -> untyped
+    def self.template: (Symbol) -> untyped
+
+    # @rbs () -> void
+    def self.reset!: () -> void
+
+    # @rbs (Hash[String, untyped]) -> Array[untyped]
+    def self.call: (Hash[String, untyped]) -> Array[untyped]
+
+    # @rbs () -> Web
+    def self.application: () -> Web
+
+    # @rbs () -> Hash[Symbol, untyped]
+    private def self.templates: () -> Hash[Symbol, untyped]
+
+    # A template name never comes from a request, and this keeps it that way
+    # rather than trusting every future caller to know it.
+    # @rbs (Symbol) -> String
+    private def self.template_path: (Symbol) -> String
+
+    # @rbs (Hash[String, untyped]) -> Array[untyped]
+    def call: (Hash[String, untyped]) -> Array[untyped]
+
+    # @rbs () -> untyped
+    def app: () -> untyped
+
+    private
+
+    # @rbs () -> untyped
+    def build: () -> untyped
+  end
+end

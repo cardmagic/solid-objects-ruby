@@ -1,0 +1,139 @@
+<section class="panel">
+  <div class="panel-head">
+    <h2><%= actor_label(@instance) %></h2>
+    <div class="actions">
+      <%= status_label(lease_state(@instance)) %>
+      <% if @instance.paused_at %>
+        <%= form_to("/instances/#{@instance.id}/resume") %>
+          <button type="submit">Resume</button>
+        </form>
+      <% else %>
+        <%= form_to("/instances/#{@instance.id}/pause") %>
+          <button type="submit" class="danger">Pause</button>
+        </form>
+      <% end %>
+    </div>
+  </div>
+
+  <p class="note">
+    A paused instance is not claimed again. A pass already in flight finishes its
+    turn, and a synchronous caller waiting on this instance times out rather than
+    receiving a result.
+  </p>
+
+  <dl class="attributes">
+    <div><dt>State version</dt><dd><%= number(@instance.state_version) %></dd></div>
+    <div><dt>Next sequence</dt><dd><%= number(@instance.next_message_sequence) %></dd></div>
+    <div><dt>Activation generation</dt><dd><%= number(@instance.activation_generation) %></dd></div>
+    <div><dt>Activation owner</dt><dd><%= h(@instance.activation_owner_id || "none") %></dd></div>
+    <div><dt>Lease expires</dt><dd><%= relative_time(@instance.activation_expires_at) %></dd></div>
+    <div><dt>Last used</dt><dd><%= relative_time(@instance.last_used_at) %></dd></div>
+    <div><dt>Last claimed</dt><dd><%= relative_time(@instance.last_claimed_at) %></dd></div>
+    <div><dt>Paused</dt><dd><%= relative_time(@instance.paused_at) %></dd></div>
+  </dl>
+
+  <h3>State</h3>
+  <%= json_block(@instance.state) %>
+</section>
+
+<section class="panel">
+  <h2>Mailbox</h2>
+  <%= erb(:_messages, title: "Ready", messages: @ready_messages, empty: "No message is waiting.") %>
+  <%= erb(:_messages, title: "Claimed", messages: @claimed_messages, empty: "No message is claimed.") %>
+  <%= erb(:_messages, title: "Recent", messages: @recent_messages, empty: "This instance has no message history.") %>
+</section>
+
+<section class="panel">
+  <h2>Reminders</h2>
+  <% if @reminders.empty? %>
+    <p class="empty">No reminder is scheduled.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Operation</th><th>Status</th><th>Next run</th><th>Interval</th></tr>
+      </thead>
+      <tbody>
+        <% @reminders.each do |reminder| %>
+          <tr>
+            <td><%= h(reminder.name) %></td>
+            <td><%= h(reminder.operation) %></td>
+            <td><%= status_label(reminder.status) %></td>
+            <td><%= relative_time(reminder.next_run_at) %></td>
+            <td><%= duration(reminder.interval_seconds) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>
+
+<section class="panel">
+  <h2>Effects</h2>
+  <% if @effects.empty? %>
+    <p class="empty">This instance has emitted no effect.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Status</th><th>Attempts</th><th>Available</th><th>Completed</th></tr>
+      </thead>
+      <tbody>
+        <% @effects.each do |effect| %>
+          <tr>
+            <td><%= h(effect.name) %></td>
+            <td><%= status_label(effect.status) %></td>
+            <td><%= number(effect.attempt_count) %> / <%= number(effect.max_attempts) %></td>
+            <td><%= relative_time(effect.available_at) %></td>
+            <td><%= relative_time(effect.completed_at) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>
+
+<section class="panel">
+  <h2>Broadcasts</h2>
+  <% if @broadcasts.empty? %>
+    <p class="empty">This instance has broadcast nothing.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr><th>Observable</th><th>Status</th><th>State version</th><th>Attempts</th><th>Delivered</th></tr>
+      </thead>
+      <tbody>
+        <% @broadcasts.each do |broadcast| %>
+          <tr>
+            <td><%= h(broadcast.observable_name) %></td>
+            <td><%= status_label(broadcast.status) %></td>
+            <td><%= number(broadcast.state_version) %></td>
+            <td><%= number(broadcast.attempt_count) %></td>
+            <td><%= relative_time(broadcast.delivered_at) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>
+
+<section class="panel">
+  <h2>Dead letters</h2>
+  <% if @dead_letters.empty? %>
+    <p class="empty">No message has exhausted its attempts.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr><th>Operation</th><th>Exception</th><th>Attempts</th><th>Last failed</th></tr>
+      </thead>
+      <tbody>
+        <% @dead_letters.each do |dead_letter| %>
+          <tr>
+            <td><a href="<%= h(path_to("/dead_letters/#{dead_letter.id}")) %>"><%= h(dead_letter.operation) %></a></td>
+            <td><%= h(dead_letter.exception_class) %></td>
+            <td><%= number(dead_letter.attempts) %></td>
+            <td><%= relative_time(dead_letter.last_failed_at) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>

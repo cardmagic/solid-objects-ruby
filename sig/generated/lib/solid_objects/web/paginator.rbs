@@ -1,0 +1,54 @@
+# Generated from lib/solid_objects/web/paginator.rb with RBS::Inline
+
+module SolidObjects
+  class Web
+    # Counts and slices one relation. The page size is clamped because the page
+    # number and the page size both arrive from the query string, and an
+    # operator page that accepts an unbounded limit is a denial of service
+    # against the database the actors run on.
+    class Paginator
+      DEFAULT_PER_PAGE: ::Integer
+
+      MAXIMUM_PER_PAGE: ::Integer
+
+      @page: Integer
+
+      @per_page: Integer
+
+      @total: Integer
+
+      @records: Array[untyped]
+
+      attr_reader page: untyped
+
+      attr_reader per_page: untyped
+
+      attr_reader total: untyped
+
+      attr_reader records: untyped
+
+      # @rbs (relation: untyped, ?page: String?, ?per_page: String?) -> void
+      def initialize: (relation: untyped, ?page: String?, ?per_page: String?) -> void
+
+      # @rbs () -> Integer
+      def last_page: () -> Integer
+
+      # @rbs () -> Integer?
+      def previous_page: () -> Integer?
+
+      # @rbs () -> Integer?
+      def next_page: () -> Integer?
+
+      # @rbs () -> Integer
+      def first_record: () -> Integer
+
+      # @rbs () -> Integer
+      def last_record: () -> Integer
+
+      private
+
+      # @rbs (String?, default: Integer, maximum: Integer) -> Integer
+      def bounded: (String?, default: Integer, maximum: Integer) -> Integer
+    end
+  end
+end

@@ -1,0 +1,55 @@
+# Generated from lib/solid_objects/web/csrf_protection.rb with RBS::Inline
+
+module SolidObjects
+  class Web
+    # A state changing request must carry the token of the session that asked
+    # for the form. The token a form receives is masked with a fresh one-time
+    # pad on every request, so the bytes on the wire differ each time and a
+    # compression side channel cannot recover the session token.
+    class CsrfProtection
+      SAFE_METHODS: untyped
+
+      TOKEN_BYTES: ::Integer
+
+      MISSING_SESSION: ::String
+
+      # @rbs (untyped) -> void
+      def initialize: (untyped) -> void
+
+      # @rbs (Hash[String, untyped]) -> Array[untyped]
+      def call: (Hash[String, untyped]) -> Array[untyped]
+
+      private
+
+      # @rbs (Hash[String, untyped]) -> bool
+      def accept?: (Hash[String, untyped]) -> bool
+
+      # @rbs (Hash[String, untyped], String?) -> bool
+      def valid?: (Hash[String, untyped], String?) -> bool
+
+      # @rbs (String, String) -> bool
+      def matches?: (String, String) -> bool
+
+      # @rbs (String) -> String
+      def mask: (String) -> String
+
+      # @rbs (String) -> String
+      def unmask: (String) -> String
+
+      # @rbs (String, String) -> String
+      def exclusive_or: (String, String) -> String
+
+      # @rbs (String) -> String
+      def encode: (String) -> String
+
+      # @rbs (String) -> String?
+      def decode: (String) -> String?
+
+      # @rbs (Hash[String, untyped]) -> Hash[untyped, untyped]
+      def session!: (Hash[String, untyped]) -> Hash[untyped, untyped]
+
+      # @rbs () -> Array[untyped]
+      def forbidden: () -> Array[untyped]
+    end
+  end
+end

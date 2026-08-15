@@ -1,0 +1,42 @@
+<section class="panel">
+  <h2>Dead letters</h2>
+
+  <% if @paginator.records.empty? %>
+    <p class="empty">No message has exhausted its attempts.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr>
+          <th>Actor</th>
+          <th>Operation</th>
+          <th>Exception</th>
+          <th>Attempts</th>
+          <th>Last failed</th>
+          <th>Retry</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @paginator.records.each do |dead_letter| %>
+          <tr>
+            <td><a href="<%= h(path_to("/dead_letters/#{dead_letter.id}")) %>"><%= actor_label(dead_letter) %></a></td>
+            <td><%= h(dead_letter.operation) %></td>
+            <td><%= h(dead_letter.exception_class) %></td>
+            <td><%= number(dead_letter.attempts) %></td>
+            <td><%= relative_time(dead_letter.last_failed_at) %></td>
+            <td>
+              <% if dead_letter.retried_message_id %>
+                <a href="<%= h(path_to("/messages/#{dead_letter.retried_message_id}")) %>">retried</a>
+              <% else %>
+                <%= form_to("/dead_letters/#{dead_letter.id}/retry") %>
+                  <button type="submit">Retry</button>
+                </form>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <%= erb(:_paging) %>
+</section>

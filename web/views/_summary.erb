@@ -1,0 +1,39 @@
+<% summary = statistics.to_h %>
+<section class="summary" aria-label="Runtime totals">
+  <a class="metric" href="<%= h(path_to("/instances")) %>">
+    <span class="metric-label">Instances</span>
+    <span class="metric-value" data-statistic="instances.total"><%= number(summary.dig(:instances, :total)) %></span>
+  </a>
+  <a class="metric" href="<%= h(path_to("/mailbox")) %>">
+    <span class="metric-label">Ready</span>
+    <span class="metric-value" data-statistic="mailbox.ready"><%= number(summary.dig(:mailbox, :ready)) %></span>
+  </a>
+  <a class="metric" href="<%= h(path_to("/mailbox?status=claimed")) %>">
+    <span class="metric-label">Claimed</span>
+    <span class="metric-value" data-statistic="mailbox.claimed"><%= number(summary.dig(:mailbox, :claimed)) %></span>
+  </a>
+  <div class="metric">
+    <span class="metric-label">Mailbox lag</span>
+    <span class="metric-value" data-statistic="mailbox.latency" data-format="duration"><%= duration(summary.dig(:mailbox, :latency)) %></span>
+  </div>
+  <a class="metric" href="<%= h(path_to("/effects?status=pending")) %>">
+    <span class="metric-label">Effects</span>
+    <span class="metric-value" data-statistic="effects.pending"><%= number(summary.dig(:effects, :pending)) %></span>
+  </a>
+  <a class="metric" href="<%= h(path_to("/broadcasts?status=pending")) %>">
+    <span class="metric-label">Broadcasts</span>
+    <span class="metric-value" data-statistic="broadcasts.pending"><%= number(summary.dig(:broadcasts, :pending)) %></span>
+  </a>
+  <a class="metric" href="<%= h(path_to("/reminders?status=scheduled")) %>">
+    <span class="metric-label">Reminders due</span>
+    <span class="metric-value" data-statistic="reminders.due"><%= number(summary.dig(:reminders, :due)) %></span>
+  </a>
+  <a class="metric metric-alert" href="<%= h(path_to("/dead_letters")) %>">
+    <span class="metric-label">Dead letters</span>
+    <span class="metric-value" data-statistic="dead_letters.total"><%= number(summary.dig(:dead_letters, :total)) %></span>
+  </a>
+  <a class="metric" href="<%= h(path_to("/processes?status=running")) %>">
+    <span class="metric-label">Processes</span>
+    <span class="metric-value" data-statistic="processes.running"><%= number(summary.dig(:processes, :running)) %></span>
+  </a>
+</section>

@@ -1,0 +1,37 @@
+<section class="panel">
+  <h2>Processes</h2>
+  <%= erb(:_status_filter, statuses: SolidObjects::Web::Statistics::PROCESS_STATES, selected: @status) %>
+
+  <% if @paginator.records.empty? %>
+    <p class="empty">No process matches this filter.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr>
+          <th>Kind</th>
+          <th>Host</th>
+          <th>PID</th>
+          <th>State</th>
+          <th>Started</th>
+          <th>Last heartbeat</th>
+          <th>Activated instances</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @paginator.records.each do |process_record| %>
+          <tr>
+            <td><%= h(process_record.kind) %></td>
+            <td><%= h(process_record.hostname) %></td>
+            <td><%= h(process_record.pid) %></td>
+            <td><%= status_label(process_record.shutdown_state) %></td>
+            <td><%= relative_time(process_record.started_at) %></td>
+            <td><%= relative_time(process_record.last_heartbeat_at) %></td>
+            <td><%= number(@activated_counts.fetch(process_record.id, 0)) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <%= erb(:_paging) %>
+</section>
