@@ -36,6 +36,9 @@ module SolidObjects
   # @rbs () -> DeadLetterManager
   def self.dead_letters: () -> DeadLetterManager
 
+  # @rbs () -> Administration
+  def self.administration: () -> Administration
+
   # @rbs (String | Symbol) -> String
   def self.table_name: (String | Symbol) -> String
 

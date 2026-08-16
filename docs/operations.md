@@ -98,6 +98,14 @@ adapter is configured, the runtime logs
 need prompt delivery. Without one, newly committed work can wait up to the
 current idle polling interval.
 
+The warning excludes process rows with the current hostname and PID. It can
+therefore appear during a rolling deployment or restart overlap when an older
+and newer process briefly share the database. A process that stopped without
+graceful cleanup remains live until its heartbeat exceeds
+`process_alive_threshold`; inspect `SolidObjects.administration.processes` to
+distinguish a live overlap from a stale row without opening a second SQLite
+connection.
+
 Each role exposes `current_polling_interval`.
 `solid_objects.polling.interval_changed` reports the role, reason, previous
 interval, and current interval. The polling-only warning is also emitted as
