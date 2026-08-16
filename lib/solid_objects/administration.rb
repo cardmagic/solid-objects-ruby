@@ -14,7 +14,7 @@ module SolidObjects
           kind: process_record.kind,
           hostname: process_record.hostname,
           pid: process_record.pid,
-          metadata: process_record.metadata,
+          metadata: Serialization.readonly_copy(process_record.metadata),
           shutdown_state: process_record.shutdown_state,
           shutdown_requested_at: process_record.shutdown_requested_at,
           started_at: process_record.started_at,

@@ -18,7 +18,10 @@ class AdministrationTest < ActiveSupport::TestCase
       pid: ::Process.pid,
       started_at: Time.current,
       last_heartbeat_at: Time.current,
-      metadata: { "solid_objects_version" => SolidObjects::VERSION }
+      metadata: {
+        "solid_objects_version" => SolidObjects::VERSION,
+        "nested" => { "value" => "original" }
+      }
     )
 
     processes = SolidObjects.administration.processes
@@ -28,5 +31,8 @@ class AdministrationTest < ActiveSupport::TestCase
     assert_equal false, snapshot[:stale]
     assert_predicate processes, :frozen?
     assert_predicate snapshot, :frozen?
+    assert_raises(FrozenError) do
+      snapshot[:metadata]["nested"]["value"] = "changed"
+    end
   end
 end
