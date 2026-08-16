@@ -365,8 +365,8 @@ it drains earlier messages and the target through the same activation and
 executor used by workers. If another process owns the actor, the caller waits
 for the row to become completed, rejected, dead-lettered, destroyed, or timed
 out. Every wait re-queries durable rows. The implemented wake-up interface
-provides same-process signaling, bounded polling, and dependency injection.
-PostgreSQL `LISTEN/NOTIFY` and optional Redis Pub/Sub are planned adapters.
+provides generation-aware same-process signaling, adaptive bounded polling,
+PostgreSQL `LISTEN/NOTIFY`, and optional Redis Pub/Sub.
 
 The normal path does not wait for a worker polling interval because the caller
 assists execution immediately. End-to-end latency still includes earlier

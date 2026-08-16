@@ -38,11 +38,24 @@ class RedisWakeUpTest < ActiveSupport::TestCase
     @adapter.listen
     started = monotonic_now
 
-    @adapter.wait(timeout: 0.3)
+    notified = @adapter.wait(timeout: 0.3)
 
     elapsed = monotonic_now - started
+    assert_equal false, notified
     assert_operator elapsed, :>=, 0.2
     assert_operator elapsed, :<, 3.0
+  end
+
+  test "a watch observes a signal delivered before waiting" do
+    signalled = @adapter.instance_variable_get(:@signalled)
+    watch = @adapter.watch
+
+    signal_from_another_client
+    Timeout.timeout(1) do
+      sleep 0.001 until @adapter.instance_variable_get(:@signalled) > signalled
+    end
+
+    assert_equal true, watch.wait(timeout: 0.1)
   end
 
   # The supervisor shares one adapter across runtime roles, so concurrent
@@ -128,6 +141,7 @@ class RedisWakeUpTest < ActiveSupport::TestCase
   test "the adapter satisfies the wake-up contract" do
     assert_respond_to @adapter, :signal
     assert_respond_to @adapter, :wait
+    assert_respond_to @adapter, :watch
     SolidObjects.configuration.wake_up_adapter = @adapter
 
     assert_same @adapter, SolidObjects.wake_up

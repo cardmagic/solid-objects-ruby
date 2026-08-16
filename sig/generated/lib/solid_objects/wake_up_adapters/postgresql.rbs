@@ -31,6 +31,9 @@ module SolidObjects
       # @rbs (timeout: Numeric) -> bool
       def wait: (timeout: Numeric) -> bool
 
+      # @rbs () -> self
+      def watch: () -> self
+
       # Starts listening before a caller blocks, so a notification sent between
       # startup and the first wait is not missed.
       # @rbs () -> bool

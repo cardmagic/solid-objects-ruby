@@ -8,6 +8,21 @@ module SolidObjects
     # @rbs (Process, ?now: Time) -> bool
     def self.deregister: (Process, ?now: Time) -> bool
 
+    # @rbs () -> void
+    def self.warn_if_polling_is_only_cross_process_wake_up: () -> void
+
+    # @rbs () -> void
+    def self.reset_polling_warning!: () -> void
+
+    # @rbs () -> bool
+    private def self.another_live_process?: () -> bool
+
+    # @rbs () -> bool
+    private def self.polling_warning_emitted?: () -> bool
+
+    # @rbs () -> Mutex
+    private def self.polling_warning_mutex: () -> Mutex
+
     # @rbs (Process, Time) -> void
     private def self.cleanup_process: (Process, Time) -> void
 

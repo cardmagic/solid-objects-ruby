@@ -402,8 +402,10 @@ module SolidObjectsBenchmark
     def migrate
       require_relative "../db/migrate/20260805000000_create_solid_objects_tables"
       require_relative "../db/migrate/20260806000000_add_state_revision_to_solid_objects_instances"
+      require_relative "../db/migrate/20260813000000_rename_message_dispatch_columns"
       CreateSolidObjectsTables.new.migrate(:up)
       AddStateRevisionToSolidObjectsInstances.new.migrate(:up)
+      RenameMessageDispatchColumns.new.migrate(:up)
     end
 
     # @rbs () -> void

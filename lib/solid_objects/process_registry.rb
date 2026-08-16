@@ -4,6 +4,9 @@ require "socket"
 
 module SolidObjects
   class ProcessRegistry
+    @polling_warning_mutex = Mutex.new
+    @polling_warning_emitted = false
+
     class << self
       # @rbs (?now: Time) -> Integer
       def cleanup_dead(now: SolidObjects.database_adapter.database_now)
@@ -53,7 +56,55 @@ module SolidObjects
         true
       end
 
+      # @rbs () -> void
+      def warn_if_polling_is_only_cross_process_wake_up
+        return if SolidObjects.configuration.wake_up_adapter
+
+        polling_warning_mutex.synchronize do
+          return if polling_warning_emitted?
+          return unless another_live_process?
+
+          payload = {
+            event: "solid_objects.polling_only_cross_process_wake_up",
+            polling_interval: SolidObjects.configuration.polling_interval,
+            idle_polling_interval: SolidObjects.configuration.idle_polling_interval
+          }
+          SolidObjects.configuration.logger.warn(payload)
+          SolidObjects.instrument(
+            :"polling.only_cross_process_wake_up",
+            **payload.except(:event)
+          )
+          @polling_warning_emitted = true
+        end
+      end
+
+      # @rbs () -> void
+      def reset_polling_warning!
+        polling_warning_mutex.synchronize { @polling_warning_emitted = false }
+      end
+
       private
+
+      # @rbs () -> bool
+      def another_live_process?
+        alive_after = SolidObjects.database_adapter.database_now -
+          SolidObjects.configuration.process_alive_threshold
+        Process
+          .where.not(shutdown_state: "stopped")
+          .where(last_heartbeat_at: alive_after..)
+          .where("hostname <> ? OR pid <> ?", Socket.gethostname, ::Process.pid)
+          .exists?
+      end
+
+      # @rbs () -> bool
+      def polling_warning_emitted?
+        @polling_warning_emitted
+      end
+
+      # @rbs () -> Mutex
+      def polling_warning_mutex
+        @polling_warning_mutex ||= Mutex.new
+      end
 
       # @rbs (Process, Time) -> void
       def cleanup_process(process_record, now)

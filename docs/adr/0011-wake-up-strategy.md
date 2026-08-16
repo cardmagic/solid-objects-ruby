@@ -11,6 +11,10 @@ Polling adds latency and database queries. PostgreSQL notifications are transact
 
 Database rows remain the only durable source of work and results. Wake-up
 adapters only prompt workers and synchronous waiters to re-query those rows.
+Actor, effect, reminder, and broadcast roles double consecutive empty waits
+from `polling_interval` to `idle_polling_interval`. Work and notifications reset
+the wait immediately. Actor workers clamp the ceiling to
+`lease_renewal_interval`.
 
 The interface supports:
 
@@ -40,4 +44,6 @@ Timeout does not cancel durable work.
 - A reconnecting PostgreSQL listener must commit `LISTEN`, inspect current state, and then wait.
 - Redis loss only increases latency and never loses durable work.
 - Every adapter retains periodic polling to close startup, reconnect, and missed-message races.
+- A process that returns `false` from a timed wait participates in backoff; an older custom adapter that returns `nil` keeps the fast cadence.
+- A multi-process deployment without an adapter trades idle database load for up to the current idle polling interval of notification latency and logs that topology once.
 - Notification payloads never contain actor arguments or results.

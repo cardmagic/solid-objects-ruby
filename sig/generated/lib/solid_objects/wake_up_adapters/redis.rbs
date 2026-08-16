@@ -10,6 +10,18 @@ module SolidObjects
     # polling interval remains the upper bound, so a missed or failed
     # notification costs latency rather than correctness.
     class Redis
+      class Watch
+        @adapter: Redis
+
+        @generation: Integer
+
+        # @rbs (Redis, Integer) -> void
+        def initialize: (Redis, Integer) -> void
+
+        # @rbs (timeout: Numeric) -> bool
+        def wait: (timeout: Numeric) -> bool
+      end
+
       CHANNEL: ::String
 
       FAILED_WAIT_INTERVAL: ::Float
@@ -43,8 +55,11 @@ module SolidObjects
       # The counter is snapshotted before subscribing, and re-checked before
       # blocking, so a signal delivered while this caller was still getting
       # ready is observed rather than absorbed into the new baseline.
-      # @rbs (timeout: Numeric) -> bool
-      def wait: (timeout: Numeric) -> bool
+      # @rbs (timeout: Numeric, ?generation: Integer?) -> bool
+      def wait: (timeout: Numeric, ?generation: Integer?) -> bool
+
+      # @rbs () -> Watch
+      def watch: () -> Watch
 
       # Redis delivers to a subscribed connection only, and a subscribed
       # connection cannot serve other callers, so one background subscription

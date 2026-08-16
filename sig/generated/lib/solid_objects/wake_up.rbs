@@ -2,9 +2,23 @@
 
 module SolidObjects
   class WakeUp
+    class Watch
+      @wake_up: WakeUp
+
+      @generation: Integer
+
+      # @rbs (WakeUp, Integer) -> void
+      def initialize: (WakeUp, Integer) -> void
+
+      # @rbs (timeout: Numeric) -> bool
+      def wait: (timeout: Numeric) -> bool
+    end
+
     @mutex: Mutex
 
     @condition: Thread::ConditionVariable
+
+    @generation: Integer
 
     # @rbs () -> void
     def initialize: () -> void
@@ -12,8 +26,11 @@ module SolidObjects
     # @rbs () -> void
     def signal: () -> void
 
-    # @rbs (timeout: Numeric) -> void
-    def wait: (timeout: Numeric) -> void
+    # @rbs () -> Watch
+    def watch: () -> Watch
+
+    # @rbs (timeout: Numeric, ?generation: Integer?) -> bool
+    def wait: (timeout: Numeric, ?generation: Integer?) -> bool
 
     private
 

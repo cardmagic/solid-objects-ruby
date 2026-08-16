@@ -45,6 +45,12 @@ module SolidObjects
         false
       end
 
+      # @rbs () -> self
+      def watch
+        listen
+        self
+      end
+
       # Starts listening before a caller blocks, so a notification sent between
       # startup and the first wait is not missed.
       # @rbs () -> bool

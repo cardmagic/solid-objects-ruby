@@ -23,6 +23,8 @@ module SolidObjects
   class EffectExecutor
     ACTOR_MESSAGE_EFFECT: ::String
 
+    @polling_backoff: PollingBackoff
+
     @shutdown_requested: bool
 
     @stopped: bool
@@ -52,11 +54,16 @@ module SolidObjects
     # @rbs () -> bool
     def shutdown_requested?: () -> bool
 
+    # @rbs () -> Float
+    def current_polling_interval: () -> Float
+
     private
 
     attr_reader process_registry: untyped
 
     attr_reader database_adapter: untyped
+
+    attr_reader polling_backoff: untyped
 
     # @rbs () -> Effect?
     def claim_next: () -> Effect?

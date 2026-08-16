@@ -1014,6 +1014,7 @@ Important defaults:
 | Setting | Default |
 | --- | ---: |
 | `polling_interval` | 0.1 seconds |
+| `idle_polling_interval` | 1 second |
 | `sync_polling_interval` | 0.05 seconds |
 | `lease_duration` | 30 seconds |
 | `lease_renewal_interval` | 10 seconds |
@@ -1037,6 +1038,14 @@ Important defaults:
 Payload, state, and result limits; retry delay; table prefix; logging; wake-up;
 broadcast; database; and authorization adapters are also configurable. Invalid
 lease intervals, component counts, and size limits fail fast at boot.
+
+`polling_interval` is the fast interval after work or a wake-up. Consecutive
+empty passes double it up to `idle_polling_interval`. Actor workers never wait
+longer than `lease_renewal_interval`. Set the fast and idle values equal for a
+fixed cadence. The default wake-up reaches only the current Ruby process;
+configure PostgreSQL notifications or optional Redis Pub/Sub when separate
+processes need low-latency delivery. The runtime warns once when it sees that
+topology without an adapter.
 
 ## Workers and operations
 
@@ -1299,8 +1308,8 @@ Partially implemented:
 
 - the supervisor starts and drains roles but does not replace a crashed role or
   run periodic maintenance automatically;
-- cross-process wake-up uses polling; PostgreSQL notifications and optional
-  Redis acceleration are not implemented;
+- PostgreSQL notifications and optional Redis acceleration are implemented,
+  but adapter selection remains explicit and polling is the durable fallback;
 - live observable and component replacement work, while Turbo append actions
   remain future work;
 - local admission limits exist, but distributed rate limits and global

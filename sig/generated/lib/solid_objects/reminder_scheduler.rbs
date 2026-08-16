@@ -2,6 +2,8 @@
 
 module SolidObjects
   class ReminderScheduler
+    @polling_backoff: PollingBackoff
+
     @shutdown_requested: bool
 
     @stopped: bool
@@ -31,11 +33,16 @@ module SolidObjects
     # @rbs () -> bool
     def shutdown_requested?: () -> bool
 
+    # @rbs () -> Float
+    def current_polling_interval: () -> Float
+
     private
 
     attr_reader process_registry: untyped
 
     attr_reader database_adapter: untyped
+
+    attr_reader polling_backoff: untyped
 
     # @rbs (now: Time?) -> Reminder?
     def claim_next: (now: Time?) -> Reminder?

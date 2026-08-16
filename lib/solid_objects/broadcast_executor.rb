@@ -1,11 +1,14 @@
 # rbs_inline: enabled
 
+require "solid_objects/polling_backoff"
+
 module SolidObjects
   class BroadcastExecutor
     # @rbs @process_registry: ProcessRegistry
     # @rbs @database_adapter: DatabaseAdapter
     # @rbs @stopped: bool
     # @rbs @shutdown_requested: bool
+    # @rbs @polling_backoff: PollingBackoff
 
     # @rbs (?process_registry: ProcessRegistry, ?database_adapter: DatabaseAdapter) -> void
     def initialize(
@@ -17,6 +20,17 @@ module SolidObjects
       process_registry.register(kind: "broadcast")
       @stopped = false
       @shutdown_requested = false
+      @polling_backoff = PollingBackoff.new(
+        minimum_interval: SolidObjects.configuration.polling_interval,
+        maximum_interval: SolidObjects.configuration.idle_polling_interval,
+        on_change: ->(transition) do
+          SolidObjects.instrument(
+            :"polling.interval_changed",
+            role: "broadcasts",
+            **transition
+          )
+        end
+      )
     end
 
     # @rbs () -> bool
@@ -46,11 +60,23 @@ module SolidObjects
 
     # @rbs () -> void
     def run
-      until shutdown_requested?
-        worked = run_once
-        next if worked
+      ProcessRegistry.warn_if_polling_is_only_cross_process_wake_up
 
-        SolidObjects.wake_up.wait(timeout: SolidObjects.configuration.polling_interval)
+      until shutdown_requested?
+        wake_up = SolidObjects.wake_up
+        watch = wake_up.respond_to?(:watch) ? wake_up.watch : wake_up
+        worked = run_once
+        if worked
+          polling_backoff.reset(:work)
+          next
+        end
+
+        notified = watch.wait(timeout: current_polling_interval)
+        if notified == false
+          polling_backoff.record_idle
+        else
+          polling_backoff.reset(:wake_up)
+        end
       end
     ensure
       stop
@@ -72,9 +98,14 @@ module SolidObjects
       @shutdown_requested
     end
 
+    # @rbs () -> Float
+    def current_polling_interval
+      polling_backoff.current_interval
+    end
+
     private
 
-    attr_reader :process_registry, :database_adapter
+    attr_reader :process_registry, :database_adapter, :polling_backoff
 
     # @rbs () -> Broadcast?
     def claim_next

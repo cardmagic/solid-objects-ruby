@@ -69,6 +69,7 @@ Important controls include:
 - `lease_duration`
 - `lease_renewal_interval`
 - `polling_interval`
+- `idle_polling_interval`
 - `max_mailbox_length`
 - payload, state, and result byte limits
 - retry attempts and delay
@@ -80,6 +81,29 @@ Important controls include:
 Keep lease duration comfortably above renewal interval and expected database
 pause time. A handler can exceed the pass-duration budget because Ruby code is
 not safely preempted; alert on message duration and isolate untrusted work.
+
+## Polling and wake-up adapters
+
+`polling_interval` is the fast interval after work or a wake-up. Consecutive
+empty actor, effect, reminder, and broadcast passes double that role's wait up
+to `idle_polling_interval`, which defaults to one second. Actor workers clamp
+the ceiling to `lease_renewal_interval` while they may hold cached activations.
+Set the fast and idle values equal for a fixed cadence.
+
+The default wake-up interrupts waits only in the current Ruby process. When a
+live process record shows that the database is shared across processes and no
+adapter is configured, the runtime logs
+`solid_objects.polling_only_cross_process_wake_up` once. Configure
+`WakeUpAdapters::Postgresql` or `WakeUpAdapters::Redis` when separate processes
+need prompt delivery. Without one, newly committed work can wait up to the
+current idle polling interval.
+
+Each role exposes `current_polling_interval`.
+`solid_objects.polling.interval_changed` reports the role, reason, previous
+interval, and current interval. The polling-only warning is also emitted as
+`solid_objects.polling.only_cross_process_wake_up` instrumentation. Custom
+adapters should return `true` for a notification and `false` for a timeout; an
+older adapter that returns `nil` remains compatible and keeps the fast cadence.
 
 ## Graceful shutdown
 

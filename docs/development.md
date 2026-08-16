@@ -140,6 +140,7 @@ COUNT=500 CONCURRENCY=4 bundle exec ruby -Ilib benchmark/concurrent_actors.rb
 COUNT=100 bundle exec ruby -Ilib benchmark/sync_latency.rb
 COUNT=500 bundle exec ruby -Ilib benchmark/activation_cache.rb
 bundle exec ruby -Ilib benchmark/query_count.rb
+bundle exec ruby -Ilib benchmark/idle_polling.rb
 ```
 
 SQLite is the default. Set `SOLID_OBJECTS_DATABASE_URL` to benchmark a dedicated
