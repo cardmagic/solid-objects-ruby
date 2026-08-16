@@ -48,4 +48,13 @@ class ConfigurationTest < ActiveSupport::TestCase
 
     assert_equal "instance retention must be positive", error.message
   end
+
+  test "rejects a non-positive idle polling interval" do
+    configuration = SolidObjects::Configuration.new
+    configuration.idle_polling_interval = 0
+
+    error = assert_raises(ArgumentError) { configuration.validate! }
+
+    assert_equal "idle_polling_interval must be positive", error.message
+  end
 end

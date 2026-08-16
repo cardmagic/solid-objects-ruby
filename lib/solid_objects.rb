@@ -52,6 +52,7 @@ require "solid_objects/wake_up"
 require "solid_objects/wake_up_adapters/postgresql"
 require "solid_objects/wake_up_adapters/redis"
 require "solid_objects/wake_up_adapters"
+require "solid_objects/polling_backoff"
 require "solid_objects/effect_registry"
 require "solid_objects/commit_action_registry"
 require "solid_objects/lease"
@@ -153,6 +154,7 @@ module SolidObjects
 
     # @rbs () -> void
     def reset!
+      ProcessRegistry.reset_polling_warning! if defined?(ProcessRegistry)
       @configuration = Configuration.new
       @registry = ActorRegistry.new
       @client = nil

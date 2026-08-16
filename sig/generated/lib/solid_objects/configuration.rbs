@@ -2,6 +2,8 @@
 
 module SolidObjects
   class Configuration
+    @table_name_prefix: String
+
     @process_alive_threshold: Float
 
     @shutdown_timeout: Float
@@ -56,9 +58,9 @@ module SolidObjects
 
     @authorize_administration: Proc
 
-    @table_name_prefix: String
-
     @polling_interval: Float
+
+    @idle_polling_interval: Float
 
     @sync_polling_interval: Float
 
@@ -93,6 +95,8 @@ module SolidObjects
     attr_accessor table_name_prefix: untyped
 
     attr_accessor polling_interval: untyped
+
+    attr_accessor idle_polling_interval: untyped
 
     attr_accessor sync_polling_interval: untyped
 

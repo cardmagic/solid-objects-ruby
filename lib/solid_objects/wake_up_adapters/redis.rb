@@ -12,6 +12,22 @@ module SolidObjects
     # polling interval remains the upper bound, so a missed or failed
     # notification costs latency rather than correctness.
     class Redis
+      class Watch
+        # @rbs @adapter: Redis
+        # @rbs @generation: Integer
+
+        # @rbs (Redis, Integer) -> void
+        def initialize(adapter, generation)
+          @adapter = adapter
+          @generation = generation
+        end
+
+        # @rbs (timeout: Numeric) -> bool
+        def wait(timeout:)
+          @adapter.wait(timeout:, generation: @generation)
+        end
+      end
+
       CHANNEL = "solid_objects_wake_up"
       FAILED_WAIT_INTERVAL = 0.05
       SUBSCRIBE_TIMEOUT = 5.0
@@ -52,9 +68,9 @@ module SolidObjects
       # The counter is snapshotted before subscribing, and re-checked before
       # blocking, so a signal delivered while this caller was still getting
       # ready is observed rather than absorbed into the new baseline.
-      # @rbs (timeout: Numeric) -> bool
-      def wait(timeout:)
-        signalled = mutex.synchronize { @signalled }
+      # @rbs (timeout: Numeric, ?generation: Integer?) -> bool
+      def wait(timeout:, generation: nil)
+        signalled = generation || mutex.synchronize { @signalled }
         return paced_failure(timeout) unless listen
 
         mutex.synchronize do
@@ -63,6 +79,12 @@ module SolidObjects
           condition.wait(mutex, timeout.to_f)
           @signalled != signalled
         end
+      end
+
+      # @rbs () -> Watch
+      def watch
+        listen
+        mutex.synchronize { Watch.new(self, @signalled) }
       end
 
       # Redis delivers to a subscribed connection only, and a subscribed

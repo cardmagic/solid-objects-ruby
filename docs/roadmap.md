@@ -83,11 +83,14 @@
   What is not done is making any of them automatic. In-process signaling cannot
   cross process boundaries, so by default a commit in a web process does not
   wake a broadcast executor in a worker process and that delivery waits up to
-  `polling_interval`, 100 ms. An adapter removes that floor, measured at 103.7 ms
-  to 2.9 ms at p50 on PostgreSQL and 103.8 ms to 5.7 ms on Redis, but each stays
-  opt-in for a reason: the PostgreSQL adapter opens a connection per waiting
-  thread outside the pool and `LISTEN` does not survive a transaction-pooling
-  proxy such as PgBouncer, and Redis is not a dependency of this gem.
+  the current adaptive polling interval, up to the one-second
+  `idle_polling_interval` default. The runtime warns once when it observes this
+  topology without an adapter. An adapter removes that floor, measured before
+  adaptive polling at 103.7 ms to 2.9 ms at p50 on PostgreSQL and 103.8 ms to
+  5.7 ms on Redis, but each stays opt-in for a reason: the PostgreSQL adapter
+  opens a connection per waiting thread outside the pool and `LISTEN` does not
+  survive a transaction-pooling proxy such as PgBouncer, and Redis is not a
+  dependency of this gem.
   `WakeUpAdapters.for` selects notifications on PostgreSQL and the in-process
   default elsewhere; it never selects Redis. An application that configures
   nothing keeps polling, and MySQL applications keep polling unless they

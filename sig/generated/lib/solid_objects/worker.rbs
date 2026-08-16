@@ -2,6 +2,8 @@
 
 module SolidObjects
   class Worker
+    @polling_backoff: PollingBackoff
+
     @shutdown_requested: bool
 
     @stopped: bool
@@ -36,6 +38,9 @@ module SolidObjects
     # @rbs () -> bool
     def shutdown_requested?: () -> bool
 
+    # @rbs () -> Float
+    def current_polling_interval: () -> Float
+
     private
 
     attr_reader process_registry: untyped
@@ -43,6 +48,8 @@ module SolidObjects
     attr_reader activation_manager: untyped
 
     attr_reader activations: untyped
+
+    attr_reader polling_backoff: untyped
 
     # @rbs () -> Activation?
     def cached_ready_activation: () -> Activation?

@@ -36,11 +36,20 @@ class PostgresqlWakeUpTest < ActiveSupport::TestCase
     @adapter.listen
     started = monotonic_now
 
-    @adapter.wait(timeout: 0.2)
+    notified = @adapter.wait(timeout: 0.2)
 
     elapsed = monotonic_now - started
+    assert_equal false, notified
     assert_operator elapsed, :>=, 0.15
     assert_operator elapsed, :<, 2.0
+  end
+
+  test "a watch observes a signal delivered before waiting" do
+    watch = @adapter.watch
+
+    signal_from_another_connection
+
+    assert_equal true, watch.wait(timeout: 0.2)
   end
 
   # The supervisor memoizes one adapter and shares it across runtime roles, so
@@ -160,6 +169,7 @@ class PostgresqlWakeUpTest < ActiveSupport::TestCase
   test "the adapter satisfies the wake-up contract" do
     assert_respond_to @adapter, :signal
     assert_respond_to @adapter, :wait
+    assert_respond_to @adapter, :watch
     SolidObjects.configuration.wake_up_adapter = @adapter
 
     assert_same @adapter, SolidObjects.wake_up

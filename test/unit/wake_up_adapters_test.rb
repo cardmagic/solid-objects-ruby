@@ -29,4 +29,19 @@ class WakeUpAdaptersTest < ActiveSupport::TestCase
     assert_respond_to adapter, :signal
     assert_respond_to adapter, :wait
   end
+
+  test "the in-process wake-up distinguishes a timeout from a signal" do
+    adapter = SolidObjects::WakeUp.new
+
+    assert_equal false, adapter.wait(timeout: 0.001)
+  end
+
+  test "the in-process wake-up does not miss a signal sent before waiting" do
+    adapter = SolidObjects::WakeUp.new
+    watch = adapter.watch
+
+    adapter.signal
+
+    assert_equal true, watch.wait(timeout: 1.0)
+  end
 end

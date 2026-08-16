@@ -1,0 +1,29 @@
+# Generated from lib/solid_objects/polling_backoff.rb with RBS::Inline
+
+module SolidObjects
+  class PollingBackoff
+    @minimum_interval: Float
+
+    @maximum_interval: Float
+
+    @current_interval: Float
+
+    @on_change: Proc?
+
+    attr_reader current_interval: untyped
+
+    # @rbs (minimum_interval: Numeric, maximum_interval: Numeric, ?on_change: Proc?) -> void
+    def initialize: (minimum_interval: Numeric, maximum_interval: Numeric, ?on_change: Proc?) -> void
+
+    # @rbs () -> void
+    def record_idle: () -> void
+
+    # @rbs (:work | :wake_up) -> void
+    def reset: (:work | :wake_up) -> void
+
+    private
+
+    # @rbs (Float, :idle | :work | :wake_up) -> void
+    def change: (Float, :idle | :work | :wake_up) -> void
+  end
+end

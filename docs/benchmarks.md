@@ -5,6 +5,44 @@ They include the runtime's Active Record and database query overhead and will
 vary with hardware, schema size, connection pools, durability settings, and
 contention.
 
+## Idle SQLite polling
+
+Run the four-role idle harness with:
+
+```bash
+bundle exec ruby -Ilib benchmark/idle_polling.rb
+```
+
+It warms each interval for three seconds, measures for ten seconds, and reports
+process user plus system CPU time divided by wall time. Measured August 16,
+2026 on an Apple M5 with Ruby 4.0.6 and SQLite 3.53.2. The before run used
+0.13.0; the after run used the prepared 0.13.1 tree.
+
+| Fast interval | Before polls/s | Before CPU | After polls/s | After CPU |
+| ---: | ---: | ---: | ---: | ---: |
+| 20 ms | 165.340 | 8.401% | 3.998 | 0.947% |
+| 100 ms | 38.396 | 2.925% | 3.999 | 0.482% |
+| 500 ms | 7.998 | 2.061% | 3.996 | 0.283% |
+
+The after run reached the one-second ceiling for the actor, effect, reminder,
+and broadcast roles. These are developer-laptop measurements, not a CPU
+guarantee; timer scheduling, YJIT, the SQLite file, and unrelated host activity
+affect short samples.
+
+Five SQLite samples measured durable enqueue through committed completion after
+2.5 seconds of idleness. The polling-only multi-process harness submits just
+after an empty pass, so it measures approximately the full polling wait rather
+than average arrival latency.
+
+| Topology | 0.13.0 p50 | Prepared 0.13.1 p50 |
+| --- | ---: | ---: |
+| One process, in-process wake-up | 43.360 ms | 50.339 ms |
+| Two processes, polling only | 117.787 ms | 1,028.006 ms |
+
+The local wake-up keeps the one-process path prompt after backoff. The
+polling-only row is the explicit tradeoff: use PostgreSQL notifications or
+optional Redis Pub/Sub when separate processes need low-latency delivery.
+
 ## Production-shaped adoption measurement
 
 An adoption evaluation measured Solid Objects 0.2.0 from a macOS Rails process
