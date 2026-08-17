@@ -223,10 +223,10 @@ module SolidObjects
     end
 
     # A reminder is one named alarm per actor, so scheduling a name that is
-    # already armed moves it rather than adding a second. An actor that arms a
-    # reminder per queued item therefore keeps only the last, and nothing else
-    # about that is visible: the write succeeds and the earlier wake-up simply
-    # never happens.
+    # already armed moves it rather than adding a second. Without a key that
+    # name is the operation, so an actor arming a reminder per queued item keeps
+    # only the last; passing schedule a key gives each item its own name and so
+    # its own alarm.
     # Moves are returned rather than reported here, so the report happens after
     # the turn commits. A rolled back turn would otherwise announce an alarm
     # that never moved, which is the opposite of the visibility this event
@@ -239,7 +239,7 @@ module SolidObjects
         reminder.assign_attributes(
           actor_type: instance.actor_type,
           actor_id: instance.actor_id,
-          operation: intent.name,
+          operation: intent.operation,
           arguments: intent.arguments,
           next_run_at: intent.at,
           interval_seconds: intent.interval_seconds,

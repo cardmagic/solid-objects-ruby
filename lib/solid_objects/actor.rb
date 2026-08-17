@@ -4,7 +4,11 @@ module SolidObjects
   class Actor
     EffectIntent = Data.define(:name, :arguments, :success_operation, :failure_operation)
     CommitActionIntent = Data.define(:name, :arguments)
-    ReminderIntent = Data.define(:name, :at, :arguments, :interval_seconds, :missed_policy)
+    # The reminders table holds a name in 191 characters.
+    REMINDER_NAME_LIMIT = 191
+    REMINDER_KEY_SEPARATOR = ":"
+
+    ReminderIntent = Data.define(:name, :operation, :at, :arguments, :interval_seconds, :missed_policy)
     OutboundMessageIntent = Data.define(:actor_type, :actor_id, :operation, :arguments, :available_at, :idempotency_key)
 
     class << self
@@ -197,8 +201,13 @@ module SolidObjects
       nil
     end
 
-    # @rbs (at: Time, ?every: Numeric?, ?missed: Symbol | String) -> OperationDispatcher
-    def schedule(at:, every: nil, missed: :latest)
+    # A reminder is identified by its name, and without a key that name is the
+    # operation, so one actor holds one alarm per operation. A key gives an actor
+    # an alarm per item it is waiting on, which is what an actor holding a queue
+    # of scheduled work needs; the key is the caller's own identifier for the
+    # item, and scheduling the same key again moves that item's alarm.
+    # @rbs (at: Time, ?every: Numeric?, ?missed: Symbol | String, ?key: (String | Symbol | Integer)?) -> OperationDispatcher
+    def schedule(at:, every: nil, missed: :latest, key: nil)
       interval_seconds = every&.to_f
       if interval_seconds && !interval_seconds.positive?
         raise ArgumentError, "reminder interval must be positive"
@@ -207,13 +216,15 @@ module SolidObjects
       unless %w[all latest].include?(missed_policy)
         raise ArgumentError, "missed reminder policy must be all or latest"
       end
+      reminder_key = validated_reminder_key(key)
 
       OperationDispatcher.new(
         actor_type: self.class.actor_type,
         handlers: self.class.definition.messages
       ) do |operation, arguments|
         ReminderIntent.new(
-          name: operation.to_s,
+          name: reminder_name(operation:, key: reminder_key),
+          operation: operation.to_s,
           at:,
           arguments: Serialization.dump(arguments),
           interval_seconds:,
@@ -223,6 +234,45 @@ module SolidObjects
         end
         nil
       end
+    end
+
+    # @rbs ((String | Symbol | Integer)?) -> String?
+    def validated_reminder_key(key)
+      return nil if key.nil?
+
+      reminder_key = key.to_s
+      raise ArgumentError, "reminder key must not be empty" if reminder_key.empty?
+
+      reminder_key
+    end
+
+    # A keyed name is the operation, a colon, and the key, so an operation
+    # holding a colon of its own would make two different schedules produce one
+    # name: an unkeyed "deliver:item" and a "deliver" keyed "item" would share a
+    # row, and the second would silently take the first one's alarm. Refusing a
+    # colon in the operation keeps unkeyed names free of colons, which leaves
+    # the two kinds of name disjoint and lets a key hold colons of its own.
+    #
+    # The length is checked on the composed name rather than the key alone,
+    # because a long operation and a short key can exceed the column just as
+    # easily as the reverse. Both are refused here rather than at the insert,
+    # once the turn is already doing work.
+    # @rbs (operation: Symbol | String, key: String?) -> String
+    def reminder_name(operation:, key:)
+      operation_name = operation.to_s
+      if operation_name.include?(REMINDER_KEY_SEPARATOR)
+        raise ArgumentError,
+          "reminder operation #{operation_name.inspect} must not contain #{REMINDER_KEY_SEPARATOR.inspect}"
+      end
+      return operation_name if key.nil?
+
+      name = "#{operation_name}#{REMINDER_KEY_SEPARATOR}#{key}"
+      if name.length > REMINDER_NAME_LIMIT
+        raise ArgumentError,
+          "reminder name #{name.length} characters exceeds the #{REMINDER_NAME_LIMIT} the database holds"
+      end
+
+      name
     end
 
     # @rbs (Reference, ?available_at: Time?, ?idempotency_key: String?) -> OperationDispatcher

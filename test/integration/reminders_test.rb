@@ -31,6 +31,11 @@ class RemindersTest < ActiveSupport::TestCase
       schedule(at: Time.at(wait_until).utc).deliver
     end
 
+    def add_keyed(item:, wait_until:)
+      self.entries = entries + [ wait_until ]
+      schedule(at: Time.at(wait_until).utc, key: item).deliver
+    end
+
     def arm(name:, wait_until:)
       schedule(at: Time.at(wait_until).utc).public_send(name.to_sym)
     end
@@ -160,6 +165,58 @@ class RemindersTest < ActiveSupport::TestCase
   # name moves the existing alarm rather than adding one. An actor that arms a
   # reminder per queued item therefore keeps only the last, which is silent
   # data loss if the caller expected an alarm each.
+  test "a key gives each queued item its own reminder" do
+    reference = QueueActor.ref("keyed")
+    first = 1.hour.from_now.to_i
+    second = 2.hours.from_now.to_i
+    reference.async.add_keyed(item: "a", wait_until: first)
+    reference.async.add_keyed(item: "b", wait_until: second)
+    SolidObjects::Worker.new.run_until_idle
+
+    reminders = SolidObjects::Reminder.where(actor_type: "reminder-queue").order(:next_run_at)
+    assert_equal 2, reminders.count, "each key is its own alarm"
+    assert_equal [ first, second ], reminders.map { |reminder| reminder.next_run_at.to_i }
+  end
+
+  test "a keyed reminder still runs the operation it was scheduled with" do
+    reference = QueueActor.ref("keyed-operation")
+    reference.async.add_keyed(item: "a", wait_until: 1.hour.from_now.to_i)
+    SolidObjects::Worker.new.run_until_idle
+
+    reminder = SolidObjects::Reminder.where(actor_type: "reminder-queue").sole
+    assert_equal "deliver", reminder.operation
+    assert_equal "deliver:a", reminder.name
+  end
+
+  test "scheduling the same key again moves that item's reminder" do
+    reference = QueueActor.ref("keyed-move")
+    reference.async.add_keyed(item: "a", wait_until: 1.hour.from_now.to_i)
+    moved = 3.hours.from_now.to_i
+    reference.async.add_keyed(item: "a", wait_until: moved)
+    SolidObjects::Worker.new.run_until_idle
+
+    reminders = SolidObjects::Reminder.where(actor_type: "reminder-queue")
+    assert_equal 1, reminders.count, "the same key is the same alarm"
+    assert_equal moved, reminders.sole.next_run_at.to_i
+  end
+
+  test "a keyed reminder delivers to its actor" do
+    reference = QueueActor.ref("keyed-delivery")
+    reference.async.add_keyed(item: "a", wait_until: 2.seconds.ago.to_i)
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    scheduler = SolidObjects::ReminderScheduler.new
+
+    assert scheduler.run_once, "the keyed alarm should have come due"
+    worker.run_until_idle
+
+    state = SolidObjects::Instance.find_by!(actor_type: "reminder-queue", actor_id: "keyed-delivery").state
+    assert_empty state.fetch("entries")
+  ensure
+    scheduler&.stop
+    worker&.stop
+  end
+
   test "a second schedule with the same name moves the existing reminder" do
     reference = QueueActor.ref("table")
     first = 1.hour.from_now.to_i
@@ -228,6 +285,7 @@ class RemindersTest < ActiveSupport::TestCase
     )
     intent = SolidObjects::Actor::ReminderIntent.new(
       name: "deliver",
+      operation: "deliver",
       at: 1.hour.from_now,
       arguments: {},
       interval_seconds: nil,
@@ -235,6 +293,7 @@ class RemindersTest < ActiveSupport::TestCase
     )
     later = SolidObjects::Actor::ReminderIntent.new(
       name: "deliver",
+      operation: "deliver",
       at: 2.hours.from_now,
       arguments: {},
       interval_seconds: nil,

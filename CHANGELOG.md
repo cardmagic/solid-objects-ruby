@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Accept a `key:` on `schedule`, naming a reminder for the item it is waiting
+  on rather than for its operation, so one actor can hold an alarm per queued
+  item. Scheduling the same key again moves that item's alarm and leaves the
+  others alone. Without a key the name is still the operation, so existing
+  reminders keep their names and their coalescing behaviour. A reminder
+  operation may no longer hold the colon that separates a key, which keeps
+  keyed and unkeyed names disjoint, and the length is checked on the composed
+  name rather than the key alone.
+
 ## 0.13.2 - 2026-08-16
 
 - Add an authorized `SolidObjects.administration.processes` query for

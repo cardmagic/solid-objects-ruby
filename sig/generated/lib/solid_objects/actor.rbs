@@ -32,8 +32,15 @@ module SolidObjects
       def members: () -> [ :name, :arguments ]
     end
 
+    # The reminders table holds a name in 191 characters.
+    REMINDER_NAME_LIMIT: ::Integer
+
+    REMINDER_KEY_SEPARATOR: ::String
+
     class ReminderIntent < Data
       attr_reader name(): untyped
+
+      attr_reader operation(): untyped
 
       attr_reader at(): untyped
 
@@ -43,12 +50,12 @@ module SolidObjects
 
       attr_reader missed_policy(): untyped
 
-      def self.new: (untyped name, untyped at, untyped arguments, untyped interval_seconds, untyped missed_policy) -> instance
-                  | (name: untyped, at: untyped, arguments: untyped, interval_seconds: untyped, missed_policy: untyped) -> instance
+      def self.new: (untyped name, untyped operation, untyped at, untyped arguments, untyped interval_seconds, untyped missed_policy) -> instance
+                  | (name: untyped, operation: untyped, at: untyped, arguments: untyped, interval_seconds: untyped, missed_policy: untyped) -> instance
 
-      def self.members: () -> [ :name, :at, :arguments, :interval_seconds, :missed_policy ]
+      def self.members: () -> [ :name, :operation, :at, :arguments, :interval_seconds, :missed_policy ]
 
-      def members: () -> [ :name, :at, :arguments, :interval_seconds, :missed_policy ]
+      def members: () -> [ :name, :operation, :at, :arguments, :interval_seconds, :missed_policy ]
     end
 
     class OutboundMessageIntent < Data
@@ -157,8 +164,30 @@ module SolidObjects
     # @rbs (Symbol | String, **untyped) -> nil
     def commit_action: (Symbol | String, **untyped) -> nil
 
-    # @rbs (at: Time, ?every: Numeric?, ?missed: Symbol | String) -> OperationDispatcher
-    def schedule: (at: Time, ?every: Numeric?, ?missed: Symbol | String) -> OperationDispatcher
+    # A reminder is identified by its name, and without a key that name is the
+    # operation, so one actor holds one alarm per operation. A key gives an actor
+    # an alarm per item it is waiting on, which is what an actor holding a queue
+    # of scheduled work needs; the key is the caller's own identifier for the
+    # item, and scheduling the same key again moves that item's alarm.
+    # @rbs (at: Time, ?every: Numeric?, ?missed: Symbol | String, ?key: (String | Symbol | Integer)?) -> OperationDispatcher
+    def schedule: (at: Time, ?every: Numeric?, ?missed: Symbol | String, ?key: (String | Symbol | Integer)?) -> OperationDispatcher
+
+    # @rbs ((String | Symbol | Integer)?) -> String?
+    def validated_reminder_key: ((String | Symbol | Integer)?) -> String?
+
+    # A keyed name is the operation, a colon, and the key, so an operation
+    # holding a colon of its own would make two different schedules produce one
+    # name: an unkeyed "deliver:item" and a "deliver" keyed "item" would share a
+    # row, and the second would silently take the first one's alarm. Refusing a
+    # colon in the operation keeps unkeyed names free of colons, which leaves
+    # the two kinds of name disjoint and lets a key hold colons of its own.
+    #
+    # The length is checked on the composed name rather than the key alone,
+    # because a long operation and a short key can exceed the column just as
+    # easily as the reverse. Both are refused here rather than at the insert,
+    # once the turn is already doing work.
+    # @rbs (operation: Symbol | String, key: String?) -> String
+    def reminder_name: (operation: Symbol | String, key: String?) -> String
 
     # @rbs (Reference, ?available_at: Time?, ?idempotency_key: String?) -> OperationDispatcher
     def send_to: (Reference, ?available_at: Time?, ?idempotency_key: String?) -> OperationDispatcher
