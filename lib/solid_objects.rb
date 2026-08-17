@@ -31,6 +31,7 @@ require "solid_objects/dead_letter_manager"
 require "solid_objects/message_pruner"
 require "solid_objects/instance_pruner"
 require "solid_objects/process_pruner"
+require "solid_objects/administration"
 require "solid_objects/stream_name"
 require "solid_objects/dom_identity"
 require "solid_objects/stream_token"
@@ -137,6 +138,11 @@ module SolidObjects
       @dead_letters ||= DeadLetterManager.new
     end
 
+    # @rbs () -> Administration
+    def administration
+      @administration ||= Administration.new
+    end
+
     # @rbs (String | Symbol) -> String
     def table_name(name)
       "#{configuration.table_name_prefix}#{name}"
@@ -164,6 +170,7 @@ module SolidObjects
       @effect_registry = EffectRegistry.new
       @commit_action_registry = CommitActionRegistry.new
       @dead_letters = nil
+      @administration = nil
     end
 
     # @rbs () -> DatabaseAdapter

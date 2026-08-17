@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.2 - 2026-08-16
+
+- Add an authorized `SolidObjects.administration.processes` query for
+  inspecting live and stale process rows through the runtime database adapter.
+- Document rolling-deployment overlap as a reason for the polling-only warning.
+
 ## 0.13.1 - 2026-08-16
 
 - Back idle actor, effect, reminder, and broadcast polling off exponentially

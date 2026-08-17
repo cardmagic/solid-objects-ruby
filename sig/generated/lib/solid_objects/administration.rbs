@@ -1,0 +1,13 @@
+# Generated from lib/solid_objects/administration.rb with RBS::Inline
+
+module SolidObjects
+  class Administration
+    # @rbs (?authorization_context: untyped) -> Array[Hash[Symbol, untyped]]
+    def processes: (?authorization_context: untyped) -> Array[Hash[Symbol, untyped]]
+
+    private
+
+    # @rbs (?authorization_context: untyped) -> void
+    def authorize!: (?authorization_context: untyped) -> void
+  end
+end

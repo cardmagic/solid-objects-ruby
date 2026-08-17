@@ -251,6 +251,24 @@ class PollingTest < ActiveSupport::TestCase
     workers&.each(&:stop)
   end
 
+  test "does not warn when all observed processes share the current Ruby process" do
+    logger = RecordingLogger.new
+    SolidObjects.configuration.logger = logger
+    SolidObjects::Process.create!(
+      id: SecureRandom.uuid,
+      kind: "worker",
+      hostname: Socket.gethostname,
+      pid: ::Process.pid,
+      started_at: Time.current,
+      last_heartbeat_at: Time.current,
+      metadata: {}
+    )
+
+    SolidObjects::ProcessRegistry.warn_if_polling_is_only_cross_process_wake_up
+
+    assert_empty logger.warnings
+  end
+
   test "does not warn when a cross-process wake-up adapter is configured" do
     logger = RecordingLogger.new
     SolidObjects.configuration.logger = logger
