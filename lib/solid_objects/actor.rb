@@ -4,9 +4,9 @@ module SolidObjects
   class Actor
     EffectIntent = Data.define(:name, :arguments, :success_operation, :failure_operation)
     CommitActionIntent = Data.define(:name, :arguments)
-    # The reminders table holds a name in 191 characters, and a name is an
-    # operation, a colon, and a key.
-    REMINDER_KEY_LIMIT = 128
+    # The reminders table holds a name in 191 characters.
+    REMINDER_NAME_LIMIT = 191
+    REMINDER_KEY_SEPARATOR = ":"
 
     ReminderIntent = Data.define(:name, :operation, :at, :arguments, :interval_seconds, :missed_policy)
     OutboundMessageIntent = Data.define(:actor_type, :actor_id, :operation, :arguments, :available_at, :idempotency_key)
@@ -223,7 +223,7 @@ module SolidObjects
         handlers: self.class.definition.messages
       ) do |operation, arguments|
         ReminderIntent.new(
-          name: reminder_key ? "#{operation}:#{reminder_key}" : operation.to_s,
+          name: reminder_name(operation:, key: reminder_key),
           operation: operation.to_s,
           at:,
           arguments: Serialization.dump(arguments),
@@ -236,22 +236,43 @@ module SolidObjects
       end
     end
 
-    # The key becomes part of the reminder name, which the database holds in 191
-    # characters alongside the operation, so it is bounded here rather than
-    # failing on the insert once the turn is already doing work.
     # @rbs ((String | Symbol | Integer)?) -> String?
     def validated_reminder_key(key)
       return nil if key.nil?
 
       reminder_key = key.to_s
-      if reminder_key.empty?
-        raise ArgumentError, "reminder key must not be empty"
-      end
-      if reminder_key.length > REMINDER_KEY_LIMIT
-        raise ArgumentError, "reminder key must be at most #{REMINDER_KEY_LIMIT} characters"
-      end
+      raise ArgumentError, "reminder key must not be empty" if reminder_key.empty?
 
       reminder_key
+    end
+
+    # A keyed name is the operation, a colon, and the key, so an operation
+    # holding a colon of its own would make two different schedules produce one
+    # name: an unkeyed "deliver:item" and a "deliver" keyed "item" would share a
+    # row, and the second would silently take the first one's alarm. Refusing a
+    # colon in the operation keeps unkeyed names free of colons, which leaves
+    # the two kinds of name disjoint and lets a key hold colons of its own.
+    #
+    # The length is checked on the composed name rather than the key alone,
+    # because a long operation and a short key can exceed the column just as
+    # easily as the reverse. Both are refused here rather than at the insert,
+    # once the turn is already doing work.
+    # @rbs (operation: Symbol | String, key: String?) -> String
+    def reminder_name(operation:, key:)
+      operation_name = operation.to_s
+      if operation_name.include?(REMINDER_KEY_SEPARATOR)
+        raise ArgumentError,
+          "reminder operation #{operation_name.inspect} must not contain #{REMINDER_KEY_SEPARATOR.inspect}"
+      end
+      return operation_name if key.nil?
+
+      name = "#{operation_name}#{REMINDER_KEY_SEPARATOR}#{key}"
+      if name.length > REMINDER_NAME_LIMIT
+        raise ArgumentError,
+          "reminder name #{name.length} characters exceeds the #{REMINDER_NAME_LIMIT} the database holds"
+      end
+
+      name
     end
 
     # @rbs (Reference, ?available_at: Time?, ?idempotency_key: String?) -> OperationDispatcher

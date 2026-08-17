@@ -922,8 +922,14 @@ item's alarm and leaves the others alone, which is what makes a keyed reminder
 as safe to re-arm as an unkeyed one. The operation still decides which handler
 runs; the key only decides which alarm is which.
 
-A key must be non-empty and at most 128 characters, because the name it becomes
-shares a 191-character column with the operation.
+A key must be non-empty, and the name it becomes must fit the 191-character
+column, which is checked on the composed name rather than the key alone so a
+long operation and a short key are caught too.
+
+The key is separated from the operation by a colon, so an operation may not hold
+one. Otherwise an unkeyed `deliver:item` and a `deliver` keyed `item` would be
+one name, and the second would silently take the first one's alarm. A key may
+hold colons of its own, because the operation before the first one cannot.
 
 ### One alarm for a whole queue
 

@@ -69,6 +69,28 @@ class ActorTest < ActiveSupport::TestCase
     assert CartActor.definition.queries.key?(:items)
   end
 
+  class ColonOperationActor < SolidObjects::Actor
+    actor_type "test-colon-operation"
+
+    message("fire:item") { nil }
+
+    def arm
+      schedule(at: Time.now.utc + 60).public_send(:"fire:item")
+    end
+  end
+
+  class LongOperationActor < SolidObjects::Actor
+    actor_type "test-long-operation"
+
+    LONG_OPERATION = ("o" * 100).freeze
+
+    message(LONG_OPERATION) { nil }
+
+    def arm(key:)
+      schedule(at: Time.now.utc + 60, key:).public_send(LONG_OPERATION.to_sym)
+    end
+  end
+
   class KeyedReminderActor < SolidObjects::Actor
     actor_type "test-keyed-reminders"
 
@@ -104,10 +126,36 @@ class ActorTest < ActiveSupport::TestCase
     assert_raises(ArgumentError) { actor.invoke("arm", { "key" => "" }) }
   end
 
-  test "a reminder key too long for the name column is refused" do
+  test "a composed reminder name too long for the column is refused" do
     actor = keyed_reminder_actor
 
     assert_raises(ArgumentError) { actor.invoke("arm", { "key" => "k" * 200 }) }
+  end
+
+  # An unkeyed "fire:item" and a "fire" keyed "item" would otherwise be one name.
+  test "a reminder operation holding the key separator is refused" do
+    actor = SolidObjects::State.new(ColonOperationActor.definition.state_definition).then do |state|
+      ColonOperationActor.new(actor_id: "unit", state:)
+    end
+
+    assert_raises(ArgumentError) { actor.invoke("arm", {}) }
+  end
+
+  test "a key may hold the separator, since the operation may not" do
+    actor = keyed_reminder_actor
+    actor.invoke("arm", { "key" => "group:7" })
+    intent = actor.drain_reminder_intents.sole
+
+    assert_equal "fire:group:7", intent.name
+    assert_equal "fire", intent.operation
+  end
+
+  test "a long operation with a short key is refused when together they overflow" do
+    actor = SolidObjects::State.new(LongOperationActor.definition.state_definition).then do |state|
+      LongOperationActor.new(actor_id: "unit", state:)
+    end
+
+    assert_raises(ArgumentError) { actor.invoke("arm", { "key" => "k" * 120 }) }
   end
 
   test "reads and writes attributes through actor methods" do

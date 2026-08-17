@@ -32,9 +32,10 @@ module SolidObjects
       def members: () -> [ :name, :arguments ]
     end
 
-    # The reminders table holds a name in 191 characters, and a name is an
-    # operation, a colon, and a key.
-    REMINDER_KEY_LIMIT: ::Integer
+    # The reminders table holds a name in 191 characters.
+    REMINDER_NAME_LIMIT: ::Integer
+
+    REMINDER_KEY_SEPARATOR: ::String
 
     class ReminderIntent < Data
       attr_reader name(): untyped
@@ -171,11 +172,22 @@ module SolidObjects
     # @rbs (at: Time, ?every: Numeric?, ?missed: Symbol | String, ?key: (String | Symbol | Integer)?) -> OperationDispatcher
     def schedule: (at: Time, ?every: Numeric?, ?missed: Symbol | String, ?key: (String | Symbol | Integer)?) -> OperationDispatcher
 
-    # The key becomes part of the reminder name, which the database holds in 191
-    # characters alongside the operation, so it is bounded here rather than
-    # failing on the insert once the turn is already doing work.
     # @rbs ((String | Symbol | Integer)?) -> String?
     def validated_reminder_key: ((String | Symbol | Integer)?) -> String?
+
+    # A keyed name is the operation, a colon, and the key, so an operation
+    # holding a colon of its own would make two different schedules produce one
+    # name: an unkeyed "deliver:item" and a "deliver" keyed "item" would share a
+    # row, and the second would silently take the first one's alarm. Refusing a
+    # colon in the operation keeps unkeyed names free of colons, which leaves
+    # the two kinds of name disjoint and lets a key hold colons of its own.
+    #
+    # The length is checked on the composed name rather than the key alone,
+    # because a long operation and a short key can exceed the column just as
+    # easily as the reverse. Both are refused here rather than at the insert,
+    # once the turn is already doing work.
+    # @rbs (operation: Symbol | String, key: String?) -> String
+    def reminder_name: (operation: Symbol | String, key: String?) -> String
 
     # @rbs (Reference, ?available_at: Time?, ?idempotency_key: String?) -> OperationDispatcher
     def send_to: (Reference, ?available_at: Time?, ?idempotency_key: String?) -> OperationDispatcher
