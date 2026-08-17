@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/cardmagic/solid_objects/actions/workflows/ci.yml/badge.svg)](https://github.com/cardmagic/solid_objects/actions/workflows/ci.yml)
 
-**Cloudflare Durable Objects, ported to Rails.**
+**Self-hosted, distributed Durable Objects in Rails without a daemon using your existing SQL database.**
 
 Solid Objects brings the Durable Objects programming model—addressable objects,
 durable state, serialized turns, alarms, and live clients—to ordinary Rails
