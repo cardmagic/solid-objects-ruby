@@ -4,7 +4,11 @@ module SolidObjects
   class Actor
     EffectIntent = Data.define(:name, :arguments, :success_operation, :failure_operation)
     CommitActionIntent = Data.define(:name, :arguments)
-    ReminderIntent = Data.define(:name, :at, :arguments, :interval_seconds, :missed_policy)
+    # The reminders table holds a name in 191 characters, and a name is an
+    # operation, a colon, and a key.
+    REMINDER_KEY_LIMIT = 128
+
+    ReminderIntent = Data.define(:name, :operation, :at, :arguments, :interval_seconds, :missed_policy)
     OutboundMessageIntent = Data.define(:actor_type, :actor_id, :operation, :arguments, :available_at, :idempotency_key)
 
     class << self
@@ -197,8 +201,13 @@ module SolidObjects
       nil
     end
 
-    # @rbs (at: Time, ?every: Numeric?, ?missed: Symbol | String) -> OperationDispatcher
-    def schedule(at:, every: nil, missed: :latest)
+    # A reminder is identified by its name, and without a key that name is the
+    # operation, so one actor holds one alarm per operation. A key gives an actor
+    # an alarm per item it is waiting on, which is what an actor holding a queue
+    # of scheduled work needs; the key is the caller's own identifier for the
+    # item, and scheduling the same key again moves that item's alarm.
+    # @rbs (at: Time, ?every: Numeric?, ?missed: Symbol | String, ?key: (String | Symbol | Integer)?) -> OperationDispatcher
+    def schedule(at:, every: nil, missed: :latest, key: nil)
       interval_seconds = every&.to_f
       if interval_seconds && !interval_seconds.positive?
         raise ArgumentError, "reminder interval must be positive"
@@ -207,13 +216,15 @@ module SolidObjects
       unless %w[all latest].include?(missed_policy)
         raise ArgumentError, "missed reminder policy must be all or latest"
       end
+      reminder_key = validated_reminder_key(key)
 
       OperationDispatcher.new(
         actor_type: self.class.actor_type,
         handlers: self.class.definition.messages
       ) do |operation, arguments|
         ReminderIntent.new(
-          name: operation.to_s,
+          name: reminder_key ? "#{operation}:#{reminder_key}" : operation.to_s,
+          operation: operation.to_s,
           at:,
           arguments: Serialization.dump(arguments),
           interval_seconds:,
@@ -223,6 +234,24 @@ module SolidObjects
         end
         nil
       end
+    end
+
+    # The key becomes part of the reminder name, which the database holds in 191
+    # characters alongside the operation, so it is bounded here rather than
+    # failing on the insert once the turn is already doing work.
+    # @rbs ((String | Symbol | Integer)?) -> String?
+    def validated_reminder_key(key)
+      return nil if key.nil?
+
+      reminder_key = key.to_s
+      if reminder_key.empty?
+        raise ArgumentError, "reminder key must not be empty"
+      end
+      if reminder_key.length > REMINDER_KEY_LIMIT
+        raise ArgumentError, "reminder key must be at most #{REMINDER_KEY_LIMIT} characters"
+      end
+
+      reminder_key
     end
 
     # @rbs (Reference, ?available_at: Time?, ?idempotency_key: String?) -> OperationDispatcher

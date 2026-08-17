@@ -69,6 +69,47 @@ class ActorTest < ActiveSupport::TestCase
     assert CartActor.definition.queries.key?(:items)
   end
 
+  class KeyedReminderActor < SolidObjects::Actor
+    actor_type "test-keyed-reminders"
+
+    def arm(key:)
+      schedule(at: Time.now.utc + 60, key:).fire
+    end
+
+    def fire
+    end
+  end
+
+  test "a key gives a reminder its own name while keeping the operation" do
+    actor = keyed_reminder_actor
+    actor.invoke("arm", { "key" => "item-7" })
+    intent = actor.drain_reminder_intents.sole
+
+    assert_equal "fire:item-7", intent.name
+    assert_equal "fire", intent.operation
+  end
+
+  test "a reminder without a key is named for its operation" do
+    actor = keyed_reminder_actor
+    actor.invoke("arm", { "key" => nil })
+    intent = actor.drain_reminder_intents.sole
+
+    assert_equal "fire", intent.name
+    assert_equal "fire", intent.operation
+  end
+
+  test "an empty reminder key is refused" do
+    actor = keyed_reminder_actor
+
+    assert_raises(ArgumentError) { actor.invoke("arm", { "key" => "" }) }
+  end
+
+  test "a reminder key too long for the name column is refused" do
+    actor = keyed_reminder_actor
+
+    assert_raises(ArgumentError) { actor.invoke("arm", { "key" => "k" * 200 }) }
+  end
+
   test "reads and writes attributes through actor methods" do
     actor = SolidObjects::State.new(CounterActor.definition.state_definition).then do |state|
       CounterActor.new(actor_id: "global", state:)
@@ -178,6 +219,14 @@ class ActorTest < ActiveSupport::TestCase
   def build_actor(actor_id = "alice")
     SolidObjects::State.new(CartActor.definition.state_definition).then do |state|
       CartActor.new(actor_id:, state:)
+    end
+  end
+
+  private
+
+  def keyed_reminder_actor
+    SolidObjects::State.new(KeyedReminderActor.definition.state_definition).then do |state|
+      KeyedReminderActor.new(actor_id: "unit", state:)
     end
   end
 end

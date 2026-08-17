@@ -891,7 +891,7 @@ database enforces this with a unique index on `(instance_id, name)`.
 
 This is the same model as Orleans reminders and Durable Objects alarms, and it
 is what makes a reminder safe to re-arm from a handler that may run more than
-once. It also means this is a data-loss bug:
+once. Without a key the name is the operation, so this is a data-loss bug:
 
 ```ruby
 # Wrong. Every entry overwrites the previous entry's alarm.
@@ -904,8 +904,32 @@ end
 Two entries leave one reminder. The earlier wake-up never happens, nothing
 raises, and nothing is logged except a `solid_objects.reminder.replaced` event.
 
-Arm one alarm for the earliest item instead, and let the handler drain
-everything now due before arming the next:
+### An alarm per item, with `key:`
+
+Pass `key:` when an actor is waiting on several things at once. The key is your
+own identifier for the item, and it names that item's alarm, so each item gets
+one:
+
+```ruby
+def add(entry:)
+  self.entries = entries + [ entry ]
+  schedule(at: entry.fetch("wait_until"), key: entry.fetch("id")).deliver
+end
+```
+
+Two entries now leave two reminders. Scheduling the same key again moves that
+item's alarm and leaves the others alone, which is what makes a keyed reminder
+as safe to re-arm as an unkeyed one. The operation still decides which handler
+runs; the key only decides which alarm is which.
+
+A key must be non-empty and at most 128 characters, because the name it becomes
+shares a 191-character column with the operation.
+
+### One alarm for a whole queue
+
+A key per item is not always what you want. An actor that only ever needs to
+know "what is next" can keep one alarm and let the handler drain everything now
+due before arming the next:
 
 ```ruby
 def add(entry:)
@@ -931,10 +955,10 @@ def arm_next
 end
 ```
 
-`deliver` drains every due item rather than one, so a single alarm serves a
-whole queue and a missed or coalesced occurrence cannot strand an entry. Use a
-distinct reminder name only when you genuinely need two independent alarms on
-one actor, such as `:deliver` and `:sweep`.
+That costs one reminder row instead of one per item, and a coalesced occurrence
+cannot strand an entry because the handler drains by time rather than by alarm.
+Prefer it when the queue is large and the items are interchangeable; prefer
+`key:` when an item needs its own alarm that can be moved on its own.
 
 Solid Objects has no `unschedule`. A reminder stops when its handler does not
 re-arm it, and destroying an actor removes its reminders.
