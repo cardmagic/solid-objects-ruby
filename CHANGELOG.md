@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.13.3 - 2026-08-18
 
 - Stop loading `ActiveRecord::Base` when the gem is required. The engine now
   loads `SolidObjects::Record` from an `ActiveSupport.on_load(:active_record)`
