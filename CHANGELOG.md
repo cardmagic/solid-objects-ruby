@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.13.3 - 2026-08-18
+
+- Stop loading `ActiveRecord::Base` when the gem is required. The engine now
+  loads `SolidObjects::Record` from an `ActiveSupport.on_load(:active_record)`
+  hook, so a host application keeps the normal timing of its own
+  `on_load(:active_record)` and `on_load(:active_record_encryption)` hooks. An
+  application that assigns its Active Record encryption keys in
+  `config/initializers` no longer loses them.
+- Apply the configured `connects_to` in the record class body, so the
+  connection follows the class through a development reload.
+
 ## 0.13.2 - 2026-08-17
 
 - Accept a `key:` on `schedule`, naming a reminder for the item it is waiting

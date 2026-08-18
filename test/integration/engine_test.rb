@@ -28,6 +28,20 @@ class EngineTest < ActiveSupport::TestCase
     assert_equal "/solid_objects/components", output.strip
   end
 
+  # The configuration arrives in `config/initializers`, and the record class
+  # reads it when it loads, which is after those files run.
+  test "connects the record class to the configured database" do
+    command = [
+      Gem.ruby,
+      File.expand_path("../dummy/connects_to_check.rb", __dir__)
+    ]
+
+    output, error_output, status = Open3.capture3(*command)
+
+    assert status.success?, error_output
+    assert_equal "ActiveRecord::Base SolidObjects::Record", output.strip
+  end
+
   test "packages the morph refresh browser module" do
     specification = Gem::Specification.load(
       File.expand_path("../../solid_objects.gemspec", __dir__)
