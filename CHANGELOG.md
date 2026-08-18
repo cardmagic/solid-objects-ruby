@@ -10,6 +10,13 @@
   `config/initializers` no longer loses them.
 - Apply the configured `connects_to` in the record class body, so the
   connection follows the class through a development reload.
+- Lower the supported Rails floor from 8.0 to 7.1. The gem dependencies, the
+  bundled migrations, and the compatibility CI matrix now cover Rails 7.1, 7.2,
+  8.0, and 8.1. The migrations declare `ActiveRecord::Migration[7.1]`, which
+  builds the same schema as `[8.0]` because the compatibility layer between the
+  two only changes `remove_foreign_key`, which no Solid Objects migration calls.
+  Rails 7.0 stays out of range: its SQLite adapter requires `sqlite3 ~> 1.4`,
+  and the busy-handler control this gem needs arrived in `sqlite3` 2.x.
 
 ## 0.13.2 - 2026-08-17
 

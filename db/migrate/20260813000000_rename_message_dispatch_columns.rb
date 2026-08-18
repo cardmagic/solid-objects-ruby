@@ -1,6 +1,6 @@
 # rbs_inline: enabled
 
-class RenameMessageDispatchColumns < ActiveRecord::Migration[8.0]
+class RenameMessageDispatchColumns < ActiveRecord::Migration[7.1]
   # @rbs () -> void
   def up
     remove_check_constraint messages_table, name: "chk_so_messages_kind"

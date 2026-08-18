@@ -35,16 +35,16 @@ Gem::Specification.new do |spec|
   spec.executables = [ "solid_objects" ]
   spec.require_paths = [ "lib" ]
 
-  spec.add_dependency "actioncable", ">= 8.0"
-  spec.add_dependency "actionpack", ">= 8.0"
-  spec.add_dependency "actionview", ">= 8.0"
-  spec.add_dependency "activerecord", ">= 8.0"
-  spec.add_dependency "activesupport", ">= 8.0"
+  spec.add_dependency "actioncable", ">= 7.1"
+  spec.add_dependency "actionpack", ">= 7.1"
+  spec.add_dependency "actionview", ">= 7.1"
+  spec.add_dependency "activerecord", ">= 7.1"
+  spec.add_dependency "activesupport", ">= 7.1"
   # The operator dashboard is a Rack application. Rack arrives with Action Pack
   # in every supported Rails version; the floor is stated because the dashboard
   # writes lowercase response headers, which Rack 3 requires.
   spec.add_dependency "rack", ">= 3.1"
-  spec.add_dependency "railties", ">= 8.0"
+  spec.add_dependency "railties", ">= 7.1"
   spec.add_dependency "thor", ">= 1.3"
 
   spec.add_development_dependency "benchmark"

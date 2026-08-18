@@ -3,7 +3,7 @@
 ## Requirements
 
 - Ruby 3.3 or newer
-- Rails 8.0 or newer
+- Rails 7.1 or newer
 - SQLite 3.35+, PostgreSQL 14+, and MySQL 8.0/InnoDB for the full matrix
 
 Install dependencies:
