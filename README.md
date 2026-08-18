@@ -341,7 +341,8 @@ mount SolidObjects::Engine => "/solid_objects"
 
 ## Installation
 
-Solid Objects requires Ruby 3.3 or newer and Rails 8.0 or newer.
+Solid Objects requires Ruby 3.3 or newer and Rails 7.1 or newer. CI runs the
+suite against Rails 7.1, 7.2, 8.0, and 8.1.
 
 Add the gem, install its initializer and migration, then migrate:
 

@@ -74,7 +74,10 @@ class EnqueueLockRetryTest < ActiveSupport::TestCase
     reference = CartActor.ref("alice")
     lock = hold_write_lock
 
-    error = assert_raises(ActiveRecord::StatementTimeout) do
+    # Rails 8 maps an exhausted SQLite busy handler to StatementTimeout, and
+    # Rails 7.1 and 7.2 leave it as the StatementInvalid that timeout subclasses.
+    # The message is what the caller relies on, so it carries the assertion.
+    error = assert_raises(ActiveRecord::StatementInvalid) do
       Timeout.timeout(20) do
         SolidObjects::Record.connection_pool.with_connection do |connection|
           suspend_sqlite_busy_wait(connection) do

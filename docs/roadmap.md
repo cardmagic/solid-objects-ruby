@@ -66,8 +66,12 @@
 - Inline RBS generation/validation, Steep, Standard Ruby, Solid Queue's exact
   RuboCop policy, and a warning-free Brakeman scan
 - Compatibility CI across the supported span: Ruby 3.3, 3.4, and 4.0 against
-  Rails 8.0 and 8.1, pinned through `RAILS_VERSION` so the advertised range is
-  verified rather than assumed
+  Rails 7.1, 7.2, 8.0, and 8.1, pinned through `RAILS_VERSION` so the advertised
+  range is verified rather than assumed. The compatibility job runs SQLite only;
+  the PostgreSQL and MySQL jobs run on the newest Rails, so adapter behavior on
+  Rails 7.1 and 7.2 is unmeasured against those servers. Rails 7.0 is out of
+  range because its SQLite adapter requires `sqlite3 ~> 1.4`, and this gem needs
+  the busy-handler control that arrived in `sqlite3` 2.x
 - A JavaScript suite covering every browser module, run in CI with Node's test
   runner and jsdom, plus a browser suite running the same modules against real
   Chromium and a real Turbo build, with every GitHub Actions reference pinned to

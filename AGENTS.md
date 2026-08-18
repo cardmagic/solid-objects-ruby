@@ -16,7 +16,7 @@ Use dedicated, empty databases for adapter tests and benchmarks.
 
 ## Coding Style & Naming Conventions
 
-Target Ruby 3.3+ and Rails 8+. Use two-space indentation and let Standard Ruby plus the Solid Queue-derived RuboCop policy decide formatting. Prefer descriptive `snake_case` methods and variables, `CamelCase` constants, early returns, and keyword shorthand such as `Message.new(actor_id:)`. Avoid boolean parameters and abbreviations.
+Target Ruby 3.3+ and Rails 7.1+. Use two-space indentation and let Standard Ruby plus the Solid Queue-derived RuboCop policy decide formatting. Prefer descriptive `snake_case` methods and variables, `CamelCase` constants, early returns, and keyword shorthand such as `Message.new(actor_id:)`. Avoid boolean parameters and abbreviations.
 
 Every owned Ruby file must enable inline RBS with `# rbs_inline: enabled`; annotate methods and instance variables using `# @rbs`. Keep database behavior portable across SQLite, PostgreSQL, and MySQL. Model queue state through table membership rather than partial indexes.
 

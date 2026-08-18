@@ -1,6 +1,6 @@
 # rbs_inline: enabled
 
-class CreateSolidObjectsTables < ActiveRecord::Migration[8.0]
+class CreateSolidObjectsTables < ActiveRecord::Migration[7.1]
   # @rbs () -> void
   def change
     create_processes
