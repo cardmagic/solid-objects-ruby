@@ -2,6 +2,8 @@
 
 module SolidObjects
   class Engine < ::Rails::Engine
+    RECORD_PATH: untyped
+
     include SolidObjects::ActorHelper
   end
 end

@@ -1,9 +1,9 @@
 # rbs_inline: enabled
 
-require_relative "../../app/models/solid_objects/record"
-
 module SolidObjects
   class Engine < ::Rails::Engine
+    RECORD_PATH = File.expand_path("../../app/models/solid_objects/record.rb", __dir__)
+
     isolate_namespace SolidObjects
 
     config.generators do |generators|
@@ -16,7 +16,9 @@ module SolidObjects
     end
 
     initializer "solid_objects.database", after: :load_config_initializers do
-      SolidObjects::Record.configure_connection
+      ActiveSupport.on_load(:active_record) do
+        require RECORD_PATH
+      end
     end
 
     initializer "solid_objects.helpers" do

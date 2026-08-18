@@ -13,5 +13,7 @@ module SolidObjects
         connects_to(**connection_configuration)
       end
     end
+
+    configure_connection
   end
 end
