@@ -4,10 +4,10 @@
 
 **Self-hosted, distributed Durable Objects in Rails without a daemon using your existing SQL database.**
 
-Solid Objects brings the Durable Objects programming model—addressable objects,
-durable state, serialized turns, alarms, and live clients—to ordinary Rails
-applications. It runs on the MySQL, PostgreSQL, or SQLite database the
-application already has, following the database-backed operating model of the
+Solid Objects ports the Durable Objects programming model to ordinary Rails
+applications: addressable objects, durable state, serialized turns, alarms,
+and live clients. It runs on the MySQL, PostgreSQL, or SQLite database that
+the application already has, in the database-backed operating model of the
 Solid family. No Redis, Cloudflare account, or separate actor service is
 required.
 
@@ -113,7 +113,7 @@ maps those ideas into Rails:
 | Storage deletion | Authorized `reference.destroy` |
 | Cloudflare Workers platform | Your Rails processes and SQL database |
 
-Rails already has excellent tools for jobs, records, and realtime transport.
+Rails already has tools for jobs, records, and realtime transport.
 None of those primitives alone provides this complete stateful-object shape.
 Solid Objects adds five capabilities:
 
@@ -1273,7 +1273,7 @@ for staged cutovers.
 | --- | --- |
 | Cloudflare Durable Objects | Solid Objects ports the named, stateful, serialized-object model to Ruby and Rails. It uses your SQL database and Rails workers rather than Cloudflare's globally distributed serverless runtime, placement, and storage APIs. |
 | Active Job | Jobs are independent work units. Solid Objects adds addressable identity, durable state, explicit per-identity order, activation leases, and fencing. |
-| Solid Queue | Solid Queue is an excellent database backend for Active Job. Its concurrency controls cap overlap but do not guarantee order. Solid Objects provides actor mailboxes, state, fencing, per-identity reminders, and state-driven views. |
+| Solid Queue | Solid Queue is a database backend for Active Job. Its concurrency controls cap overlap but do not guarantee order. Solid Objects provides actor mailboxes, state, fencing, per-identity reminders, and state-driven views. |
 | Action Cable | Cable transports transient realtime messages. Solid Objects owns durable state and work; Cable is an optional delivery path for committed observable projections. |
 | Orleans | Orleans provides the virtual-actor lineage behind the model, with grains, reminders, and activation lifecycle. Solid Objects is a smaller Rails-native runtime and does not match Orleans clustering or placement breadth. |
 | Active Record service object | A service object runs directly against records. Solid Objects adds durable asynchronous ordering, retries, activation fencing, reminders, and outboxes at greater operational cost. |

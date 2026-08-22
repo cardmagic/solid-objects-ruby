@@ -47,6 +47,6 @@ A safe destructive rollout normally uses:
 Never update actor JSON in a bulk SQL migration. Use actor messages so fencing,
 ordering, observables, and outboxes remain intact.
 
-This guide covers evolution after state belongs to Solid Objects. For moving
+This guide covers changes to state that Solid Objects already owns. To move
 existing Redis, key-value, or relational state into actors without downtime,
 use the [legacy-state migration cookbook](migrating-existing-state.md).

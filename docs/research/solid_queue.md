@@ -526,8 +526,8 @@ Source: [Cloudflare Durable Objects overview](https://developers.cloudflare.com/
 - Solid Queue findings are tied to v1.6.0. Earlier releases did not have all current async/fiber supervision and concurrency finalization behavior.
 - PostgreSQL documentation inspected was current PostgreSQL 18 documentation. `SKIP LOCKED` has existed since PostgreSQL 9.5, but Solid Objects supports PostgreSQL 14 and newer.
 - MySQL documentation inspected was MySQL 8.4. Solid Objects supports MySQL 8.0 and newer with InnoDB.
-- SQLite documentation inspected covers current SQLite behavior. Solid Objects requires SQLite 3.35 or newer for modern DML support.
-- Rails documentation and source inspected cover Rails 8.1. Solid Objects requires Rails 8.0 or newer because Rails 8 changed the SQLite adapter's default write transaction from deferred to immediate, which the SQLite coordination contract relies on.
+- SQLite documentation inspected covers current SQLite behavior. Solid Objects supports SQLite 3.35 or newer, the oldest server version the adapter accepts.
+- Rails documentation and source inspected cover Rails 8.1. Solid Objects requires Rails 7.1 or newer. Rails 8 changed the SQLite adapter's default write transaction from deferred to immediate, and the test suite also passes on Rails 7.1 and 7.2 with the deferred default. Rails 7.0 stays out of range because its SQLite adapter requires sqlite3 1.4, and the busy-handler control this gem depends on arrived in sqlite3 2.x.
 - Orleans documentation describes current Orleans behavior, not a compatibility promise for this Ruby implementation.
 - `LISTEN/NOTIFY` and Action Cable are optimizations and delivery channels, never durable truth.
 - A separate actor database is compatible only when all rows participating in an atomic actor commit, including message, state, effects, and broadcasts, live in that same actor database.
