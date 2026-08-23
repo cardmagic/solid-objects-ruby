@@ -179,6 +179,46 @@ class TransmitStagingTest < ActiveSupport::TestCase
     assert_equal({ "count" => 3, "applied" => [ 1, 2 ] }, mirror_state)
   end
 
+  test "concurrent executors preserve order and dedup overlapping drains" do
+    first_delivery_started = Queue.new
+    release_first_delivery = Queue.new
+    stall_next_delivery = true
+    stall_mutex = Mutex.new
+    SolidObjects.register_transmit do |envelope|
+      should_stall = stall_mutex.synchronize do
+        stalling = stall_next_delivery
+        stall_next_delivery = false
+        stalling
+      end
+      if should_stall
+        first_delivery_started << true
+        release_first_delivery.pop
+      end
+      deliver_to_mirror(envelope)
+    end
+    reference = CounterActor.ref("alice")
+    reference.async.increment(amount: 1)
+    reference.async.increment(amount: 2)
+    worker.run_until_idle
+    executor_a = SolidObjects::EffectExecutor.new
+    executor_b = SolidObjects::EffectExecutor.new
+
+    stalled_claim = Thread.new { executor_a.run_once }
+    Timeout.timeout(5) { first_delivery_started.pop }
+    assert executor_b.run_once
+    release_first_delivery << true
+    assert stalled_claim.value
+
+    worker.run_until_idle
+    assert_equal({ "count" => 3, "applied" => [ 1, 2 ] }, mirror_state)
+    assert_equal %w[completed completed], SolidObjects::Effect.order(:id).pluck(:status)
+  ensure
+    release_first_delivery << true
+    stalled_claim&.join(2)
+    executor_a&.stop
+    executor_b&.stop
+  end
+
   test "recovers in order after an offline period" do
     online = false
     SolidObjects.register_transmit do |envelope|
