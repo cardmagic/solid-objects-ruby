@@ -1,0 +1,89 @@
+{
+  "description": "Golden transmit envelopes shared by solid_objects and solid-objects-js. The JS bridge must produce and accept these; SolidObjects::Transmission.receive must accept the valid ones, apply the duplicate pair once, and reject the malformed ones.",
+  "valid": [
+    {
+      "name": "increment with arguments",
+      "envelope": {
+        "effectId": "fixture-effect-0001",
+        "actorType": "transmit-counters",
+        "actorId": "fixture-counter",
+        "operation": "increment",
+        "arguments": { "amount": 2 }
+      },
+      "idempotencyKey": "transmit:fixture-effect-0001"
+    },
+    {
+      "name": "increment without arguments",
+      "envelope": {
+        "effectId": "fixture-effect-0002",
+        "actorType": "transmit-counters",
+        "actorId": "fixture-counter",
+        "operation": "increment"
+      },
+      "idempotencyKey": "transmit:fixture-effect-0002"
+    }
+  ],
+  "duplicatePair": [
+    {
+      "effectId": "fixture-effect-0003",
+      "actorType": "transmit-counters",
+      "actorId": "fixture-counter",
+      "operation": "increment",
+      "arguments": { "amount": 1 }
+    },
+    {
+      "effectId": "fixture-effect-0003",
+      "actorType": "transmit-counters",
+      "actorId": "fixture-counter",
+      "operation": "increment",
+      "arguments": { "amount": 1 }
+    }
+  ],
+  "malformed": [
+    {
+      "name": "missing effectId",
+      "envelope": {
+        "actorType": "transmit-counters",
+        "actorId": "fixture-counter",
+        "operation": "increment"
+      }
+    },
+    {
+      "name": "empty actorId",
+      "envelope": {
+        "effectId": "fixture-effect-0004",
+        "actorType": "transmit-counters",
+        "actorId": "",
+        "operation": "increment"
+      }
+    },
+    {
+      "name": "snake_case keys",
+      "envelope": {
+        "effect_id": "fixture-effect-0005",
+        "actor_type": "transmit-counters",
+        "actor_id": "fixture-counter",
+        "operation": "increment"
+      }
+    },
+    {
+      "name": "non-string operation",
+      "envelope": {
+        "effectId": "fixture-effect-0006",
+        "actorType": "transmit-counters",
+        "actorId": "fixture-counter",
+        "operation": 7
+      }
+    },
+    {
+      "name": "arguments not an object",
+      "envelope": {
+        "effectId": "fixture-effect-0007",
+        "actorType": "transmit-counters",
+        "actorId": "fixture-counter",
+        "operation": "increment",
+        "arguments": [ 1 ]
+      }
+    }
+  ]
+}

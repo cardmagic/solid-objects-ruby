@@ -72,6 +72,13 @@
   Rails 7.1 and 7.2 is unmeasured against those servers. Rails 7.0 is out of
   range because its SQLite adapter requires `sqlite3 ~> 1.4`, and this gem needs
   the busy-handler control that arrived in `sqlite3` 2.x
+- `SolidObjects::Transmission.receive`, the server ingest for browser
+  transmit envelopes from solid-objects-js: envelope validation, actor type
+  resolution with a per-call `resolve_actor_type:` escape hatch, and an
+  internal idempotent enqueue keyed `transmit:<effectId>`, with the wire
+  contract pinned by golden fixtures in
+  `compatibility/transmit-envelopes.json`. Ingest only; the staging side in
+  Ruby and an engine-mounted route are not implemented
 - A JavaScript suite covering every browser module, run in CI with Node's test
   runner and jsdom, plus a browser suite running the same modules against real
   Chromium and a real Turbo build, with every GitHub Actions reference pinned to

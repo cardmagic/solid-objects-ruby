@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- Add `SolidObjects::Transmission.receive(envelope)`, the server ingest for
+  the browser transmit family in solid-objects-js. It validates a camelCase
+  transmit envelope, resolves the actor type through an optional
+  `resolve_actor_type:` proc, and enqueues one internal message with the
+  idempotency key `transmit:<effectId>`, so a replayed envelope applies
+  once. Malformed envelopes raise the new
+  `SolidObjects::InvalidTransmission`. Internal delivery skips
+  `authorize_message`, so the host application must authenticate the
+  request before it calls `receive`; see `docs/transmission.md` for the
+  controller boundary. Golden fixtures in
+  `compatibility/transmit-envelopes.json` pin the wire contract shared with
+  the JS runtime.
+
 ## 0.13.3 - 2026-08-18
 
 - Stop loading `ActiveRecord::Base` when the gem is required. The engine now

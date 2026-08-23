@@ -1,0 +1,15 @@
+# Generated from lib/solid_objects/transmission.rb with RBS::Inline
+
+module SolidObjects
+  module Transmission
+    REQUIRED_FIELDS: untyped
+
+    IDEMPOTENCY_PREFIX: ::String
+
+    # @rbs (untyped envelope, ?resolve_actor_type: ^(String) -> (String | Symbol), ?mailbox: Mailbox) -> MessageReference
+    def self.receive: (untyped envelope, ?resolve_actor_type: ^(String) -> (String | Symbol), ?mailbox: Mailbox) -> MessageReference
+
+    # @rbs (untyped) -> void
+    private def self.validate!: (untyped) -> void
+  end
+end
