@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.14.0 - 2026-08-22
 
 - Add `SolidObjects::Transmission.receive(envelope)`, the server ingest for
   the browser transmit family in solid-objects-js. It validates a camelCase
