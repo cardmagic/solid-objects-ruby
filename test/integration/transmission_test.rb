@@ -86,6 +86,23 @@ class TransmissionTest < ActiveSupport::TestCase
     assert_equal "transmit-counters", SolidObjects::Message.sole.actor_type
   end
 
+  test "loads application actors on a registry miss before failing" do
+    loaded = false
+    loader = -> do
+      loaded = true
+      SolidObjects.register_actor("lazy-counters", CounterActor)
+      true
+    end
+
+    SolidObjects::Transmission.receive(
+      valid_envelope("actorType" => "lazy-counters"),
+      actor_loader: loader
+    )
+
+    assert loaded
+    assert_equal "lazy-counters", SolidObjects::Message.sole.actor_type
+  end
+
   test "rejects an unknown actor type" do
     assert_raises(SolidObjects::UnknownActorType) do
       SolidObjects::Transmission.receive(valid_envelope("actorType" => "missing"))

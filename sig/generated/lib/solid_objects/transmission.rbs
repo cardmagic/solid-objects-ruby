@@ -10,11 +10,17 @@ module SolidObjects
 
     UNDELIVERED_STATUSES: untyped
 
-    # @rbs (untyped envelope, ?resolve_actor_type: ^(String) -> (String | Symbol), ?mailbox: Mailbox) -> MessageReference
-    def self.receive: (untyped envelope, ?resolve_actor_type: ^(String) -> (String | Symbol), ?mailbox: Mailbox) -> MessageReference
+    # @rbs (untyped envelope, ?resolve_actor_type: ^(String) -> (String | Symbol), ?mailbox: Mailbox, ?actor_loader: ^() -> bool) -> MessageReference
+    def self.receive: (untyped envelope, ?resolve_actor_type: ^(String) -> (String | Symbol), ?mailbox: Mailbox, ?actor_loader: ^() -> bool) -> MessageReference
 
     # @rbs (effect_name: String, arguments: Hash[String, untyped], context: EffectContext, deliver: Proc) -> nil
     def self.deliver_through: (effect_name: String, arguments: Hash[String, untyped], context: EffectContext, deliver: Proc) -> nil
+
+    # @rbs (String, ^() -> bool) -> Class
+    private def self.fetch_actor_class: (String, ^() -> bool) -> Class
+
+    # @rbs () -> bool
+    private def self.load_application_actors: () -> bool
 
     # @rbs (Hash[String, untyped], effect_id: String, actor_type: String, actor_id: String) -> Hash[String, untyped]
     private def self.staged_envelope: (Hash[String, untyped], effect_id: String, actor_type: String, actor_id: String) -> Hash[String, untyped]

@@ -60,6 +60,27 @@ delivers every undelivered sibling for its actor up to its own mailbox
 sequence, oldest first. The receiving side dedups on `transmit:<effectId>`,
 so a redelivered envelope applies once.
 
+## Retry budget and offline tolerance
+
+A raised delivery follows the effect retry policy: `max_attempts` (default
+5) and `retry_delay` (default `2 ** (attempt - 1)` seconds, capped at 60).
+The defaults give roughly fifteen seconds of offline tolerance before an
+envelope dead-letters. An application that transmits across real outages
+must raise both:
+
+```ruby
+SolidObjects.configure do |configuration|
+  configuration.max_attempts = 30
+  configuration.retry_delay = ->(attempt) { [ 2**(attempt - 1), 300 ].min.to_f }
+end
+```
+
+These settings apply to every effect, not only transmits. A dead transmit
+effect has no retry API; the dashboard lists it, and recovery means
+returning its row to `pending` with a cleared `attempt_count`. Order
+survives that recovery, because the drain orders by mailbox sequence, not
+by retry time.
+
 ## Wire contract
 
 The JS side owns the envelope format. The Ruby ingest accepts it verbatim.
@@ -78,9 +99,12 @@ run a consuming test against the same fixture file.
 
 1. It validates the envelope shape. A malformed envelope raises
    `SolidObjects::InvalidTransmission`.
-2. It resolves the actor type and looks it up in the registry. An unknown
-   type raises `SolidObjects::UnknownActorType`. An undeclared operation
-   raises `SolidObjects::UnknownMessage`.
+2. It resolves the actor type and looks it up in the registry. On a miss
+   under Rails it loads the application's actor classes once and retries,
+   because a lazy-loading process has no other reason to have loaded the
+   target class. A type that is still unknown raises
+   `SolidObjects::UnknownActorType`. An undeclared operation raises
+   `SolidObjects::UnknownMessage`.
 3. It enqueues one internal message with the idempotency key
    `transmit:<effectId>`. Oversized arguments raise
    `SolidObjects::PayloadTooLarge` before persistence.
@@ -105,7 +129,8 @@ class TransmitController < ApplicationController
     SolidObjects::Transmission.receive(JSON.parse(request.body.read))
     head :ok
   rescue SolidObjects::InvalidTransmission, SolidObjects::UnknownActorType,
-    SolidObjects::UnknownMessage, SolidObjects::PayloadTooLarge, JSON::ParserError
+    SolidObjects::UnknownMessage, SolidObjects::PayloadTooLarge,
+    SolidObjects::IdempotencyConflict, JSON::ParserError
     head :unprocessable_entity
   end
 end
@@ -114,6 +139,9 @@ end
 Return 422 for an envelope the server can never apply. The browser outbox
 dead-letters that effect instead of retrying it forever. Return a 5xx for a
 transient server fault, so the browser retries with backoff.
+`SolidObjects::IdempotencyConflict` belongs in the 422 list: it means the
+effect id was replayed with a different invocation, and no retry can ever
+make that envelope apply.
 
 ## Actor type mapping
 

@@ -11,9 +11,11 @@
   `SolidObjects::InvalidTransmission`. Internal delivery skips
   `authorize_message`, so the host application must authenticate the
   request before it calls `receive`; see `docs/transmission.md` for the
-  controller boundary. Golden fixtures in
-  `compatibility/transmit-envelopes.json` pin the wire contract shared with
-  the JS runtime.
+  controller boundary. On a registry miss under Rails, `receive` loads the
+  application's actor classes once and retries, because a lazy-loading web
+  process has no other reason to have loaded the target class. Golden
+  fixtures in `compatibility/transmit-envelopes.json` pin the wire contract
+  shared with the JS runtime.
 - Add `Actor#transmit` and `SolidObjects.register_transmit`, the staging
   side of the transmit family. `transmit.increment(amount:)` stages a
   `solid-objects.transmit` effect in the same commit as the state change;

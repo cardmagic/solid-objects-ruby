@@ -140,7 +140,10 @@
   of who pressed what, and bulk-safe tools: retry is one dead letter at a time,
   because `DeadLetterManager` exposes no bulk operation. Pause is an operator
   brake and not a stop, since a pass already in flight finishes its turn and a
-  synchronous caller waiting on a paused instance times out. The page cost was
+  synchronous caller waiting on a paused instance times out. Retry also only
+  exists for message dead letters: a dead effect or broadcast has no retry
+  API, which matters for transmit effects because a dead one is a lost
+  replay until an operator returns its row to pending. The page cost was
   reasoned about rather than measured: the summary bar issues a fixed set of
   indexed aggregate queries per page, which is why `HEAD /` exists for uptime
   monitors, but no dashboard latency has been benchmarked against a large

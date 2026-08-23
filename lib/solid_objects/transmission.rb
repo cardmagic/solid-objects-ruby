@@ -8,12 +8,12 @@ module SolidObjects
     UNDELIVERED_STATUSES = %w[pending processing].freeze
 
     class << self
-      # @rbs (untyped envelope, ?resolve_actor_type: ^(String) -> (String | Symbol), ?mailbox: Mailbox) -> MessageReference
-      def receive(envelope, resolve_actor_type: :itself.to_proc, mailbox: Mailbox.new)
+      # @rbs (untyped envelope, ?resolve_actor_type: ^(String) -> (String | Symbol), ?mailbox: Mailbox, ?actor_loader: ^() -> bool) -> MessageReference
+      def receive(envelope, resolve_actor_type: :itself.to_proc, mailbox: Mailbox.new, actor_loader: method(:load_application_actors))
         validate!(envelope)
 
         actor_type = resolve_actor_type.call(envelope["actorType"]).to_s
-        actor_class = SolidObjects.registry.fetch(actor_type)
+        actor_class = fetch_actor_class(actor_type, actor_loader)
         operation = envelope["operation"].to_sym
         unless actor_class.definition.messages.key?(operation)
           raise UnknownMessage, "unknown operation #{envelope["operation"].inspect}"
@@ -43,6 +43,23 @@ module SolidObjects
       end
 
       private
+
+      # @rbs (String, ^() -> bool) -> Class
+      def fetch_actor_class(actor_type, actor_loader)
+        SolidObjects.registry.fetch(actor_type)
+      rescue UnknownActorType
+        raise unless actor_loader.call
+
+        SolidObjects.registry.fetch(actor_type)
+      end
+
+      # @rbs () -> bool
+      def load_application_actors
+        return false unless defined?(Rails.application) && Rails.application
+
+        ApplicationActorLoader.new.call
+        true
+      end
 
       # @rbs (Hash[String, untyped], effect_id: String, actor_type: String, actor_id: String) -> Hash[String, untyped]
       def staged_envelope(arguments, effect_id:, actor_type:, actor_id:)

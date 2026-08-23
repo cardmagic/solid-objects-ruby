@@ -63,6 +63,7 @@ require "solid_objects/lease_renewer"
 # was reachable only through the caller path, so requiring the gem was not
 # enough to run a role that uses it.
 require "solid_objects/mailbox"
+require "solid_objects/application_actor_loader"
 require "solid_objects/transmission"
 require "solid_objects/worker"
 require "solid_objects/effect_executor"
