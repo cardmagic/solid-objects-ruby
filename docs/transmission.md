@@ -60,6 +60,15 @@ delivers every undelivered sibling for its actor up to its own mailbox
 sequence, oldest first. The receiving side dedups on `transmit:<effectId>`,
 so a redelivered envelope applies once.
 
+Delivery is at-least-once by design, and the drain accepts redundant sends
+as the price of ordering without cross-worker coordination. A drained
+sibling's own effect row stays pending, because completing it would
+require taking over another worker's claim; when its own claim runs, it
+delivers again and the receiving side drops the replay. The same is true
+when two workers claim effects for one actor concurrently. Both runtimes
+share this behavior, and the Ruby suite pins it with a race test: order
+holds, duplicates apply nothing, and every effect completes.
+
 ## Retry budget and offline tolerance
 
 A raised delivery follows the effect retry policy: `max_attempts` (default
