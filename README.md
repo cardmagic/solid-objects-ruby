@@ -1,6 +1,6 @@
 # Solid Objects
 
-[![CI](https://github.com/cardmagic/solid_objects/actions/workflows/ci.yml/badge.svg)](https://github.com/cardmagic/solid_objects/actions/workflows/ci.yml)
+[![CI](https://github.com/cardmagic/solid-objects-ruby/actions/workflows/ci.yml/badge.svg)](https://github.com/cardmagic/solid-objects-ruby/actions/workflows/ci.yml)
 
 **Self-hosted, distributed Durable Objects in Rails without a daemon using your existing SQL database.**
 

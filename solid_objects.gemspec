@@ -3,7 +3,7 @@
 require_relative "lib/solid_objects/version"
 
 Gem::Specification.new do |spec|
-  repository_url = "https://github.com/cardmagic/solid_objects"
+  repository_url = "https://github.com/cardmagic/solid-objects-ruby"
 
   spec.name = "solid_objects"
   spec.version = SolidObjects::VERSION

@@ -37,7 +37,7 @@ SolidObjects.configure do |configuration|
   #
   # Prefer policies that bind actor_type and actor_id to a trusted
   # authorization_context. See:
-  # https://github.com/cardmagic/solid_objects/blob/main/docs/authorization.md
+  # https://github.com/cardmagic/solid-objects-ruby/blob/main/docs/authorization.md
   # and run:
   #
   #   bin/rails solid_objects:doctor
