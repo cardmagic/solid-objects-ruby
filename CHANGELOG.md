@@ -14,6 +14,16 @@
   controller boundary. Golden fixtures in
   `compatibility/transmit-envelopes.json` pin the wire contract shared with
   the JS runtime.
+- Add `Actor#transmit` and `SolidObjects.register_transmit`, the staging
+  side of the transmit family. `transmit.increment(amount:)` stages a
+  `solid-objects.transmit` effect in the same commit as the state change;
+  `register_transmit` drains staged effects into camelCase envelopes and
+  hands each to the delivery block, which raises to retry. A claimed
+  transmit effect delivers every undelivered sibling for its actor up to
+  its own mailbox sequence, oldest first, so per-actor order survives a
+  failed delivery, and the receiving side dedups on `transmit:<effectId>`.
+  A raw `emit "solid-objects.transmit"` with explicit `actorType` and
+  `actorId` targets a different actor, matching the JS staging surface.
 
 ## 0.13.3 - 2026-08-18
 

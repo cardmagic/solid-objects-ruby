@@ -161,6 +161,9 @@ module SolidObjects
     # @rbs (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> nil
     def emit: (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> nil
 
+    # @rbs () -> OperationDispatcher
+    def transmit: () -> OperationDispatcher
+
     # @rbs (Symbol | String, **untyped) -> nil
     def commit_action: (Symbol | String, **untyped) -> nil
 

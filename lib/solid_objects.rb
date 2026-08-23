@@ -101,6 +101,20 @@ module SolidObjects
       effect_registry.register(name, handler)
     end
 
+    # @rbs (?effect_name: String | Symbol) { (Hash[String, untyped]) -> untyped } -> Proc
+    def register_transmit(effect_name: Transmission::EFFECT_NAME, &deliver)
+      raise ArgumentError, "register_transmit requires a delivery block" unless deliver
+
+      register_effect(effect_name) do |arguments, context|
+        Transmission.deliver_through(
+          effect_name: effect_name.to_s,
+          arguments:,
+          context:,
+          deliver:
+        )
+      end
+    end
+
     # @rbs () -> CommitActionRegistry
     def commit_action_registry
       @commit_action_registry ||= CommitActionRegistry.new

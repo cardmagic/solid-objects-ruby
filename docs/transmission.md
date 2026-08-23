@@ -1,14 +1,64 @@
-# Transmit ingest
+# The transmit family
 
-`SolidObjects::Transmission.receive(envelope)` is the server side of the
-browser transmit family in
-[solid-objects-js](https://github.com/cardmagic/solid-objects-js). A
-solid-objects-js actor in a browser stages a transmit intent with
-`this.transmit().increment({ amount })` in the same transaction as its state
-change. The browser's effect worker drains that outbox with at-least-once
-delivery, per-actor order, and retry backoff. It posts one JSON envelope per
-effect to a route the host application owns. `Transmission.receive` replays
-that envelope onto a server actor.
+The transmit family replays one runtime's actor operations onto another
+runtime over a shared wire contract. The Ruby gem holds both sides:
+
+- `Actor#transmit` and `SolidObjects.register_transmit` stage and deliver
+  envelopes. This is the sending side.
+- `SolidObjects::Transmission.receive(envelope)` ingests envelopes. This is
+  the receiving side.
+
+[solid-objects-js](https://github.com/cardmagic/solid-objects-js) holds the
+same two sides for the browser and Node. A browser actor stages a transmit
+intent with `this.transmit().increment({ amount })` in the same transaction
+as its state change; its effect worker drains that outbox with
+at-least-once delivery, per-actor order, and retry backoff, and posts one
+JSON envelope per effect to a route the host application owns. A Rails
+actor does the same with `transmit.increment(amount:)`. Either ingest
+accepts either sender, so Rails-to-Rails, Rails-to-Node, Node-to-Rails,
+and browser-to-Rails replication all ride one contract.
+
+## The sending side
+
+```ruby
+class Counter < SolidObjects::Actor
+  actor_type "counters"
+
+  attribute :count, default: 0
+
+  def increment(amount: 1)
+    self.count += amount
+    transmit.increment(amount:)
+  end
+end
+
+SolidObjects.register_transmit do |envelope|
+  DeliverToUpstream.call(envelope)
+end
+```
+
+`transmit` returns the same fluent dispatcher `schedule` returns. It stages
+one `solid-objects.transmit` effect in the same commit as the state change,
+targeting the same operation on the same actor in the receiving runtime. For
+a different target, stage the effect directly:
+
+```ruby
+emit "solid-objects.transmit",
+  operation: "increment",
+  arguments: { amount: 2 },
+  actorType: "other-counters",
+  actorId: "counter-1"
+```
+
+`SolidObjects.register_transmit(&deliver)` registers the drain handler for
+that effect. The block receives one camelCase envelope per staged effect.
+Raise inside the block while the upstream is unreachable; the effect
+retries with backoff and dead-letters on exhaustion, like any other effect.
+
+The drain keeps per-actor order across failures: a claimed transmit effect
+delivers every undelivered sibling for its actor up to its own mailbox
+sequence, oldest first. The receiving side dedups on `transmit:<effectId>`,
+so a redelivered envelope applies once.
 
 ## Wire contract
 
@@ -79,7 +129,6 @@ SolidObjects::Transmission.receive(
 
 ## Scope
 
-`receive` is ingest only. The staging side in Ruby, an `actor.transmit` for
-Ruby-to-Ruby replication, is a separate feature. An engine-mounted route
-with an authentication hook is a possible follow-up; it stays out because
-it carries authentication, CSRF, and rate-limit decisions of its own.
+An engine-mounted route with an authentication hook is a possible
+follow-up; it stays out because it carries authentication, CSRF, and
+rate-limit decisions of its own.

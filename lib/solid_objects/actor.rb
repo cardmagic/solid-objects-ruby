@@ -190,6 +190,17 @@ module SolidObjects
       nil
     end
 
+    # @rbs () -> OperationDispatcher
+    def transmit
+      OperationDispatcher.new(
+        actor_type: self.class.actor_type,
+        handlers: self.class.definition.messages
+      ) do |operation, arguments|
+        emit(Transmission::EFFECT_NAME, operation: operation.to_s, arguments:)
+        nil
+      end
+    end
+
     # @rbs (Symbol | String, **untyped) -> nil
     def commit_action(name, **arguments)
       CommitActionIntent.new(

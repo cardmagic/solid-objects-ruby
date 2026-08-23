@@ -18,6 +18,9 @@ module SolidObjects
   # @rbs (String | Symbol) { (Hash[String, untyped], EffectContext) -> untyped } -> Proc
   def self.register_effect: (String | Symbol) { (Hash[String, untyped], EffectContext) -> untyped } -> Proc
 
+  # @rbs (?effect_name: String | Symbol) { (Hash[String, untyped]) -> untyped } -> Proc
+  def self.register_transmit: (?effect_name: String | Symbol) { (Hash[String, untyped]) -> untyped } -> Proc
+
   # @rbs () -> CommitActionRegistry
   def self.commit_action_registry: () -> CommitActionRegistry
 

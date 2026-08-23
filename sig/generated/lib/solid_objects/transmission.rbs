@@ -6,8 +6,21 @@ module SolidObjects
 
     IDEMPOTENCY_PREFIX: ::String
 
+    EFFECT_NAME: ::String
+
+    UNDELIVERED_STATUSES: untyped
+
     # @rbs (untyped envelope, ?resolve_actor_type: ^(String) -> (String | Symbol), ?mailbox: Mailbox) -> MessageReference
     def self.receive: (untyped envelope, ?resolve_actor_type: ^(String) -> (String | Symbol), ?mailbox: Mailbox) -> MessageReference
+
+    # @rbs (effect_name: String, arguments: Hash[String, untyped], context: EffectContext, deliver: Proc) -> nil
+    def self.deliver_through: (effect_name: String, arguments: Hash[String, untyped], context: EffectContext, deliver: Proc) -> nil
+
+    # @rbs (Hash[String, untyped], effect_id: String, actor_type: String, actor_id: String) -> Hash[String, untyped]
+    private def self.staged_envelope: (Hash[String, untyped], effect_id: String, actor_type: String, actor_id: String) -> Hash[String, untyped]
+
+    # @rbs (effect_name: String, context: EffectContext) -> Array[Hash[String, untyped]]
+    private def self.undelivered_envelopes_through: (effect_name: String, context: EffectContext) -> Array[Hash[String, untyped]]
 
     # @rbs (untyped) -> void
     private def self.validate!: (untyped) -> void
