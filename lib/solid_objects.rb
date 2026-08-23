@@ -63,6 +63,8 @@ require "solid_objects/lease_renewer"
 # was reachable only through the caller path, so requiring the gem was not
 # enough to run a role that uses it.
 require "solid_objects/mailbox"
+require "solid_objects/application_actor_loader"
+require "solid_objects/transmission"
 require "solid_objects/worker"
 require "solid_objects/effect_executor"
 require "solid_objects/reminder_scheduler"
@@ -98,6 +100,20 @@ module SolidObjects
     # @rbs (String | Symbol) { (Hash[String, untyped], EffectContext) -> untyped } -> Proc
     def register_effect(name, &handler)
       effect_registry.register(name, handler)
+    end
+
+    # @rbs (?effect_name: String | Symbol) { (Hash[String, untyped]) -> untyped } -> Proc
+    def register_transmit(effect_name: Transmission::EFFECT_NAME, &deliver)
+      raise ArgumentError, "register_transmit requires a delivery block" unless deliver
+
+      register_effect(effect_name) do |arguments, context|
+        Transmission.deliver_through(
+          effect_name: effect_name.to_s,
+          arguments:,
+          context:,
+          deliver:
+        )
+      end
     end
 
     # @rbs () -> CommitActionRegistry

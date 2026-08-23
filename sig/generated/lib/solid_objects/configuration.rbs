@@ -4,8 +4,6 @@ module SolidObjects
   class Configuration
     @table_name_prefix: String
 
-    @process_alive_threshold: Float
-
     @shutdown_timeout: Float
 
     @supervisor_monitor_interval: Float
@@ -58,6 +56,10 @@ module SolidObjects
 
     @authorize_administration: Proc
 
+    @authorize_transmission: Proc
+
+    @transmission_actor_type_resolver: Proc
+
     @polling_interval: Float
 
     @idle_polling_interval: Float
@@ -91,6 +93,8 @@ module SolidObjects
     @lock_retry_attempts: Integer
 
     @process_heartbeat_interval: Float
+
+    @process_alive_threshold: Float
 
     attr_accessor table_name_prefix: untyped
 
@@ -181,6 +185,10 @@ module SolidObjects
     attr_accessor authorize_subscription: untyped
 
     attr_accessor authorize_administration: untyped
+
+    attr_accessor authorize_transmission: untyped
+
+    attr_accessor transmission_actor_type_resolver: untyped
 
     # @rbs @additional_components: Array[untyped]
     attr_reader additional_components: untyped

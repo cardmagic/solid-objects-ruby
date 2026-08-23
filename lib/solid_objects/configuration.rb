@@ -47,6 +47,8 @@ module SolidObjects
     # @rbs @authorize_destroy: Proc
     # @rbs @authorize_subscription: Proc
     # @rbs @authorize_administration: Proc
+    # @rbs @authorize_transmission: Proc
+    # @rbs @transmission_actor_type_resolver: Proc
 
     attr_accessor :table_name_prefix,
       :polling_interval,
@@ -92,7 +94,9 @@ module SolidObjects
       :authorize_query,
       :authorize_destroy,
       :authorize_subscription,
-      :authorize_administration
+      :authorize_administration,
+      :authorize_transmission,
+      :transmission_actor_type_resolver
 
     # @rbs @additional_components: Array[untyped]
     attr_reader :additional_components
@@ -148,6 +152,8 @@ module SolidObjects
       @authorize_destroy = ->(**) { false }
       @authorize_subscription = ->(**) { false }
       @authorize_administration = ->(**) { false }
+      @authorize_transmission = ->(**) { false }
+      @transmission_actor_type_resolver = ->(actor_type) { actor_type }
       @additional_components = []
     end
 

@@ -23,7 +23,8 @@ class InstallGeneratorTest < ActiveSupport::TestCase
       assert_includes initializer, "authorization_context[:source] == \"cli\""
       assert_includes initializer, "component_authorization_context"
       refute_includes initializer, "component_authorization_context = lambda"
-      assert_equal 5, initializer.scan("= ->(**) { false }").length
+      assert_includes initializer, "configuration.authorize_transmission = ->(**) { false }"
+      assert_equal 6, initializer.scan("= ->(**) { false }").length
     end
   end
 end

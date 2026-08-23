@@ -1,0 +1,13 @@
+# Generated from app/controllers/solid_objects/transmissions_controller.rb with RBS::Inline
+
+module SolidObjects
+  class TransmissionsController < ActionController::API
+    # @rbs () -> void
+    def create: () -> void
+
+    private
+
+    # @rbs (untyped) -> bool
+    def authorized_transmission?: (untyped) -> bool
+  end
+end

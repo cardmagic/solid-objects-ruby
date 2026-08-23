@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.14.0 - 2026-08-22
+
+- Add `SolidObjects::Transmission.receive(envelope)`, the server ingest for
+  the browser transmit family in solid-objects-js. It validates a camelCase
+  transmit envelope, resolves the actor type through an optional
+  `resolve_actor_type:` proc, and enqueues one internal message with the
+  idempotency key `transmit:<effectId>`, so a replayed envelope applies
+  once. Malformed envelopes raise the new
+  `SolidObjects::InvalidTransmission`. Internal delivery skips
+  `authorize_message`, so the host application must authenticate the
+  request before it calls `receive`; see `docs/transmission.md` for the
+  controller boundary. On a registry miss under Rails, `receive` loads the
+  application's actor classes once and retries, because a lazy-loading web
+  process has no other reason to have loaded the target class. Golden
+  fixtures in `compatibility/transmit-envelopes.json` pin the wire contract
+  shared with the JS runtime.
+- Add `Actor#transmit` and `SolidObjects.register_transmit`, the staging
+  side of the transmit family. `transmit.increment(amount:)` stages a
+  `solid-objects.transmit` effect in the same commit as the state change;
+  `register_transmit` drains staged effects into camelCase envelopes and
+  hands each to the delivery block, which raises to retry. A claimed
+  transmit effect delivers every undelivered sibling for its actor up to
+  its own mailbox sequence, oldest first, so per-actor order survives a
+  failed delivery, and the receiving side dedups on `transmit:<effectId>`.
+  A raw `emit "solid-objects.transmit"` with explicit `actorType` and
+  `actorId` targets a different actor, matching the JS staging surface.
+- Mount `POST /solid_objects/transmit` in the engine, an ingest route
+  behind the new deny-by-default `authorize_transmission` policy. The
+  policy receives the parsed envelope and the controller, an unauthorized
+  envelope gets 403, and a permanently unappliable one gets 422, so a
+  sending outbox dead-letters it instead of retrying forever. The new
+  `transmission_actor_type_resolver` configuration maps diverged actor
+  type names for the engine route.
+
 ## 0.13.3 - 2026-08-18
 
 - Stop loading `ActiveRecord::Base` when the gem is required. The engine now

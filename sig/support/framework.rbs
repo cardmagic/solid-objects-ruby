@@ -21,6 +21,9 @@ end
 module ActionController
   class Base
   end
+
+  class API
+  end
 end
 
 module Rails

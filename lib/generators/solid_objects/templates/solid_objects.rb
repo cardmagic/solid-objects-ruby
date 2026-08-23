@@ -49,6 +49,22 @@ SolidObjects.configure do |configuration|
   configuration.authorize_subscription = ->(**) { false }
   configuration.authorize_administration = ->(**) { false }
 
+  # The engine route POST /solid_objects/transmit ingests transmit envelopes
+  # from another Solid Objects runtime. It stays denied until its callers are
+  # authenticated, because the ingest skips authorize_message by design:
+  #
+  # configuration.authorize_transmission = lambda do |envelope:, authorization_context:|
+  #   ActiveSupport::SecurityUtils.secure_compare(
+  #     authorization_context.request.headers["Authorization"].to_s,
+  #     "Bearer #{Rails.application.credentials.transmit_token}"
+  #   )
+  # end
+  #
+  # When the sending runtime names actor types differently, map them here:
+  #
+  # configuration.transmission_actor_type_resolver = ->(actor_type) { actor_type.sub("browser-", "server-") }
+  configuration.authorize_transmission = ->(**) { false }
+
   # Configure component_authorization_context to return the authenticated
   # principal used for reactive component refreshes.
 

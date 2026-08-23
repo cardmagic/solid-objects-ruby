@@ -19,6 +19,9 @@ module SolidObjects
   class UnknownMessage < Error
   end
 
+  class InvalidTransmission < Error
+  end
+
   class InvalidPayload < Error
   end
 
