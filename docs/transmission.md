@@ -114,10 +114,36 @@ executor uses. Internal delivery skips `authorize_message` by construction.
 The host application must authenticate the request before it calls
 `receive`.
 
-## The host application owns HTTP
+## The engine route
 
-The gem draws the same boundary here that it draws for realtime transport:
-the host owns the route, authentication, and rate limits.
+The engine mounts `POST /solid_objects/transmit` (under wherever the host
+mounts `SolidObjects::Engine`). It parses the body, authorizes it through
+`authorize_transmission`, and passes it to `Transmission.receive` with the
+configured `transmission_actor_type_resolver`. The policy denies by
+default, because the ingest skips `authorize_message` by design; an
+unauthorized envelope gets 403, and an envelope the server can never apply
+gets 422:
+
+```ruby
+SolidObjects.configure do |configuration|
+  configuration.authorize_transmission = lambda do |envelope:, authorization_context:|
+    ActiveSupport::SecurityUtils.secure_compare(
+      authorization_context.request.headers["Authorization"].to_s,
+      "Bearer #{Rails.application.credentials.transmit_token}"
+    )
+  end
+end
+```
+
+The policy receives the parsed envelope and the controller as
+`authorization_context:`, so it can bind `actorType` and `actorId` to the
+authenticated caller, not only check a shared token. Rate limits stay with
+the host (Rack::Attack or the proxy), the same boundary the dashboard
+draws.
+
+## A hand-rolled route
+
+An application that wants its own controller keeps the same shape:
 
 ```ruby
 class TransmitController < ApplicationController
@@ -157,6 +183,7 @@ SolidObjects::Transmission.receive(
 
 ## Scope
 
-An engine-mounted route with an authentication hook is a possible
-follow-up; it stays out because it carries authentication, CSRF, and
-rate-limit decisions of its own.
+Bidirectional replication as a first-class surface, where two runtimes
+declare a replica pair and echo suppression keeps a replayed operation
+from transmitting back, is a separate feature. The transmit family gives
+it the mechanism; the declaration API does not exist yet.

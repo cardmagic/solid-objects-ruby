@@ -1,6 +1,7 @@
 # rbs_inline: enabled
 
 SolidObjects::Engine.routes.draw do
+  post :transmit, to: "transmissions#create"
   get :components, to: "components#show"
   get "components/batch", to: "components#batch"
   resources :instances, only: %i[index show]

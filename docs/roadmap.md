@@ -81,7 +81,10 @@
   undelivered sibling for the actor up to the claimed effect's mailbox
   sequence, oldest first, so per-actor order survives a failed delivery.
   The wire contract is pinned by golden fixtures in
-  `compatibility/transmit-envelopes.json`. An engine-mounted ingest route
+  `compatibility/transmit-envelopes.json`. The engine mounts
+  `POST /solid_objects/transmit` behind a deny-by-default
+  `authorize_transmission` policy with a configurable actor type resolver.
+  Bidirectional replication as a declared surface, with echo suppression,
   is not implemented
 - A JavaScript suite covering every browser module, run in CI with Node's test
   runner and jsdom, plus a browser suite running the same modules against real

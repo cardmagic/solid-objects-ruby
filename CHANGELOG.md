@@ -26,6 +26,13 @@
   failed delivery, and the receiving side dedups on `transmit:<effectId>`.
   A raw `emit "solid-objects.transmit"` with explicit `actorType` and
   `actorId` targets a different actor, matching the JS staging surface.
+- Mount `POST /solid_objects/transmit` in the engine, an ingest route
+  behind the new deny-by-default `authorize_transmission` policy. The
+  policy receives the parsed envelope and the controller, an unauthorized
+  envelope gets 403, and a permanently unappliable one gets 422, so a
+  sending outbox dead-letters it instead of retrying forever. The new
+  `transmission_actor_type_resolver` configuration maps diverged actor
+  type names for the engine route.
 
 ## 0.13.3 - 2026-08-18
 
