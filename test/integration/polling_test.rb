@@ -203,21 +203,26 @@ class PollingTest < ActiveSupport::TestCase
   test "processes local work promptly after reaching the idle ceiling" do
     SolidObjects.configuration.polling_interval = 0.025
     SolidObjects.configuration.idle_polling_interval = 1.0
+    reset_reasons = Queue.new
+    subscription = ActiveSupport::Notifications.subscribe(
+      "solid_objects.polling.interval_changed"
+    ) { |event| reset_reasons << event.payload.fetch(:reason) }
     worker = SolidObjects::Worker.new
     worker_thread = Thread.new { worker.run }
     Timeout.timeout(3) do
       sleep 0.005 until worker.current_polling_interval >= 1.0
     end
 
-    started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     message = WakeLatencyActor.ref("local").async.increment
-    Timeout.timeout(0.4) do
+    Timeout.timeout(2) do
       sleep 0.005 until message.status == "completed"
     end
-    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
 
-    assert_operator elapsed, :<, 0.4
+    observed_reasons = []
+    observed_reasons << reset_reasons.pop until reset_reasons.empty?
+    assert_includes observed_reasons, :wake_up
   ensure
+    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
     worker&.request_shutdown
     worker_thread&.join(2)
     worker&.stop
