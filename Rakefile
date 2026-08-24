@@ -32,6 +32,11 @@ task :steep do
   sh "bundle exec steep check"
 end
 
+desc "Prove the at-least-once clause by crashing an effect worker at a sink"
+task :at_least_once do
+  sh "bundle exec ruby examples/at_least_once/demo.rb"
+end
+
 desc "Scan the Rails engine for security warnings"
 task :security do
   sh "bundle exec brakeman --force --no-pager -q ."
