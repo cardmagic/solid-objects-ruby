@@ -31,6 +31,13 @@ Start all configured roles:
 bundle exec solid_objects start
 ```
 
+The generator and the migrations prepare the database and start nothing. A
+process claims ready messages only after this command starts its roles, so an
+application that serves web requests alone leaves every `async` message ready.
+The message is durable and waits for the first process that runs the roles. A
+direct call or an explicit `sync` needs no running role, because the caller's
+own path executes it.
+
 The command loads the host application's `app/actors` directories before
 starting any runtime role, even when Rails eager loading is disabled. Actors in
 the conventional directory do not need initializer references. The targeted

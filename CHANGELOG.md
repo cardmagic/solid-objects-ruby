@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- State where `async` waits when no worker runs. The `async` section of the
+  README and the runtime section of `docs/operations.md` now say that the
+  generator and the migrations start no role, so an application that serves
+  web requests alone leaves the message ready until
+  `bundle exec solid_objects start` runs the roles. The message is durable
+  and waits; it is not lost. `test/integration/background_pickup_test.rb`
+  pins it: the message reads `ready` and the actor state stays empty until a
+  worker runs. This matches solid-objects-js#22, which reported the same gap
+  for `runtime.run(signal)` in the Node package.
+
 - Add `examples/at_least_once` and `bundle exec rake at_least_once`, an
   executable proof that the at-least-once clause fires and that the
   documented remedy absorbs it. One actor turn stages an effect that writes
