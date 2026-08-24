@@ -1123,10 +1123,12 @@ and marks process rows stopped on graceful shutdown. A hard-killed worker's
 claimed turn is recovered after its process heartbeat or activation lease
 becomes stale.
 
-Before any role starts, the CLI loads actors from the host application's
-`app/actors` directories through Rails' main autoloader. This works when
-development eager loading is disabled and does not require actor references in
-an initializer.
+The engine loads actors from the host application's `app/actors` directories
+through Rails' main autoloader, in every process that boots the application.
+This works when eager loading is disabled and does not require actor
+references in an initializer. A web process therefore resolves an actor by
+name for a Cable subscription or a component render without having loaded that
+class through an earlier request.
 
 See the [operations guide](docs/operations.md) for monitoring, reconciliation,
 shutdown, retention, and backup guidance.

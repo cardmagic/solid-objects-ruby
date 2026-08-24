@@ -4,6 +4,14 @@ require "action_cable"
 
 module SolidObjects
   class ActorChannel < ActionCable::Channel::Base
+    REJECT_REASONS = {
+      UnknownActorType => "unregistered_actor_type",
+      InvalidStreamToken => "invalid_stream_token",
+      InvalidComponentToken => "invalid_component_token",
+      JSON::ParserError => "malformed_component_registration",
+      KeyError => "missing_subscription_parameter"
+    }.freeze
+
     # @rbs () -> void
     def subscribed
       identity = StreamToken.verify(params.fetch("token"))
@@ -15,7 +23,9 @@ module SolidObjects
         actor_id:,
         authorization_context: connection
       )
-      return reject unless authorized
+      unless authorized
+        return reject_and_report("unauthorized", actor_type:, actor_id:)
+      end
 
       @reference = Reference.new(actor_type:, actor_id:)
       @scalar_observables = identity["observables"]
@@ -43,8 +53,8 @@ module SolidObjects
       JSON::ParserError,
       InvalidStreamToken,
       InvalidComponentToken,
-      UnknownActorType
-      reject
+      UnknownActorType => error
+      reject_and_report(reject_reason(error), actor_type:, actor_id:, error:)
     end
 
     private
@@ -53,6 +63,26 @@ module SolidObjects
       :component_subscriptions,
       :scalar_observables,
       :payload_names
+
+    # The exception message stays out of the payload, because a component or
+    # payload error can carry actor state into logs.
+    # @rbs (String, actor_type: String?, actor_id: String?, ?error: Exception?) -> void
+    def reject_and_report(reason, actor_type:, actor_id:, error: nil)
+      SolidObjects.instrument(
+        :"subscription.rejected",
+        reason:,
+        actor_type:,
+        actor_id:,
+        error_class: error&.class&.name
+      )
+      reject
+    end
+
+    # @rbs (Exception) -> String
+    def reject_reason(error)
+      match = REJECT_REASONS.find { |error_class, _| error.is_a?(error_class) }
+      match ? match.last : "invalid_subscription"
+    end
 
     # @rbs (String) -> void
     def receive_broadcast(stream)

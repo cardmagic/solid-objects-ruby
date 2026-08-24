@@ -16,6 +16,22 @@ class EngineTest < ActiveSupport::TestCase
     assert_equal "solid_objects_dummy_booted", output.strip
   end
 
+  # An actor registers itself as a side effect of its class loading. A web
+  # process resolves actors by name for Cable subscriptions and component
+  # renders, so a lazily loading process that boots with an empty registry
+  # rejects a live subscription for an actor it is able to serve.
+  test "registers application actors in a process that does not eager load" do
+    command = [
+      Gem.ruby,
+      File.expand_path("../dummy/actor_registry_check.rb", __dir__)
+    ]
+
+    output, error_output, status = Open3.capture3(*command)
+
+    assert status.success?, error_output
+    assert_equal "registered", output.strip
+  end
+
   test "resolves the component endpoint from the engine mount" do
     command = [
       Gem.ruby,

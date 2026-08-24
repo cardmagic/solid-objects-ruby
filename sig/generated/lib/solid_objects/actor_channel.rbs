@@ -2,6 +2,8 @@
 
 module SolidObjects
   class ActorChannel < ActionCable::Channel::Base
+    REJECT_REASONS: untyped
+
     # @rbs () -> void
     def subscribed: () -> void
 
@@ -14,6 +16,14 @@ module SolidObjects
     attr_reader scalar_observables: untyped
 
     attr_reader payload_names: untyped
+
+    # The exception message stays out of the payload, because a component or
+    # payload error can carry actor state into logs.
+    # @rbs (String, actor_type: String?, actor_id: String?, ?error: Exception?) -> void
+    def reject_and_report: (String, actor_type: String?, actor_id: String?, ?error: Exception?) -> void
+
+    # @rbs (Exception) -> String
+    def reject_reason: (Exception) -> String
 
     # @rbs (String) -> void
     def receive_broadcast: (String) -> void

@@ -1,6 +1,27 @@
 # Changelog
 
-## Unreleased
+## 0.14.1 - 2026-08-24
+
+- Register application actors in every process that boots the application.
+  The engine now loads the host application's `app/actors` directories from a
+  `to_prepare` hook, which previously only the `solid_objects start` process
+  did. An actor registers itself as a side effect of its class loading, so a
+  lazily loading web process began with an empty registry. `ActorChannel`
+  looks the actor up by name, and the resulting `UnknownActorType` reached the
+  rescue that rejects the subscription: a Cable subscription for a real actor
+  was rejected in any web process that had not yet rendered that actor, and
+  the page kept a card that never updated. `ComponentsController` resolves the
+  same way through `ActorSnapshot`. `Transmission.receive` already carried a
+  registry-miss retry for this reason, and it stays as a guard for a host that
+  reaches the gem without the engine.
+- Report why a Cable subscription was rejected. Every reject path in
+  `ActorChannel#subscribed` now emits `solid_objects.subscription.rejected`
+  with a `reason`, the actor identity, and the `error_class` where an
+  exception caused it. Five conditions previously collapsed into one silent
+  `reject`, which is invisible from the browser and left nothing in the log to
+  distinguish an unregistered actor type from a tampered token. Exception
+  messages stay out of the payload, because a component or payload failure can
+  carry actor state.
 
 - State where `async` waits when no worker runs. The `async` section of the
   README and the runtime section of `docs/operations.md` now say that the
