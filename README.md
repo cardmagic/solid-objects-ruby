@@ -662,6 +662,12 @@ message = order.async(
 ).submit
 ```
 
+`async` needs a running actor worker. Installing the engine and migrating the
+schema starts no role, so a process that only serves web requests leaves the
+message ready. Nothing is lost. The message waits until
+`bundle exec solid_objects start` runs the roles. See
+[Worker requirements](#worker-requirements) for the feature-by-role table.
+
 Use `available_at:` to spread bulk work or delay one message:
 
 ```ruby
