@@ -126,7 +126,13 @@
   untested end to end, which is how a raising payload block came to reject the
   subscription; it is now covered and confined, and the payload authorization
   context is resolved through `payload_authorization_context` rather than
-  handing the block a raw Cable connection.
+  handing the block a raw Cable connection. Actor registration in a web process
+  was assumed rather than arranged: an actor registered only as a side effect
+  of its class loading, and only the worker CLI loaded the host's `app/actors`,
+  so a lazily loading web process rejected subscriptions for actors it could
+  serve until some earlier request happened to load the class. The engine now
+  loads them in every process, and a rejected subscription reports which
+  condition caused it instead of closing the socket silently.
 - Backpressure: mailbox/payload/state/result caps and fair yields exist;
   distributed per-actor rate limits and global admission control do not.
 - Administration: `SolidObjects::Web` is a mountable Rack dashboard covering

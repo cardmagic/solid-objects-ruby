@@ -247,6 +247,46 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     assert_no_streams
   end
 
+  test "reports an unregistered actor type as the reject reason" do
+    SolidObjects.configuration.authorize_subscription = ->(**) { true }
+    reference = SolidObjects::Reference.new(
+      actor_type: "unregistered-channel-actor",
+      actor_id: "actor-1"
+    )
+    rejections = []
+    handle = ActiveSupport::Notifications.subscribe(
+      "solid_objects.subscription.rejected"
+    ) { |event| rejections << event.payload }
+
+    subscribe token: SolidObjects::StreamToken.generate(reference)
+
+    assert subscription.rejected?
+    assert_equal 1, rejections.length
+    assert_equal "unregistered-channel-actor", rejections.first.fetch(:actor_type)
+    assert_equal "actor-1", rejections.first.fetch(:actor_id)
+    assert_equal "SolidObjects::UnknownActorType", rejections.first.fetch(:error_class)
+  ensure
+    ActiveSupport::Notifications.unsubscribe(handle) if handle
+  end
+
+  test "reports a failed host authorization as the reject reason" do
+    reference = ChannelActor.ref("actor-1")
+    SolidObjects.configuration.authorize_subscription = ->(**) { false }
+    rejections = []
+    handle = ActiveSupport::Notifications.subscribe(
+      "solid_objects.subscription.rejected"
+    ) { |event| rejections << event.payload }
+
+    subscribe token: SolidObjects::StreamToken.generate(reference)
+
+    assert subscription.rejected?
+    assert_equal 1, rejections.length
+    assert_equal "unauthorized", rejections.first.fetch(:reason)
+    assert_nil rejections.first[:error_class]
+  ensure
+    ActiveSupport::Notifications.unsubscribe(handle) if handle
+  end
+
   test "refreshes a component once when several dependencies change in one turn" do
     reference = ChannelActor.ref("actor-1")
     SolidObjects.configuration.authorize_subscription = ->(**) { true }

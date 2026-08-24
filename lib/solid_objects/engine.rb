@@ -15,6 +15,10 @@ module SolidObjects
       SolidObjects::LogSubscriber.install
     end
 
+    initializer "solid_objects.actors" do |application|
+      application.config.to_prepare { ApplicationActorLoader.new.call }
+    end
+
     initializer "solid_objects.database", after: :load_config_initializers do
       ActiveSupport.on_load(:active_record) do
         require RECORD_PATH

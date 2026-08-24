@@ -38,11 +38,17 @@ The message is durable and waits for the first process that runs the roles. A
 direct call or an explicit `sync` needs no running role, because the caller's
 own path executes it.
 
-The command loads the host application's `app/actors` directories before
+The engine loads the host application's `app/actors` directories in every
+process that boots the application, and the command repeats that load before
 starting any runtime role, even when Rails eager loading is disabled. Actors in
 the conventional directory do not need initializer references. The targeted
 loader participates in Rails preparation callbacks so a development reload can
 replace a registered actor class without loading unrelated application code.
+
+An actor registers itself as its class loads, and a web process resolves
+actors by name for Cable subscriptions and component renders. Loading them in
+every process is what lets a freshly booted web process serve a live card for
+an actor no request in that process has rendered yet.
 
 Inspect process records and clean stale ownership:
 
@@ -193,6 +199,15 @@ claim/start/renew/release/deactivation failure, sync timeout/enqueue timeout/
 transaction rejection, commit-action start/completion/failure, effect and
 broadcast enqueue/completion, reminder enqueue, actor destruction/expiration,
 retention pruning, process cleanup, and supervisor lifecycle.
+
+`solid_objects.subscription.rejected` reports a rejected Cable subscription.
+A rejection closes the socket and leaves the page holding a stale card, and
+the browser cannot say which of the conditions applied. The event carries the
+`reason`, the actor identity, and the `error_class` where an exception caused
+it. The reason is one of `unregistered_actor_type`, `invalid_stream_token`,
+`invalid_component_token`, `malformed_component_registration`,
+`missing_subscription_parameter`, or `unauthorized`. Exception messages are
+excluded, because a component or payload failure can carry actor state.
 
 `solid_objects.reminder.replaced` reports a `schedule` call that moved an alarm
 already armed under the same name on the same actor, carrying the actor
