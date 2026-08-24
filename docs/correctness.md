@@ -93,6 +93,15 @@ end
 The guard prevents a repeated state transition. The effect consumer still
 deduplicates with `context.id`.
 
+This clause is observable, not decorative. `bundle exec rake at_least_once`
+crashes an effect worker between the external sink write and the
+acknowledgement, restarts one after the liveness threshold, and shows the sink
+reading 2 with deduplication off. Both deliveries carry the same `context.id`
+at attempts 1 and 2. A guard on that id absorbs the same duplicate and the
+sink reads 1. The actor state commits exactly once in both runs. The source is
+`examples/at_least_once/`; solid-objects-js runs the same proof with
+`pnpm run test:at-least-once`.
+
 ## Atomic boundaries
 
 The following are atomic:

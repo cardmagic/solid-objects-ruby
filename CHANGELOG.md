@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Add `examples/at_least_once` and `bundle exec rake at_least_once`, an
+  executable proof that the at-least-once clause fires and that the
+  documented remedy absorbs it. One actor turn stages an effect that writes
+  to an external sink file. The first effect worker crashes between the sink
+  write and the acknowledgement, and a second worker reclaims the stale
+  effect after the liveness threshold and delivers again. With deduplication
+  off the sink reads 2, both deliveries carrying the same `context.id` at
+  attempts 1 and 2; with a guard on that id the sink reads 1. The actor state
+  commits exactly once in both runs. CI runs the demo in the SQLite job, and
+  `docs/correctness.md` links it from the handler idempotency section. This
+  mirrors `pnpm run test:at-least-once` in solid-objects-js.
+
 ## 0.14.0 - 2026-08-22
 
 - Add `SolidObjects::Transmission.receive(envelope)`, the server ingest for
