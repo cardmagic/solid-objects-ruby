@@ -42,4 +42,19 @@ class AtLeastOnceSinkTest < ActiveSupport::TestCase
       assert_equal [], AtLeastOnceSink.read(File.join(directory, "missing.json"))
     end
   end
+
+  test "refuses to read a damaged sink as an empty one" do
+    Dir.mktmpdir do |directory|
+      path = File.join(directory, "sink.json")
+      File.write(path, "{ deliveries: ")
+
+      assert_raises(JSON::ParserError) { AtLeastOnceSink.read(path) }
+    end
+  end
+
+  test "refuses to read an unreadable sink as an empty one" do
+    Dir.mktmpdir do |directory|
+      assert_raises(Errno::EISDIR) { AtLeastOnceSink.read(directory) }
+    end
+  end
 end
