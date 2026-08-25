@@ -22,7 +22,8 @@ A ticket sale for one event, with 100 seats and a hold that expires:
 class TicketSale < SolidObjects::Actor
   attribute :remaining, default: 100
   attribute :holds, default: -> { {} }
-  observable :remaining
+  observable :remaining, broadcast: :value
+  observable :holds
 
   def reserve(buyer:)
     return false if remaining.zero? || holds.key?(buyer)
@@ -176,13 +177,15 @@ least once.
 <% end %>
 ```
 
-`observable :remaining` in the ticket sale is what makes that span live: a
-committed turn that changes it replaces the span, and one that changes `holds`
-re-renders the component from `actors/ticket_sale/_buyers`. Observables are
-invalidation-only unless declared `broadcast: :value`, so only an opted-in
-scalar sends its value to every authorized subscriber, and per-viewer state
-belongs in `broadcast_payload`. Signed tokens protect integrity, not access:
-rendering, Cable, and every refresh each authorize again.
+The two observables in the ticket sale are what make that template live: a
+committed turn that changes `remaining` replaces the span, and one that changes
+`holds` re-renders the component from `actors/ticket_sale/_buyers`. Observables
+are invalidation-only unless declared `broadcast: :value`, which is why
+`remaining` carries it and `holds` does not: only an opted-in scalar sends its
+value to every authorized subscriber, and rendering an invalidation-only
+observable as a span raises. Per-viewer state belongs in `broadcast_payload`.
+Signed tokens protect integrity, not access: rendering, Cable, and every
+refresh each authorize again.
 
 Reactive views require `turbo-rails`, an Action Cable adapter, and
 `mount SolidObjects::Engine => "/solid_objects"`. They are optional; the actor
