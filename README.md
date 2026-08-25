@@ -11,40 +11,68 @@ the application already has, in the database-backed operating model of the
 Solid family. No Redis, Cloudflare account, or separate actor service is
 required.
 
-```ruby
-class Counter < SolidObjects::Actor
-  attribute :value, default: 0
+> **Not a replacement for SQL transactions:** when one row update inside one
+> transaction answers the question, use that and install nothing. Solid Objects
+> earns its cost when the critical section outlives the transaction: a hold that
+> expires in ten minutes, work that must survive a restart, or a fan-in that
+> spans many jobs. See [Why not just use `with_lock`?](#why-not-just-use-with_lock).
 
-  def increment(amount: 1)
-    self.value += amount
+A ticket sale for one event, with 100 seats and a hold that expires:
+
+```ruby
+class TicketSale < SolidObjects::Actor
+  attribute :remaining, default: 100
+  attribute :holds, default: -> { {} }
+  observable :remaining
+
+  def reserve(buyer:)
+    return false if remaining.zero? || holds.key?(buyer)
+
+    self.remaining -= 1
+    self.holds = holds.merge(buyer => Time.now.utc.to_i)
+    schedule(at: 10.minutes.from_now, key: buyer).expire(buyer:)
+    true
+  end
+
+  def expire(buyer:)
+    return unless holds.key?(buyer)
+
+    self.holds = holds.except(buyer)
+    self.remaining += 1
   end
 end
 
 # Synchronous caller-assisted RPC. No worker fleet is required.
-counter = Counter.ref("global")
-count = counter.increment(amount: 5)
-current_count = counter.value
-current_snapshot = counter.snapshot.value
-
-# Durable fire-and-forget delivery. A worker processes it later.
-message = counter.async.increment(amount: 5)
+sale = TicketSale.ref("event-42")
+sale.reserve(buyer: current_user.id)
 ```
 
-`Counter / global` is a logical identity. Like a Durable Object named with
+That example wants three things from the same number. It must never go below
+zero. It must give the seat back if the buyer does not pay within ten minutes.
+It must show the current count to everyone watching the page.
+
+The first is one line of SQL. The second is an `expires_at` column plus a cron
+job that sweeps it. The third is a broadcast on every code path that changes
+the number. The combination is what costs, not any one of them. Here the guard,
+the ten-minute alarm, and the live count are one class, and they commit
+together.
+
+`TicketSale / event-42` is a logical identity. Like a Durable Object named with
 `idFromName`, it can be addressed from anywhere without first creating or
 locating a Ruby object. Solid Objects activates it when work arrives, commits
 its ordered turns one at a time, persists its state, and deactivates it when
-idle. Different identities can run concurrently.
+idle. Different identities can run concurrently, so two events never wait on
+each other.
 
 The invocation model is the first adoption decision:
 
 | Call | Returns | Worker fleet required? |
 | --- | --- | --- |
-| `counter.increment(amount: 5)` | Committed handler result | No |
-| `counter.sync(timeout: 5.seconds).increment(amount: 5)` | Committed handler result | No |
-| `counter.value` | Ordered, committed query result | No |
-| `counter.snapshot.value` | Current committed state without a mailbox message | No |
-| `counter.async.increment(amount: 5)` | `MessageReference` immediately | Yes |
+| `sale.reserve(buyer: id)` | Committed handler result | No |
+| `sale.sync(timeout: 5.seconds).reserve(buyer: id)` | Committed handler result | No |
+| `sale.remaining` | Ordered, committed query result | No |
+| `sale.snapshot.remaining` | Current committed state without a mailbox message | No |
+| `sale.async.reserve(buyer: id)` | `MessageReference` immediately | Yes |
 
 Direct methods and `sync` durably enqueue the call, then the Rails caller helps
 execute the actor through the same mailbox, lease, and fencing path as a
@@ -56,6 +84,51 @@ records, but direct Active Record writes are rejected so they cannot escape a
 later actor failure. Use a same-database
 [`commit_action`](#application-database-writes) for atomic database changes and
 [`emit`](#effects) for external I/O.
+
+## Why not just use `with_lock`?
+
+Often you should. If the whole job is read a row, decide, write it back, and
+answer the user, then `with_lock` does that and you need nothing else
+installed. Reach for it first.
+
+The argument for an actor is scope, not discipline. A lock is scoped to one
+transaction, on one connection, in one process. The ticket sale above leaves
+that scope on one line: the hold expires in ten minutes, and no transaction
+stays open for ten minutes.
+
+Any column named `expires_at`, `scheduled_at`, or `next_run_at` is evidence
+that the critical section already outlived the lock that was supposed to cover
+it. What follows such a column is a sweeper that looks for due rows, and then a
+race between that sweeper and the next writer of the same row. The column, the
+sweeper, and the race are what an actor replaces.
+
+Three cases a lock cannot reach:
+
+- work that fires at a future moment, when no transaction of yours is open;
+- work that must survive a process restart, which rules out an in-process
+  timer; and
+- a fan-in whose critical section spans many jobs over minutes, such as an
+  import that counts its own chunks as each one finishes.
+
+If it all happens inside one request, use a lock. If something has to happen
+later, or has to survive a restart, that is when this is worth installing.
+
+## Is it worth installing here?
+
+Worth it when several requests, jobs, or processes act on the same cart, room,
+device, event, or workflow, and each next action needs the last committed
+state. Worth it when that same thing also owns work that fires later, or a
+number a live page must show.
+
+Not worth it for a plain counter, a single-row update inside one transaction, a
+stateless job, bulk ingestion or a data-parallel pipeline, CPU-heavy work, a
+large JSON document that belongs in normalized rows, or a global rate-limit
+counter that every request touches. One hot identity is serialized on purpose,
+so making everything one identity makes a queue.
+
+The longer version, with anti-patterns and a staged migration path, is in
+[When to use it](#when-to-use-it) and the
+[fit and anti-pattern guide](docs/fit.md).
 
 Before adopting a latency-sensitive or high-volume surface, read
 [Is Solid Objects a good fit?](docs/fit.md) and the
@@ -71,6 +144,8 @@ tested, but the project does not yet claim production readiness. See
 
 ## Table of contents
 
+- [Why not just use `with_lock`?](#why-not-just-use-with_lock)
+- [Is it worth installing here?](#is-it-worth-installing-here)
 - [Cloudflare Durable Objects for Rails](#cloudflare-durable-objects-for-rails)
 - [Reactive ERB](#reactive-erb)
 - [Installation](#installation)
@@ -171,6 +246,20 @@ one helper call. The actor commit and durable broadcast outbox are atomic, so a
 rolled-back state change cannot leak into the page.
 
 ## Reactive ERB
+
+For a comment count or a dashboard number, lock the row, update it, and call
+`broadcast_replace_to`. That is less code than this gem and it works.
+
+It gets harder when several people write to the same record at once. Each
+request renders the fragment in its own process and pushes it. The lock decided
+who wrote first, but it has no say over which of the two pushes arrives last,
+so a viewer can be left looking at the older number. The second gap is that the
+push is not part of the save: if the process dies after the database commits
+and before the push goes out, the browser keeps a wrong number and nothing
+corrects it.
+
+An observable is the alternative. The fragment is re-rendered once per change,
+in commit order, from the same turn that saved the change.
 
 Define an observable:
 
@@ -1279,6 +1368,7 @@ for staged cutovers.
 
 | Tool | What Solid Objects adds or changes |
 | --- | --- |
+| `with_lock` or `SELECT ... FOR UPDATE` | A lock serializes writers for the length of one transaction, on one connection, in one process, and it needs nothing installed. Solid Objects covers the part that outlives the transaction: an alarm that fires later, work that survives a restart, and a broadcast that commits with the state change. Prefer the lock when the whole job fits inside one request. |
 | Cloudflare Durable Objects | Solid Objects ports the named, stateful, serialized-object model to Ruby and Rails. It uses your SQL database and Rails workers rather than Cloudflare's globally distributed serverless runtime, placement, and storage APIs. |
 | Active Job | Jobs are independent work units. Solid Objects adds addressable identity, durable state, explicit per-identity order, activation leases, and fencing. |
 | Solid Queue | Solid Queue is a database backend for Active Job. Its concurrency controls cap overlap but do not guarantee order. Solid Objects provides actor mailboxes, state, fencing, per-identity reminders, and state-driven views. |
