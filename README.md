@@ -82,6 +82,31 @@ are rejected so they cannot escape a later actor failure. Use a same-database
 [`commit_action`](#application-database-writes) for atomic database changes and
 [`emit`](#effects) for external I/O.
 
+## Contents
+
+- [Why not just use `with_lock`?](#why-not-just-use-with_lock)
+- [Is it worth installing here?](#is-it-worth-installing-here)
+- [Cloudflare Durable Objects for Rails](#cloudflare-durable-objects-for-rails)
+- [Reactive ERB](#reactive-erb)
+- [Installation](#installation)
+- [Worker requirements](#worker-requirements)
+- [Defining an actor](#defining-an-actor)
+- [Invoking an object](#invoking-an-object)
+- [Application database writes](#application-database-writes)
+- [Effects](#effects)
+- [Reminders](#reminders)
+- [Destroying an object](#destroying-an-object)
+- [State migrations](#state-migrations)
+- [Configuration](#configuration)
+- [Workers and operations](#workers-and-operations)
+- [Dashboard](#dashboard)
+- [Database support](#database-support)
+- [Guarantees](#guarantees)
+- [Comparisons](#comparisons)
+- [Development and contributing](#development-and-contributing)
+- [Status](#status)
+- [License](#license)
+
 ## Why not just use `with_lock`?
 
 Often you should. If the whole job is read a row, decide, write it back, and
@@ -99,10 +124,15 @@ it. What follows such a column is a sweeper that looks for due rows, and then a
 race between that sweeper and the next writer of the same row. The column, the
 sweeper, and the race are what an actor replaces.
 
-A lock cannot reach work that fires at a future moment, work that must survive
-a process restart, or a fan-in whose critical section spans many jobs over
-minutes, such as an import that counts its own chunks as each finishes. If it
-all happens inside one request, use a lock.
+Three things a lock cannot reach:
+
+- work that fires at a future moment, when no transaction of yours is open;
+- work that must survive a process restart, which rules out an in-process
+  timer; and
+- a fan-in whose critical section spans many jobs over minutes, such as an
+  import that counts its own chunks as each one finishes.
+
+If it all happens inside one request, use a lock.
 
 ## Is it worth installing here?
 
@@ -483,11 +513,16 @@ actor state and version, the message result and completion, effect outbox
 entries, reminder changes, actor-to-actor messages, and observable broadcasts
 together, or none of them.
 
-Solid Objects does not promise exactly-once handler or effect execution, global
-order across actors, distributed transactions, bounded end-to-end latency,
-cancellation when a synchronous caller times out, or that a lease stops stale
-Ruby code from running. The fencing generation is what stops stale code from
-committing. Read [correctness](docs/correctness.md) for the full contract.
+Solid Objects does not promise:
+
+- exactly-once handler or effect execution;
+- global order across actors, or distributed transactions;
+- bounded end-to-end latency;
+- cancellation when a synchronous caller times out; or
+- that a lease stops stale Ruby code from running.
+
+The fencing generation is what stops stale code from committing. Read
+[correctness](docs/correctness.md) for the full contract.
 
 ## Comparisons
 
@@ -500,13 +535,26 @@ committing. Read [correctness](docs/correctness.md) for the full contract.
 | Orleans | The virtual-actor lineage behind the model. Solid Objects is a smaller Rails-native runtime and does not match Orleans clustering or placement breadth. |
 | Active Record service object | A service object runs directly against records. Solid Objects adds durable ordering, retries, fencing, reminders, and outboxes at greater operational cost. |
 
-## Development
+## Development and contributing
 
 Solid Objects uses Minitest and follows Solid Queue's test organization and
 RuboCop policy. Ruby source carries inline RBS annotations, and concurrency
 tests use real database locks rather than mocked locking. `bundle exec rake`
 runs the SQLite suite and static checks; set `SOLID_OBJECTS_DATABASE_URL` for
-PostgreSQL or MySQL. See the [development guide](docs/development.md).
+PostgreSQL or MySQL.
+
+A change here can affect durable state and recovery, so start with a failing
+test and quote the observed failure in the pull request:
+
+- [Contributing](CONTRIBUTING.md) covers setup, the quality gates, and what a
+  correctness change must show.
+- [Development guide](docs/development.md) covers the test layout and the
+  adapter matrix.
+- [Changelog](CHANGELOG.md) and the
+  [roadmap](docs/roadmap.md) record what shipped and what is still open.
+- Report a vulnerability through
+  [GitHub security advisories](https://github.com/cardmagic/solid-objects-ruby/security/advisories/new)
+  rather than a public issue.
 
 ## Status
 
