@@ -14,7 +14,7 @@ service is required.
 > transaction answers the question, use that and install nothing. Solid Objects
 > earns its cost when the critical section outlives the transaction: a hold that
 > expires in ten minutes, work that must survive a restart, or a fan-in that
-> spans many jobs. See [Why not just use `with_lock`?](#why-not-just-use-with_lock).
+> spans many jobs. See [Why not just use transactions?](#why-not-just-use-transactions).
 
 A ticket sale for one event, with 100 seats and a hold that expires:
 
@@ -84,7 +84,7 @@ are rejected so they cannot escape a later actor failure. Use a same-database
 
 ## Contents
 
-- [Why not just use `with_lock`?](#why-not-just-use-with_lock)
+- [Why not just use transactions?](#why-not-just-use-transactions)
 - [Is it worth installing here?](#is-it-worth-installing-here)
 - [Cloudflare Durable Objects for Rails](#cloudflare-durable-objects-for-rails)
 - [Reactive ERB](#reactive-erb)
@@ -107,7 +107,7 @@ are rejected so they cannot escape a later actor failure. Use a same-database
 - [Status](#status)
 - [License](#license)
 
-## Why not just use `with_lock`?
+## Why not just use transactions?
 
 Often you should. If the whole job is read a row, decide, write it back, and
 answer the user, then `with_lock` does that and you need nothing else
@@ -122,7 +122,7 @@ Any column named `expires_at`, `scheduled_at`, or `next_run_at` is evidence
 that the critical section already outlived the lock that was supposed to cover
 it. What follows such a column is a sweeper that looks for due rows, and then a
 race between that sweeper and the next writer of the same row. The column, the
-sweeper, and the race are what an actor replaces.
+sweeper, and the race are what a Solid Objects actor replaces.
 
 Three things a lock cannot reach:
 
@@ -146,6 +146,14 @@ stateless job, bulk ingestion or a data-parallel pipeline, CPU-heavy work, a
 large JSON document that belongs in normalized rows, high-QPS request reads, or
 a global rate-limit counter that every request touches. One hot identity is
 serialized on purpose, so making everything one identity makes a queue.
+
+High-QPS reads and hot identities are where this runtime stops being the right
+tool on its own. [Solid Objects Pro](https://solidobjects.pro/) is a commercial
+performance layer for this gem that adds grouped commits, which coalesce
+concurrent writes into fewer database commits; optional ephemeral operations,
+which take loss-tolerant calls out of the durable journal; and materialized
+projections, which build read models after commit so reads stop competing with
+mailbox work.
 
 Before moving an existing surface, read the
 [fit and anti-pattern guide](docs/fit.md), the
