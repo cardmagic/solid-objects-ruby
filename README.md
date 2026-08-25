@@ -1,6 +1,7 @@
-# Solid Objects
+# Solid Objects Ruby
 
-[![CI](https://github.com/cardmagic/solid-objects-ruby/actions/workflows/ci.yml/badge.svg)](https://github.com/cardmagic/solid-objects-ruby/actions/workflows/ci.yml)
+[![CI](https://github.com/cardmagic/solid-objects-ruby/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cardmagic/solid-objects-ruby/actions/workflows/ci.yml)
+[![gem](https://img.shields.io/gem/v/solid_objects)](https://rubygems.org/gems/solid_objects)
 
 **Self-hosted, distributed Durable Objects in Rails without a daemon using your existing SQL database.**
 
@@ -137,15 +138,23 @@ If it all happens inside one request, use a lock.
 ## Is it worth installing here?
 
 Worth it when several requests, jobs, or processes act on the same cart, chat
-room, device twin, game room, or long-lived workflow, and each next action
-needs the last committed state. Worth it when that same thing also owns work
-that fires later, or a number a live page must show.
+room, device twin, game room, long-lived workflow, or refillable quota, and
+each next action needs the last committed state. Worth it when that same thing
+also owns work that fires later, or a number a live page must show.
+
+Two of those have a limit. A workflow fits when one entity owns the mutable
+state and its mailbox holds the step order. A durable execution engine that
+replays named steps from a step log is a different tool, because Solid Objects
+redelivers an ordered message and retries it. A quota fits when one identity
+checks it a few times per minute, because each check is one durable ordered
+message with a retained history row. A limiter that every request to that
+identity touches does not fit here.
 
 Not worth it for a plain counter, a single-row update inside one transaction, a
 stateless job, bulk ingestion or a data-parallel pipeline, CPU-heavy work, a
 large JSON document that belongs in normalized rows, high-QPS request reads, or
-a global rate-limit counter that every request touches. One hot identity is
-serialized on purpose, so making everything one identity makes a queue.
+a rate-limit counter that every request touches. One hot identity is serialized
+on purpose, so making everything one identity makes a queue.
 
 High-QPS reads and hot identities are where this runtime stops being the right
 tool on its own. [Solid Objects Pro](https://solidobjects.pro/) is a commercial

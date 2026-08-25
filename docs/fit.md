@@ -24,7 +24,13 @@ Solid Objects is a good candidate when most of these are true:
   asynchronous features, a Solid Objects runtime process.
 
 Typical fits include checkout state machines, collaborative rooms, device
-twins, durable assessments, approval workflows, and user-specific scheduling.
+twins, durable assessments, approval workflows, user-specific scheduling, and
+low-rate quotas that a reminder refills.
+
+A workflow fits when one entity owns the mutable state and its mailbox holds
+the step order. A durable execution engine that replays named steps from a step
+log is a different tool: Solid Objects redelivers an ordered message and
+retries it, and does not replay a handler from a step log.
 
 ## Poor fit and anti-patterns
 
@@ -46,10 +52,21 @@ when any of these dominate:
 - State that is clearer as a normal record with database constraints and direct
   service methods.
 
-A rate limiter is usually a poor actor: it is hot, request-critical, and often
-expires rather than requiring permanent message history. An impressions
-pipeline is also a poor actor: its value is high-throughput append and
-aggregation, not serialized mutable state.
+A request-path rate limiter is usually a poor actor: it is hot,
+request-critical, and often expires rather than requiring permanent message
+history. A low-rate quota is the case that does fit, such as five password
+resets an hour for one account, where a reminder refills the bucket and each
+check is one durable ordered message. An impressions pipeline is also a poor
+actor: its value is high-throughput append and aggregation, not serialized
+mutable state.
+
+[Solid Objects Pro](https://solidobjects.pro/) is the commercial scaling layer
+for the high-QPS cases in this section. Grouped operations coalesce concurrent
+calls into one bulk insert. Ephemeral operations hold a loss-tolerant call in
+process memory and write no journal row, which is the mode for an abuse limiter,
+a presence signal, or a view count. Reactive projections materialize a read
+model from the durable broadcast outbox, so request-path reads stop competing
+with mailbox work.
 
 ## Cost model
 
