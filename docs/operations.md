@@ -23,6 +23,103 @@ process, its activations, and its claimed messages untouched, including when an
 application call overlaps the probe. A database busy enough to block cleanup
 reports a failed or warned check rather than raising out of the command.
 
+## Installing and upgrading
+
+Review [CHANGELOG.md](CHANGELOG.md) for compatibility and deployment-order
+notes, then update the gem:
+
+```bash
+bundle update solid_objects
+```
+
+If the `Gemfile` pins an exact version, update that constraint first and run
+`bundle install`. Commit both `Gemfile.lock` and the copied Solid Objects
+migrations.
+
+Copy only migrations that the newer gem has added, migrate, and verify the
+installation:
+
+```bash
+bin/rails solid_objects:install:migrations
+bin/rails db:migrate
+bin/rails solid_objects:doctor
+```
+
+The migration task skips engine migrations already present in the application
+and gives new migrations host-specific timestamps. Inspect the resulting
+`db/migrate/*.solid_objects.rb` files before applying them. Do not rerun
+`generate solid_objects:install` during an upgrade because that also attempts
+to regenerate the application initializer.
+
+When Solid Objects uses a separate database configuration named `actors`, copy
+and run migrations through that database's configured migration path:
+
+```bash
+DATABASE=actors bin/rails solid_objects:install:migrations
+bin/rails db:migrate:actors
+bin/rails solid_objects:doctor
+```
+
+For production, back up the actor database and run new migrations before
+starting application or Solid Objects worker processes that require the new
+schema. Restart the web and Solid Objects worker fleet after the bundle and
+schema are current. For releases that change actor state versions, also follow
+the [state migration and rolling-deployment guide](docs/state-migrations.md);
+Rails schema migrations and actor state migrations are separate concerns.
+
+### Host application tooling
+
+Installed engine migrations are copied as
+`db/migrate/*_create_solid_objects_tables.solid_objects.rb`. If the host enables
+`Rails/CreateTableWithTimestamps`, exclude engine-owned migrations rather than
+editing their intentionally specialized hot tables:
+
+```yaml
+Rails/CreateTableWithTimestamps:
+  Exclude:
+    - "db/migrate/*.solid_objects.rb"
+```
+
+Solid Objects ships inline RBS signatures, not RBI files. Sorbet applications
+can generate the gem RBI with:
+
+```bash
+bundle exec tapioca gem solid_objects
+```
+
+### Running an extension in the same process
+
+An extension gem can register its own long-running component, and
+`solid_objects start` runs it beside the built-in roles. The component joins the
+same supervision, the same replacement after a crash, and the same shutdown
+timeout, so an operator deploys and monitors one process instead of two:
+
+```ruby
+SolidObjects.configure do |configuration|
+  configuration.register_component { MyExtension::FlushEngine.new }
+end
+```
+
+Pass `count:` for more than one instance. The block runs once for each instance,
+and again when the supervisor replaces a crashed one, so no two components share
+an object.
+
+A registered component answers four methods, the contract the built-in roles
+already keep:
+
+| Method | Purpose |
+| --- | --- |
+| `run` | Runs the loop. The supervisor calls it in its own thread |
+| `request_shutdown` | Asks the loop to finish. It must make `run` return |
+| `stopped?` | Reports whether the component already finished |
+| `stop` | Forces cleanup when the shutdown timeout expires first |
+
+The supervisor checks that contract when it builds the component, and a missing
+method raises `ArgumentError` as the supervisor starts, rather than hanging a
+shutdown later. Registration itself never calls the block, so a component is
+free to need a database connection that the application does not have while it
+boots.
+
 ## Runtime
 
 Start all configured roles:
@@ -50,6 +147,16 @@ actors by name for Cable subscriptions and component renders. Loading them in
 every process is what lets a freshly booted web process serve a live card for
 an actor no request in that process has rendered yet.
 
+Worker and outbox counts can be overridden on the command line:
+
+```bash
+bundle exec solid_objects start \
+  --workers 4 \
+  --effect-workers 2 \
+  --broadcast-workers 2 \
+  --reminder-schedulers 1
+```
+
 Inspect process records and clean stale ownership:
 
 ```bash
@@ -70,26 +177,45 @@ bundle exec solid_objects retry_dead_letter 123
 
 ## Configuration
 
-Important controls include:
+Configure Solid Objects in `config/initializers/solid_objects.rb`:
 
-- `worker_count`
-- `effect_worker_count`
-- `broadcast_worker_count`
-- `reminder_scheduler_count`
-- `max_messages_per_activation_pass`
-- `max_activation_duration`
-- `idle_deactivation_timeout`
-- `lease_duration`
-- `lease_renewal_interval`
-- `polling_interval`
-- `idle_polling_interval`
-- `max_mailbox_length`
-- payload, state, and result byte limits
-- retry attempts and delay
-- heartbeat interval and alive threshold
-- message retention and per-actor-type overrides
-- opt-in actor-instance retention by actor type
-- stopped-process retention and prune batch size
+```ruby
+SolidObjects.configure do |configuration|
+  configuration.worker_count = 4
+  configuration.lease_duration = 30.seconds
+  configuration.lease_renewal_interval = 10.seconds
+  configuration.max_messages_per_activation_pass = 50
+  configuration.max_activation_duration = 5.seconds
+end
+```
+
+| Setting | Default |
+| --- | ---: |
+| `polling_interval` | 0.1 seconds |
+| `idle_polling_interval` | 1 second |
+| `sync_polling_interval` | 0.05 seconds |
+| `lease_duration` | 30 seconds |
+| `lease_renewal_interval` | 10 seconds |
+| `idle_deactivation_timeout` | 30 seconds |
+| `max_messages_per_activation_pass` | 50 |
+| `max_activation_duration` | 5 seconds |
+| `max_mailbox_length` | 10,000 |
+| `max_attempts` | 5 |
+| `process_heartbeat_interval` | 15 seconds |
+| `process_alive_threshold` | 60 seconds |
+| `message_retention` | 30 days |
+| `message_retention_by_actor_type` | `{}` |
+| `instance_retention_by_actor_type` | `{}`; instances never expire unless listed |
+| `process_retention` | 7 days |
+| `prune_batch_size` | 1,000 |
+| `worker_count` | 1 |
+| `effect_worker_count` | 1 |
+| `broadcast_worker_count` | 1 |
+| `reminder_scheduler_count` | 1 |
+
+Payload, state, and result byte limits; retry delay; table prefix; logging;
+wake-up; broadcast; database; and authorization adapters are also configurable.
+Invalid lease intervals, component counts, and size limits fail fast at boot.
 
 Keep lease duration comfortably above renewal interval and expected database
 pause time. A handler can exceed the pass-duration budget because Ruby code is
