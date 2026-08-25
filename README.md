@@ -258,8 +258,13 @@ push is not part of the save: if the process dies after the database commits
 and before the push goes out, the browser keeps a wrong number and nothing
 corrects it.
 
-An observable is the alternative. The fragment is re-rendered once per change,
-in commit order, from the same turn that saved the change.
+An observable is the alternative. The state change and the broadcast row commit
+together, so no crash can leave one without the other. A worker delivers that
+row afterwards and retries until it succeeds, and Cable ignores an older
+`(instance_id, state_revision)` pair after a newer one, so a late arrival
+cannot overwrite a newer number. Delivery is still at least once, so the
+guarantee is that a viewer cannot end up on an older number, not that a
+fragment is pushed exactly once.
 
 Define an observable:
 
