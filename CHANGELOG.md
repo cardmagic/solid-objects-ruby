@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.14.2 - 2026-08-25
+
+- Rewrite the first screen around the objection a reader actually has. The
+  README led with a counter incrementing an integer, which invites the reply
+  that one line of SQL already does it. It now leads with the ticket sale from
+  the homepage: 100 seats, a hold, a ten-minute expiry that frees the seat, and
+  a live count. That is the smallest example needing three things from one
+  number, and the three things are the argument.
+- Answer "why not just use transactions?" in the first screen rather than at
+  line 1245 of a 1370-line file. The section concedes `with_lock` first, then
+  argues scope rather than discipline: any `expires_at` or `scheduled_at`
+  column is evidence the critical section already outlived the lock, and what
+  follows it is a sweeper and a race. The comparisons table gains the row
+  people actually reach for.
+- Add "Is it worth installing here?", which names who should not install this,
+  and point readers with high-QPS reads or hot identities at
+  [Solid Objects Pro](https://solidobjects.pro/).
+- Fix the reactive example, which could not run. A scalar observable raises
+  unless it is declared `broadcast: :value`, and a component dependency must
+  itself be a declared observable. The example now declares both. The reactive
+  section also claimed a fragment is re-rendered once per change; the turn
+  records the broadcast atomically, while delivery retries and is at least
+  once.
+- Cut the README from 1370 to about 580 lines by moving reference material into
+  `docs/`, and add `CONTRIBUTING.md`. Reminders now have their own guide at
+  `docs/reminders.md`, `docs/operations.md` gains the configuration defaults
+  table, the worker-count flags, the upgrade sequence and the extension
+  component contract, and `docs/architecture.md` gains `register_effect` and
+  `register_commit_action` with their signatures.
+
 ## 0.14.1 - 2026-08-24
 
 - Register application actors in every process that boots the application.
