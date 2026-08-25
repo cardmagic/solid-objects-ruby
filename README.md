@@ -5,79 +5,92 @@
 **Self-hosted, distributed Durable Objects in Rails without a daemon using your existing SQL database.**
 
 Solid Objects ports the Durable Objects programming model to ordinary Rails
-applications: addressable objects, durable state, serialized turns, alarms,
-and live clients. It runs on the MySQL, PostgreSQL, or SQLite database that
-the application already has, in the database-backed operating model of the
-Solid family. No Redis, Cloudflare account, or separate actor service is
-required.
+applications: addressable objects, durable state, serialized turns, alarms, and
+live clients. It runs on the MySQL, PostgreSQL, or SQLite database the
+application already has. No Redis, Cloudflare account, or separate actor
+service is required.
+
+> **Not a replacement for SQL transactions:** when one row update inside one
+> transaction answers the question, use that and install nothing. Solid Objects
+> earns its cost when the critical section outlives the transaction: a hold that
+> expires in ten minutes, work that must survive a restart, or a fan-in that
+> spans many jobs. See [Why not just use transactions?](#why-not-just-use-transactions).
+
+A ticket sale for one event, with 100 seats and a hold that expires:
 
 ```ruby
-class Counter < SolidObjects::Actor
-  attribute :value, default: 0
+class TicketSale < SolidObjects::Actor
+  attribute :remaining, default: 100
+  attribute :holds, default: -> { {} }
+  observable :remaining, broadcast: :value
+  observable :holds
 
-  def increment(amount: 1)
-    self.value += amount
+  def reserve(buyer:)
+    return false if remaining.zero? || holds.key?(buyer)
+
+    self.remaining -= 1
+    self.holds = holds.merge(buyer => Time.now.utc.to_i)
+    schedule(at: 10.minutes.from_now, key: buyer).expire(buyer:)
+    true
+  end
+
+  def expire(buyer:)
+    return unless holds.key?(buyer)
+
+    self.holds = holds.except(buyer)
+    self.remaining += 1
   end
 end
 
 # Synchronous caller-assisted RPC. No worker fleet is required.
-counter = Counter.ref("global")
-count = counter.increment(amount: 5)
-current_count = counter.value
-current_snapshot = counter.snapshot.value
-
-# Durable fire-and-forget delivery. A worker processes it later.
-message = counter.async.increment(amount: 5)
+sale = TicketSale.ref("event-42")
+sale.reserve(buyer: current_user.id)
 ```
 
-`Counter / global` is a logical identity. Like a Durable Object named with
+That example wants three things from the same number. It must never go below
+zero. It must give the seat back if the buyer does not pay within ten minutes.
+It must show the current count to everyone watching the page.
+
+The first is one line of SQL. The second is an `expires_at` column plus a cron
+job that sweeps it. The third is a broadcast on every code path that changes
+the number. The combination is what costs, not any one of them. Here the guard,
+the ten-minute alarm, and the live count are one class, and they commit
+together.
+
+`TicketSale / event-42` is a logical identity. Like a Durable Object named with
 `idFromName`, it can be addressed from anywhere without first creating or
 locating a Ruby object. Solid Objects activates it when work arrives, commits
 its ordered turns one at a time, persists its state, and deactivates it when
-idle. Different identities can run concurrently.
+idle. Different identities run concurrently, so two events never wait on each
+other.
 
-The invocation model is the first adoption decision:
+The invocation model is the first adoption decision. A direct call or `sync`
+needs no worker fleet, because the Rails caller helps execute the actor through
+the same mailbox, lease, and fencing path a worker would use. `async` only
+enqueues and returns a `MessageReference`, so a runtime process handles it
+later.
 
 | Call | Returns | Worker fleet required? |
 | --- | --- | --- |
-| `counter.increment(amount: 5)` | Committed handler result | No |
-| `counter.sync(timeout: 5.seconds).increment(amount: 5)` | Committed handler result | No |
-| `counter.value` | Ordered, committed query result | No |
-| `counter.snapshot.value` | Current committed state without a mailbox message | No |
-| `counter.async.increment(amount: 5)` | `MessageReference` immediately | Yes |
+| `sale.reserve(buyer: id)` | Committed handler result | No |
+| `sale.remaining` | Ordered, committed query result | No |
+| `sale.snapshot.remaining` | Committed state without a mailbox message | No |
+| `sale.async.reserve(buyer: id)` | `MessageReference` immediately | Yes |
 
-Direct methods and `sync` durably enqueue the call, then the Rails caller helps
-execute the actor through the same mailbox, lease, and fencing path as a
-worker. `async` only enqueues; a runtime process handles it later.
-
-Synchronous calls fail before enqueue when the Solid Objects database
-connection is already inside a transaction. Actor handlers may read application
-records, but direct Active Record writes are rejected so they cannot escape a
-later actor failure. Use a same-database
+Actor handlers may read application records, but direct Active Record writes
+are rejected so they cannot escape a later actor failure. Use a same-database
 [`commit_action`](#application-database-writes) for atomic database changes and
 [`emit`](#effects) for external I/O.
 
-Before adopting a latency-sensitive or high-volume surface, read
-[Is Solid Objects a good fit?](docs/fit.md) and the
-[measured performance and row-growth costs](docs/benchmarks.md).
+## Contents
 
-This is a port of the programming model, not Cloudflare's edge runtime or
-platform. Read the conceptual overview at [solidobjects.dev](https://solidobjects.dev/)
-and the exact Rails guarantees in [Correctness and delivery semantics](docs/correctness.md).
-
-Solid Objects is an early release. Its correctness core is implemented and
-tested, but the project does not yet claim production readiness. See
-[Status](#status) and the [roadmap](docs/roadmap.md).
-
-## Table of contents
-
+- [Why not just use transactions?](#why-not-just-use-transactions)
+- [Is it worth installing here?](#is-it-worth-installing-here)
 - [Cloudflare Durable Objects for Rails](#cloudflare-durable-objects-for-rails)
 - [Reactive ERB](#reactive-erb)
 - [Installation](#installation)
-- [Upgrading](#upgrading)
 - [Worker requirements](#worker-requirements)
 - [Defining an actor](#defining-an-actor)
-- [Actor identity](#actor-identity)
 - [Invoking an object](#invoking-an-object)
 - [Application database writes](#application-database-writes)
 - [Effects](#effects)
@@ -89,11 +102,66 @@ tested, but the project does not yet claim production readiness. See
 - [Dashboard](#dashboard)
 - [Database support](#database-support)
 - [Guarantees](#guarantees)
-- [When to use it](#when-to-use-it)
 - [Comparisons](#comparisons)
-- [Development](#development)
+- [Development and contributing](#development-and-contributing)
 - [Status](#status)
 - [License](#license)
+
+## Why not just use transactions?
+
+Often you should. If the whole job is read a row, decide, write it back, and
+answer the user, then `with_lock` does that and you need nothing else
+installed. Reach for it first.
+
+The argument for an actor is scope, not discipline. A lock is scoped to one
+transaction, on one connection, in one process. The ticket sale above leaves
+that scope on one line: the hold expires in ten minutes, and no transaction
+stays open for ten minutes.
+
+Any column named `expires_at`, `scheduled_at`, or `next_run_at` is evidence
+that the critical section already outlived the lock that was supposed to cover
+it. What follows such a column is a sweeper that looks for due rows, and then a
+race between that sweeper and the next writer of the same row. The column, the
+sweeper, and the race are what a Solid Objects actor replaces.
+
+Three things a lock cannot reach:
+
+- work that fires at a future moment, when no transaction of yours is open;
+- work that must survive a process restart, which rules out an in-process
+  timer; and
+- a fan-in whose critical section spans many jobs over minutes, such as an
+  import that counts its own chunks as each one finishes.
+
+If it all happens inside one request, use a lock.
+
+## Is it worth installing here?
+
+Worth it when several requests, jobs, or processes act on the same cart, chat
+room, device twin, game room, or long-lived workflow, and each next action
+needs the last committed state. Worth it when that same thing also owns work
+that fires later, or a number a live page must show.
+
+Not worth it for a plain counter, a single-row update inside one transaction, a
+stateless job, bulk ingestion or a data-parallel pipeline, CPU-heavy work, a
+large JSON document that belongs in normalized rows, high-QPS request reads, or
+a global rate-limit counter that every request touches. One hot identity is
+serialized on purpose, so making everything one identity makes a queue.
+
+High-QPS reads and hot identities are where this runtime stops being the right
+tool on its own. [Solid Objects Pro](https://solidobjects.pro/) is a commercial
+performance layer for this gem that adds grouped commits, which coalesce
+concurrent writes into fewer database commits; optional ephemeral operations,
+which take loss-tolerant calls out of the durable journal; and materialized
+projections, which build read models after commit so reads stop competing with
+mailbox work.
+
+Before moving an existing surface, read the
+[fit and anti-pattern guide](docs/fit.md), the
+[measured costs](docs/benchmarks.md), and the
+[migration cookbook](docs/migrating-existing-state.md). This ports the
+programming model, not Cloudflare's edge runtime; the exact Rails guarantees
+are in [correctness](docs/correctness.md), and this is an early release with no
+production-readiness claim.
 
 ## Cloudflare Durable Objects for Rails
 
@@ -113,238 +181,60 @@ maps those ideas into Rails:
 | Storage deletion | Authorized `reference.destroy` |
 | Cloudflare Workers platform | Your Rails processes and SQL database |
 
-Rails already has tools for jobs, records, and realtime transport.
-None of those primitives alone provides this complete stateful-object shape.
-Solid Objects adds five capabilities:
-
-### Ordered delivery per identity
-
-Every enqueue locks the actor instance and allocates an explicit, monotonically
-increasing sequence number. An activation always takes the lowest live sequence
-for that actor. A retryable failure keeps later messages blocked until the
-failed message succeeds or reaches its dead letter.
-
-This is stronger than a concurrency limit. Solid Queue's
+Every enqueue allocates a monotonically increasing sequence number, and an
+activation always takes the lowest live one, which is stronger than a
+concurrency limit: Solid Queue's
 [`limits_concurrency`](https://github.com/rails/solid_queue#concurrency-controls)
-caps simultaneous executions sharing a key, but explicitly does not guarantee
-their execution order. Solid Objects turns each actor identity into an ordered
-mailbox.
-
-### Fenced activation
-
-A lease expiration by itself cannot stop a paused worker from resuming with
-stale state. Solid Objects combines the lease owner with a monotonically
-increasing activation generation. Every state commit verifies the current
-owner, generation, unexpired database-time lease, and claimed-message
-membership.
-
-A stale worker may finish running Ruby code, but it cannot commit stale state,
-complete the message, or publish outbox entries.
-
-### Addressable objects with durable state
-
-An actor is addressed by `(actor_type, actor_id)`, not by a process, thread, or
-database row ID. Code anywhere in the application can refer to the same logical
-cart, room, device, or workflow. Its JSON state survives worker restarts and
-idle deactivation.
-
-### Per-object alarms
-
-Cloudflare Durable Objects give each object an alarm. Rails recurring schedules
-are normally global task definitions. Solid Objects ports per-object alarms as
-durable reminders owned by one logical identity:
-
-```ruby
-def schedule_expiration
-  schedule(at: 30.minutes.from_now).expire
-end
-```
-
-When due, a reminder becomes an ordinary mailbox message and follows the same
-ordering, retry, lease, and fencing rules as every other turn.
-
-### Durable Objects that render themselves
-
-Cloudflare Durable Objects can coordinate WebSocket clients. Solid Objects adds
-a Rails-native extension: an actor observable becomes a live Turbo target with
-one helper call. The actor commit and durable broadcast outbox are atomic, so a
-rolled-back state change cannot leak into the page.
+caps simultaneous executions sharing a key but explicitly does not guarantee
+their order. Every commit verifies an activation generation, the lease owner,
+an unexpired database-time lease, and claimed-message membership, so a stale
+worker can finish running Ruby but cannot commit.
 
 ## Reactive ERB
 
-Define an observable:
+For a comment count or a dashboard number, lock the row, update it, and call
+`broadcast_replace_to`. That is less code than this gem and it works.
 
-```ruby
-class ChatRoom < SolidObjects::Actor
-  attribute :recent_messages, default: -> { [] }
-  attribute :status, default: "open"
+It gets harder when several people write to the same record at once. Each
+request renders the fragment in its own process and pushes it. The lock decided
+who wrote first, but it has no say over which push arrives last, so a viewer
+can be left looking at the older number. The second gap is that the push is not
+part of the save: if the process dies after the database commits and before the
+push goes out, the browser keeps a wrong number and nothing corrects it.
 
-  observable :message_count, broadcast: :value do
-    recent_messages.length
-  end
-
-  observable :recent_messages
-  observable :status
-end
-```
-
-Scalar observables remain stable `<span>` targets:
+An observable is the alternative. The state change and the broadcast row commit
+together, a worker delivers that row and retries until it succeeds, and Cable
+ignores an older `(instance_id, state_revision)` pair after a newer one. A
+viewer cannot end up on an older number, though delivery itself is still at
+least once.
 
 ```erb
-<%= solid_object @room, authorization_context: current_user do |room| %>
-  Messages: <%= room.message_count %>
+<%= solid_object @sale, authorization_context: current_user do |sale| %>
+  <span class="seats"><%= sale.remaining %> seats left</span>
+  <%= sale.component :buyers, observes: :holds %>
 <% end %>
 ```
 
-Reactive components rerender a host ERB partial when one of their explicit
-dependencies changes:
+The two observables in the ticket sale are what make that template live: a
+committed turn that changes `remaining` replaces the span, and one that changes
+`holds` re-renders the component from `actors/ticket_sale/_buyers`. Observables
+are invalidation-only unless declared `broadcast: :value`, which is why
+`remaining` carries it and `holds` does not: only an opted-in scalar sends its
+value to every authorized subscriber, and rendering an invalidation-only
+observable as a span raises. Per-viewer state belongs in `broadcast_payload`.
+Signed tokens protect integrity, not access: rendering, Cable, and every
+refresh each authorize again.
 
-```erb
-<%= solid_object @room, authorization_context: current_user do |room| %>
-  <%= room.component :messages, observes: :recent_messages %>
-  <%= room.component :presence, observes: %i[recent_messages status] %>
-<% end %>
-```
-
-Observables are invalidation-only by default. Their values remain available to
-authorized component rendering, while durable rows and Action Cable frames
-carry only change metadata. Explicitly opt a scalar observable into sharing its
-value with every authorized actor subscriber:
-
-```ruby
-observable :message_count, broadcast: :value do
-  recent_messages.length
-end
-```
-
-Only `broadcast: :value` observables can render as scalar `<span>` targets.
-Their changed values are stored in `solid_objects_broadcasts` and can reach
-every subscriber that passes `authorize_subscription` for the actor. Put
-per-viewer state in `broadcast_payload`, which computes a fresh projection for
-each connection.
-
-Component names can repeat when each instance has a stable key. Signed
-JSON-compatible locals let one conventional partial render the matching
-projection:
-
-```erb
-<%= solid_object @room, authorization_context: current_user do |room| %>
-  <% @players.each do |player| %>
-    <%= room.component :player,
-      key: player.id,
-      observes: %i[players life_totals],
-      locals: { player_id: player.id },
-      refresh: :morph %>
-  <% end %>
-<% end %>
-```
-
-The host partial still resolves only to `actors/chat_room/_player`. It receives
-`actor`, `authorization_context`, `component_key`, and the declared locals:
-
-```erb
-<article id="player_<%= player_id %>">
-  Life: <%= actor.life_totals.fetch(player_id.to_s) %>
-</article>
-```
-
-The default refresh strategy is `:replace`. `refresh: :morph` loads the
-authorized component HTML through a gem-owned browser element, rejects stale
-responses by actor revision, and applies the result using Turbo's scoped
-`replace method="morph"`. Superseded requests for the same keyed target are
-aborted. This preserves unchanged DOM nodes where Turbo's morphing rules allow
-it, including focus and `data-turbo-permanent` content.
-
-`room.component(:messages)` resolves only
-`actors/chat_room/_messages`. Its partial receives `actor` and
-`authorization_context` locals, plus a `component_key` of `nil` when the
-component is unkeyed:
-
-```erb
-<ul>
-  <% actor.recent_messages.each do |message| %>
-    <li><%= message.fetch("body") %></li>
-  <% end %>
-</ul>
-```
-
-Declared observables are deeply frozen ordinary Ruby values inside a
-component. Arrays support loops, hashes support ordinary lookup, conditionals
-work normally, and ERB still escapes user strings. A reactive component cannot
-read `actor.state`, access an undeclared observable, or choose a dynamic
-partial path. A component name and key pair must be unique within its
-`solid_object` scope.
-
-Component keys and locals are signed into the refresh token and cannot be
-modified without invalidating it, but they are visible to the browser and are
-not secrets. Every initial render and refresh passes the signed locals and
-`component_key` to `authorize_query` as `arguments`. Authorization must still
-bind them to the authenticated request context.
-
-That template provides initial server rendering, stable opaque DOM targets,
-and live updates after committed actor turns. One `solid_object` block makes
-one Action Cable subscription for all scalar values and components inside it,
-and Action Cable multiplexes subscriptions over the browser's WebSocket.
-
-No client-side state store, custom Stimulus controller, channel class, manual
-broadcast, or one-WebSocket-per-value setup is required. Signed stream tokens
-protect integrity, not access. Initial rendering authorizes with the
-`authorization_context` passed to `solid_object`; Cable authorizes with its
-connection; every component refresh authorizes again with a request-specific
-context:
-
-```ruby
-SolidObjects.configure do |configuration|
-  configuration.component_authorization_context = ->(controller:) { Current.user }
-end
-```
-
-The durable outbox stores one row per changed observable, never personalized
-HTML. Cable sends invalidation metadata over the shared actor stream, then a
-Turbo Frame requests the component with normal cookies. Only scalar targets
-that the server rendered into this `solid_object` scope are signed into its
-stream token and receive value payloads; component-only dependencies do not
-send their values to the browser. The endpoint renders the latest committed
-snapshot, returns `private, no-store`, and reauthorizes the component name plus
-every declared dependency. Two viewers can therefore receive different HTML
-for the same actor without sharing either projection.
-
-Reconnect compares the component's signed initial revision with the latest
-actor incarnation and state revision, then refreshes stale components. Cable
-coalesces several dependency changes from one actor turn into one component
-refresh and ignores older out-of-order invalidations. Replace refreshes detach
-an older in-flight frame. Morph refreshes abort the older request and compare
-the returned revision with the current target before applying HTML.
-
-Reactive components add no HTML to durable rows, but each affected component
-causes an authorized HTTP render. One actor turn still inserts one broadcast
-row per changed observable; several dependencies from that turn coalesce at
-the subscriber. Keep components bounded, declare only necessary dependencies,
-keep signed locals small, and use scalar observables for inexpensive
-single-value replacement. Each keyed component counts toward the 50-component
-subscription limit and carries its own signed token.
-
-Reactive views require `turbo-rails` and a working Action Cable adapter in the
-host application. The Solid Objects engine must be mounted so its signed
-component endpoint is reachable. Reactive views are optional; the actor
-runtime itself does not depend on Turbo. Morph components automatically include
-the engine's `solid_objects/component_refresh` JavaScript module; the host does
-not need a Stimulus controller or custom stream action. The default Rails
-Propshaft and Sprockets setups discover namespaced engine assets automatically.
-An application created with `--skip-asset-pipeline` should use replace refreshes
-unless it explicitly serves that module.
-
-```ruby
-# config/routes.rb
-mount SolidObjects::Engine => "/solid_objects"
-```
+Reactive views require `turbo-rails`, an Action Cable adapter, and
+`mount SolidObjects::Engine => "/solid_objects"`. They are optional; the actor
+runtime does not depend on Turbo. The [realtime guide](docs/realtime.md) covers
+keyed components and signed locals, `refresh: :morph`, reconnect fencing,
+subscription limits, and the per-refresh cost model.
 
 ## Installation
 
-Solid Objects requires Ruby 3.3 or newer and Rails 7.1 or newer. CI runs the
-suite against Rails 7.1, 7.2, 8.0, and 8.1.
-
-Add the gem, install its initializer and migration, then migrate:
+Ruby 3.3 or newer and Rails 7.1 or newer. CI runs the suite against Rails 7.1,
+7.2, 8.0, and 8.1.
 
 ```bash
 bundle add solid_objects
@@ -353,100 +243,17 @@ bin/rails db:migrate
 bin/rails solid_objects:doctor
 ```
 
-The doctor validates configuration and required schema shape, reports
-authorization posture and live runtime roles, and completes a real synchronous
-actor round-trip without a worker. It checks required tables and columns instead
-of a copied migration timestamp, which the host application rewrites. It exits
-unsuccessfully when configuration, schema, or the round-trip is broken.
+The doctor validates configuration and schema shape, reports authorization
+posture and live roles, and completes a real synchronous actor round-trip
+without a worker.
 
 The generated initializer is intentionally inert: all five policies deny by
-default. Replace them with application-specific authorization before sending
-messages, querying state, destroying actors, subscribing to streams, or
-mounting administration routes:
-
-```ruby
-SolidObjects.configure do |configuration|
-  configuration.authorize_message = ->(**) { false }
-  configuration.authorize_query = ->(**) { false }
-  configuration.authorize_destroy = ->(**) { false }
-  configuration.authorize_subscription = ->(**) { false }
-  configuration.authorize_administration = ->(**) { false }
-end
-```
-
-Knowledge of an actor ID or signed stream token is never authorization.
-Read the [policy reference and tenant-aware example](docs/authorization.md)
-before opening a policy. Unconditionally allowing message and query calls is
-reasonable only for a controlled server-side pilot. Keep destroy,
-subscription, and administration denied until each has an authenticated
-caller.
-
-The engine uses the application's primary Active Record connection by default.
-See [Database support](#database-support) for a separate database configuration.
-
-### Host application tooling
-
-Installed engine migrations are copied as
-`db/migrate/*_create_solid_objects_tables.solid_objects.rb`. If the host enables
-`Rails/CreateTableWithTimestamps`, exclude engine-owned migrations rather than
-editing their intentionally specialized hot tables:
-
-```yaml
-Rails/CreateTableWithTimestamps:
-  Exclude:
-    - "db/migrate/*.solid_objects.rb"
-```
-
-Solid Objects ships inline RBS signatures, not RBI files. Sorbet applications
-can generate the gem RBI with:
-
-```bash
-bundle exec tapioca gem solid_objects
-```
-
-## Upgrading
-
-Review [CHANGELOG.md](CHANGELOG.md) for compatibility and deployment-order
-notes, then update the gem:
-
-```bash
-bundle update solid_objects
-```
-
-If the `Gemfile` pins an exact version, update that constraint first and run
-`bundle install`. Commit both `Gemfile.lock` and the copied Solid Objects
-migrations.
-
-Copy only migrations that the newer gem has added, migrate, and verify the
-installation:
-
-```bash
-bin/rails solid_objects:install:migrations
-bin/rails db:migrate
-bin/rails solid_objects:doctor
-```
-
-The migration task skips engine migrations already present in the application
-and gives new migrations host-specific timestamps. Inspect the resulting
-`db/migrate/*.solid_objects.rb` files before applying them. Do not rerun
-`generate solid_objects:install` during an upgrade because that also attempts
-to regenerate the application initializer.
-
-When Solid Objects uses a separate database configuration named `actors`, copy
-and run migrations through that database's configured migration path:
-
-```bash
-DATABASE=actors bin/rails solid_objects:install:migrations
-bin/rails db:migrate:actors
-bin/rails solid_objects:doctor
-```
-
-For production, back up the actor database and run new migrations before
-starting application or Solid Objects worker processes that require the new
-schema. Restart the web and Solid Objects worker fleet after the bundle and
-schema are current. For releases that change actor state versions, also follow
-the [state migration and rolling-deployment guide](docs/state-migrations.md);
-Rails schema migrations and actor state migrations are separate concerns.
+default. Replace them before sending messages, querying state, destroying
+actors, subscribing to streams, or mounting administration routes. Knowledge of
+an actor ID or a signed stream token is never authorization. Read the
+[policy reference](docs/authorization.md) first. Upgrades, the RuboCop
+exclusion for engine migrations, and Sorbet RBI generation are in the
+[operations guide](docs/operations.md#installing-and-upgrading).
 
 ## Worker requirements
 
@@ -455,909 +262,319 @@ the runtime when the feature introduces asynchronous delivery or outboxes:
 
 | Feature | Runtime roles required |
 | --- | --- |
-| Direct actor method or explicit `sync` | None; the caller executes it |
-| Attribute or declared query read | None; the caller executes it |
-| Committed `snapshot` read | None; reads the instance row directly |
-| `destroy` | None |
+| Direct actor method, `sync`, query read, `snapshot`, or `destroy` | None; the caller executes it |
 | `async` including delayed delivery | Actor worker |
 | One-shot or recurring `schedule` | Reminder scheduler and actor worker |
-| `emit` without an actor callback | Effect worker |
-| `emit` with success or failure callback | Effect worker and actor worker |
+| `emit`, with or without an actor callback | Effect worker, plus actor worker for callbacks |
 | Actor-to-actor `async` or `send_to` | Effect worker and actor worker |
 | Scalar or component Turbo updates | Broadcast worker, Action Cable, and the actor execution path |
-| Initial `solid_object` server render | No Solid Objects worker; normal Rails rendering |
 
-One command starts every Solid Objects role:
-
-```bash
-bundle exec solid_objects start
-```
-
-Deploy and monitor that process before enabling any feature marked as requiring
-a runtime role. A missing worker never makes a durable `async` message
-disappear, but it leaves the message pending indefinitely.
-
-### Running an extension in the same process
-
-An extension gem can register its own long-running component, and
-`solid_objects start` runs it beside the built-in roles. The component joins the
-same supervision, the same replacement after a crash, and the same shutdown
-timeout, so an operator deploys and monitors one process instead of two:
-
-```ruby
-SolidObjects.configure do |configuration|
-  configuration.register_component { MyExtension::FlushEngine.new }
-end
-```
-
-Pass `count:` for more than one instance. The block runs once for each instance,
-and again when the supervisor replaces a crashed one, so no two components share
-an object.
-
-A registered component answers four methods, the contract the built-in roles
-already keep:
-
-| Method | Purpose |
-| --- | --- |
-| `run` | Runs the loop. The supervisor calls it in its own thread |
-| `request_shutdown` | Asks the loop to finish. It must make `run` return |
-| `stopped?` | Reports whether the component already finished |
-| `stop` | Forces cleanup when the shutdown timeout expires first |
-
-The supervisor checks that contract when it builds the component, and a missing
-method raises `ArgumentError` as the supervisor starts, rather than hanging a
-shutdown later. Registration itself never calls the block, so a component is
-free to need a database connection that the application does not have while it
-boots.
+`bundle exec solid_objects start` runs every role. A missing worker never makes
+a durable `async` message disappear, but it leaves the message pending
+indefinitely. An extension gem can register its own long-running component to
+run beside the built-in roles; see the
+[operations guide](docs/operations.md#running-an-extension-in-the-same-process).
 
 ## Defining an actor
 
-The Durable Object class becomes an ordinary Ruby class:
-
-```ruby
-class ShoppingCart < SolidObjects::Actor
-  attribute :items, default: -> { [] }
-  attribute :checkout_status, default: "open"
-
-  def add_item(product_id:, quantity: 1)
-    item = items.find do |candidate|
-      candidate.fetch("product_id") == product_id
-    end
-
-    if item
-      item["quantity"] += quantity
-    else
-      items << {
-        "product_id" => product_id,
-        "quantity" => quantity
-      }
-    end
-  end
-
-  observable :items_count, broadcast: :value do
-    items.sum { |item| item.fetch("quantity") }
-  end
-end
-```
-
-Class-level `attribute` declarations are the per-object durable storage schema
-and generate actor instance readers and writers. Public instance methods
-declared on the actor are durable message handlers. They can use `items`,
-`self.checkout_status = "pending"`, or the lower-level `state` object. Declare
-helper methods as private or protected so they are not exposed as messages.
-
-Attributes also become ordered read queries on a reference. Public actor
-methods and attribute readers are synchronous caller-assisted invocations:
-
-```ruby
-cart = ShoppingCart.ref("alice")
-cart.add_item(product_id: "shirt-123", quantity: 2)
-items = cart.items
-```
-
-Use `cart.async.add_item(product_id: "shirt-123", quantity: 2)` to enqueue
-without waiting; that call returns a `SolidObjects::MessageReference`. `items`
-is a deeply frozen JSON snapshot, so mutating it cannot bypass the actor
-mailbox. State changes must go through public actor methods or explicit
-`async`.
+`TicketSale` above is the whole shape. Class-level `attribute` declarations are
+the per-object durable storage schema. Public instance methods are durable
+message handlers, so declare helpers private. Attributes also become ordered
+read queries on a reference: `sale.remaining` goes through the mailbox, while
+`sale.snapshot.remaining` reads the most recently committed state without one
+and does not activate a missing actor.
 
 State, arguments, results, effects, and reminder arguments accept
-JSON-compatible values. Solid Objects never deserializes Ruby `Marshal` data.
+JSON-compatible values only, and Solid Objects never deserializes Ruby
+`Marshal` data. Returned values are deeply frozen, so mutating one cannot
+bypass the mailbox; use `SolidObjects.mutable_copy(value)` to change a copy.
 
-Attribute readers are ordered mailbox queries and retain message history. For
-a read that does not need mailbox ordering, use an authorized committed
-snapshot:
+Lifecycle hooks `on_activate` and `on_deactivate` are available. They should be
+deterministic and must not perform slow network I/O. See the
+[architecture guide](docs/architecture.md) for their persistence semantics.
 
-```ruby
-snapshot = cart.snapshot
-items = snapshot.items
-```
-
-Snapshots and synchronous results are deeply frozen. Use
-`SolidObjects.mutable_copy(items)` before changing a returned collection.
-Snapshot reads can race with an in-flight turn; they return the most recently
-committed state and do not create or activate a missing actor.
-
-Lifecycle hooks are also available:
-
-```ruby
-class DeviceActor < SolidObjects::Actor
-  on_activate do
-  end
-
-  on_deactivate do
-  end
-end
-```
-
-Hooks should be deterministic and must not perform slow network I/O. See the
-[architecture](docs/architecture.md) for their persistence semantics.
-
-## Actor identity
-
-The durable identity is:
-
-```text
-actor_type + actor_id
-```
-
-`actor_type` is inferred from the Ruby class name, so the normal API needs no
-declaration. The pair plays the role of a Durable Objects namespace and object
-name:
-
-```ruby
-ShoppingCart.ref("alice")
-```
-
-Use an explicit stable type when the persisted name should be independent of a
-future Ruby constant rename:
-
-```ruby
-class ShoppingCart < SolidObjects::Actor
-  actor_type "shopping_cart"
-end
-```
-
-Actor types resolve only through the explicit registry. Solid Objects never
-constantizes a type supplied by a client.
+The durable identity is `actor_type` plus `actor_id`, which together play the
+role of a Durable Objects namespace and object name. The type is inferred from
+the class name; declare `actor_type "ticket_sale"` when the persisted name
+should survive a constant rename. Types resolve only through the explicit
+registry, and Solid Objects never constantizes a type supplied by a client.
 
 ## Invoking an object
 
-As with a Durable Object stub, declared actor operations are available directly
-on a reference:
+As with a Durable Object stub, declared operations are available directly on a
+reference. A direct call is synchronous from the caller's perspective: Solid
+Objects durably enqueues it, executes the actor locally when its fenced
+activation is available, and returns the committed, deeply frozen result.
+
+Use `async` for durable fire-and-forget work, and explicit `sync` for a
+timeout, idempotency key, or authorization context different from the defaults:
 
 ```ruby
-class Counter < SolidObjects::Actor
-  attribute :value, default: 0
-
-  def increment(amount: 1)
-    self.value += amount
-  end
-end
-
-counter = Counter.ref("global")
-value = counter.increment(amount: 5)
-value = counter.value
-```
-
-Like RPC on a Durable Object stub, a direct call is synchronous from the
-caller's perspective. Solid Objects first durably enqueues the invocation, then
-executes that actor locally when its fenced activation is available. It returns
-the committed, deeply frozen result. Earlier mailbox entries still run first,
-and a remote worker may win the activation without changing the result
-semantics.
-
-The `message(:name) { ... }` and `query(:name) { ... }` DSLs remain available
-for dynamic definitions.
-
-### `async`
-
-Use `async` for durable fire-and-forget work. It returns a
-`MessageReference` immediately and leaves execution to the worker fleet:
-
-```ruby
-message = order.async(
-  idempotency_key: "submit-order-123",
-  authorization_context: Current.user
-).submit
-```
-
-`async` needs a running actor worker. Installing the engine and migrating the
-schema starts no role, so a process that only serves web requests leaves the
-message ready. Nothing is lost. The message waits until
-`bundle exec solid_objects start` runs the roles. See
-[Worker requirements](#worker-requirements) for the feature-by-role table.
-
-Use `available_at:` to spread bulk work or delay one message:
-
-```ruby
+order.async(idempotency_key: "submit-order-123").submit
 order.async(available_at: 10.minutes.from_now).evaluate
+order.sync(timeout: 5.seconds, authorization_context: Current.user).status
 ```
 
-### `sync`
-
-Use explicit `sync` when the invocation needs a timeout, idempotency key, or
-authorization context different from the defaults:
-
-```ruby
-status = order.sync(
-  timeout: 5.seconds,
-  authorization_context: Current.user
-).status
-```
+`async` needs a running actor worker, and installing the engine starts no role.
+Until `bundle exec solid_objects start` runs, the message stays ready rather
+than lost.
 
 Delivery configuration belongs on `async(...)` or `sync(...)` before the
-operation. Keywords on the final method call are always actor message
-arguments, so `order.sync(timeout: 5.seconds).record(timeout: "payload")`
-keeps the invocation timeout separate from the payload value.
+operation, so keywords on the final call are always message arguments:
+`order.sync(timeout: 5.seconds).record(timeout: "payload")` keeps the two
+apart. A timeout never cancels the durable invocation, so the call can finish
+after its caller gives up; `SolidObjects::SyncTimeout` carries a
+`message_reference` that can reauthorize and wait for the result. Do not wrap a
+synchronous call in `ApplicationRecord.transaction`: Solid Objects raises
+`SolidObjects::SyncInsideTransaction` before enqueue.
 
-Direct calls and `sync` use the same caller-assisted execution path. A healthy
-actor normally needs no worker round trip, making this path suitable for HTTP
-and MCP request/response boundaries when the handler itself fits the
-application's latency budget. If another process owns the activation, the
-caller waits for the durable result using wake-up hints with bounded database
-polling as the fallback. A timeout never cancels the durable invocation.
-`SolidObjects::SyncTimeout` includes actor identity, message ID, sequence,
-durable status, mailbox blocker, and activation-owner diagnostics without
-including message arguments. The configured timeout also bounds adapter
-database lock waits from the enqueue attempt through result observation.
-PostgreSQL uses transaction lock and statement timeouts, SQLite retries busy
-coordination operations only until the original call deadline, and MySQL uses
-its execution timeout plus InnoDB's one-second minimum lock-wait granularity.
-
-The durable call can finish after its original caller gives up. Reauthorize and
-recover its eventual result through the durable message identity:
+Actor code cannot use direct calls or `sync` on another actor, because
+synchronous actor-to-actor waits can deadlock in cycles. Use `async` or
+`send_to`, which stages delivery with the current turn, returns `nil`, is
+discarded if the turn does not commit, and accepts messages rather than
+queries:
 
 ```ruby
-begin
-  order.sync(timeout: 250.milliseconds).submit
-rescue SolidObjects::SyncTimeout => error
-  result = error.message_reference.wait(
-    timeout: 5.seconds,
-    authorization_context: Current.user
-  )
-end
+send_to(audit_log, idempotency_key: event_id).record(event_name: "account_disabled")
 ```
 
-If the enqueue transaction itself cannot finish within the budget, Solid
-Objects raises `SyncEnqueueTimeout`; no durable message exists to recover.
-Timeouts do not preempt Ruby handler code that has already started.
+### Domain rejection and redelivery
 
-Do not wrap a synchronous actor call in `ApplicationRecord.transaction`.
-Solid Objects raises `SolidObjects::SyncInsideTransaction` before enqueue when
-its connection already has an open transaction. Move the actor call before the
-transaction, use `async`, or let the actor own the coordinated change through a
-commit action.
+`reject :validation_failed, "Response is not valid"` ends a turn without
+retrying or dead-lettering. The caller receives `SolidObjects::Rejected` with a
+stable code, message, and JSON-compatible details; the rejected message stays
+durable for audit, actor state rolls back, and no later turn is blocked. A code
+must match `\A[A-Za-z_][A-Za-z0-9_]*\z`, and an invalid one raises
+`SolidObjects::InvalidRejectionCode`.
 
-Actor code cannot use direct calls or `sync` on another actor; synchronous
-actor-to-actor waits can deadlock in cycles. Use `async` or `send_to` and a
-result message.
-
-```ruby
-send_to(
-  audit_log,
-  available_at: 5.minutes.from_now,
-  idempotency_key: event_id
-).record(event_id:, event_name: "account_disabled")
-```
-
-Actor-to-actor delivery is staged with the current turn, returns `nil`, and is
-discarded if that turn does not commit. It accepts messages, not queries.
-
-### Domain rejection
-
-Reject invalid input without retrying or creating a dead letter:
-
-```ruby
-def submit(response:)
-  reject :validation_failed, "Response is not valid" unless valid?(response)
-
-  self.response = response
-end
-```
-
-The caller receives `SolidObjects::Rejected` with a stable code, message, and
-JSON-compatible details. The rejected message remains durable for audit, actor
-state is rolled back, and no later mailbox turn is blocked.
-
-`Rejected#code` is a `String`, even when `reject` receives a symbol. Codes must
-match `\A[A-Za-z_][A-Za-z0-9_]*\z`. Invalid codes raise
-`SolidObjects::InvalidRejectionCode` and fail the turn without retrying.
-
-### Redelivery
-
-Sequential does not mean once. A handler can run again after a process crash or
-lease loss, so guard logical transitions in durable actor state:
-
-```ruby
-def launch
-  return if status == "launched"
-
-  self.status = "launched"
-  emit :launch_vehicle, launch_id: actor_id
-end
-```
-
-External systems must also deduplicate effects using the stable effect ID.
+Sequential does not mean once. A handler can run again after a crash or lease
+loss, so guard logical transitions in durable actor state and deduplicate
+external effects on the stable effect ID. See
+[handler idempotency](docs/correctness.md#handler-idempotency).
 
 ## Application database writes
 
 Actor handlers execute outside the fenced commit. They may query application
 records, but Solid Objects rejects direct Active Record writes from all
-user-supplied actor code: handlers, observables, activation/deactivation hooks,
-and state migrations. Otherwise an application row could commit before the
-actor later raises or loses its activation fence.
+user-supplied actor code, so an application row cannot commit before the actor
+later raises or loses its fence.
 
 For a short database-only change that must commit atomically with actor state,
-stage a named action:
+stage a named action and register its implementation at boot. The registered
+block runs inside the fenced transaction, so its writes, actor state, message
+completion, and outboxes commit or roll back together:
 
 ```ruby
-class Assessment < SolidObjects::Actor
-  attribute :status, default: "open"
-
-  def finish(attempt_id:, score:)
-    self.status = "complete"
-    commit_action :complete_attempt, attempt_id:, score:
-  end
+def finish(attempt_id:, score:)
+  self.status = "complete"
+  commit_action :complete_attempt, attempt_id:, score:
 end
 ```
 
-Register its implementation during application boot:
-
-```ruby
-SolidObjects.register_commit_action(:complete_attempt) do |arguments, context|
-  AssessmentAttempt.find(arguments.fetch("attempt_id")).update!(
-    score: arguments.fetch("score"),
-    actor_message_id: context.message_id
-  )
-end
-```
-
-The registered block runs inside the short fenced transaction. Its database
-writes, actor state, message completion, and outboxes all commit or roll back
-together. Commit actions require Solid Objects and `ActiveRecord::Base` to
-share one connection pool. They may be invoked again after a database rollback,
-so keep them deterministic, bounded, and database-only. Never perform network
-I/O, wait for another actor, or enqueue nontransactional work from a commit
-action.
-
-When Solid Objects uses a separate actor database, use `emit` and an idempotent
-effect consumer instead; the two databases cannot share one transaction.
+See
+[registering handlers](docs/architecture.md#registering-effect-and-commit-action-handlers).
 
 ## Effects
 
-Cloudflare Durable Objects can call external services directly. Solid Objects
-does not hold a Rails database transaction across slow external I/O. `emit`
-creates a transactional outbox entry alongside state and message completion:
+Solid Objects does not hold a database transaction across slow external I/O.
+`emit` stages a transactional outbox entry alongside state and message
+completion, and an effect worker performs the call afterwards:
 
 ```ruby
-def checkout(payment_id:, amount_cents:)
-  return unless checkout_status == "open"
-
+def checkout(payment_id:)
   self.checkout_status = "pending"
-  emit(
-    :charge_payment,
-    payment_id:,
-    amount_cents:,
-    on_success: :payment_succeeded,
-    on_failure: :payment_failed
-  )
-end
-
-def payment_succeeded(effect_id:, arguments:, result:)
-  self.checkout_status = "paid"
-end
-
-def payment_failed(effect_id:, arguments:, error:)
-  self.checkout_status = "failed"
+  emit(:charge_payment, payment_id:,
+    on_success: :payment_succeeded, on_failure: :payment_failed)
 end
 ```
 
-Register an effect handler during application boot:
-
-```ruby
-SolidObjects.register_effect(:charge_payment) do |arguments, context|
-  Payments.charge(
-    idempotency_key: context.id,
-    payment_id: arguments.fetch("payment_id"),
-    amount_cents: arguments.fetch("amount_cents")
-  )
-end
-```
-
-The provider call can repeat if a process dies after external success but
-before recording completion. The stable effect ID is the idempotency key.
-Success callbacks receive `effect_id:`, the originally staged `arguments:`,
-and `result:`. Failure callbacks receive `effect_id:`, `arguments:`, and
-`error:`, so an actor can correlate concurrent effects without storing a
-separate callback ledger.
+A success callback receives `effect_id:`, `arguments:`, and `result:`. The
+provider call can repeat if a process dies after external success but before
+recording completion, so the consumer must deduplicate on the stable effect ID.
+See [registering handlers](docs/architecture.md#registering-effect-and-commit-action-handlers).
 
 ## Reminders
 
-Reminders are Solid Objects' durable equivalent of the Durable Objects Alarms
-API. One-shot and recurring alarms are actor-owned database records:
+A reminder is a per-object alarm. When due it becomes an ordinary mailbox
+message under the same ordering, retry, lease, and fencing rules as every other
+turn:
 
 ```ruby
-def schedule_evaluation
-  schedule(
-    at: 1.hour.from_now,
-    every: 1.hour,
-    missed: :latest
-  ).evaluate(account_id:)
-end
+schedule(at: 30.minutes.from_now).expire
+schedule(at: entry.fetch("wait_until"), key: entry.fetch("id")).deliver
 ```
 
-Use `missed: :latest` to coalesce missed occurrences or `missed: :all` to
-enqueue each one.
+A reminder is named for its operation, so re-arming `expire` moves the same
+alarm rather than adding one. Pass `key:` when the actor waits on several items
+at once and each needs its own alarm. Without a key, scheduling per item is a
+data-loss bug: every entry overwrites the previous entry's alarm, nothing
+raises, and only a `solid_objects.reminder.replaced` event records it.
 
-### A reminder is one named alarm per actor
-
-The uniqueness key is `(actor, reminder name)`. Scheduling a name that is
-already armed **moves the existing alarm** rather than adding a second one. The
-database enforces this with a unique index on `(instance_id, name)`.
-
-This is the same model as Orleans reminders and Durable Objects alarms, and it
-is what makes a reminder safe to re-arm from a handler that may run more than
-once. Without a key the name is the operation, so this is a data-loss bug:
-
-```ruby
-# Wrong. Every entry overwrites the previous entry's alarm.
-def add(entry:)
-  self.entries = entries + [ entry ]
-  schedule(at: entry.fetch("wait_until")).deliver
-end
-```
-
-Two entries leave one reminder. The earlier wake-up never happens, nothing
-raises, and nothing is logged except a `solid_objects.reminder.replaced` event.
-
-### An alarm per item, with `key:`
-
-Pass `key:` when an actor is waiting on several things at once. The key is your
-own identifier for the item, and it names that item's alarm, so each item gets
-one:
-
-```ruby
-def add(entry:)
-  self.entries = entries + [ entry ]
-  schedule(at: entry.fetch("wait_until"), key: entry.fetch("id")).deliver
-end
-```
-
-Two entries now leave two reminders. Scheduling the same key again moves that
-item's alarm and leaves the others alone, which is what makes a keyed reminder
-as safe to re-arm as an unkeyed one. The operation still decides which handler
-runs; the key only decides which alarm is which.
-
-A key must be non-empty, and the name it becomes must fit the 191-character
-column, which is checked on the composed name rather than the key alone so a
-long operation and a short key are caught too.
-
-The key is separated from the operation by a colon, so an operation may not hold
-one. Otherwise an unkeyed `deliver:item` and a `deliver` keyed `item` would be
-one name, and the second would silently take the first one's alarm. A key may
-hold colons of its own, because the operation before the first one cannot.
-
-### One alarm for a whole queue
-
-A key per item is not always what you want. An actor that only ever needs to
-know "what is next" can keep one alarm and let the handler drain everything now
-due before arming the next:
-
-```ruby
-def add(entry:)
-  self.entries = (entries + [ entry ]).sort_by { |item| item.fetch("wait_until") }
-  arm_next
-end
-
-def deliver
-  now = Time.current.to_i
-  due, pending = entries.partition { |item| item.fetch("wait_until") <= now }
-  due.each { |item| emit :send_push, **item.symbolize_keys }
-  self.entries = pending
-  arm_next
-end
-
-private
-
-def arm_next
-  earliest = entries.first
-  return unless earliest
-
-  schedule(at: Time.at(earliest.fetch("wait_until"))).deliver
-end
-```
-
-That costs one reminder row instead of one per item, and a coalesced occurrence
-cannot strand an entry because the handler drains by time rather than by alarm.
-Prefer it when the queue is large and the items are interchangeable; prefer
-`key:` when an item needs its own alarm that can be moved on its own.
-
-Solid Objects has no `unschedule`. A reminder stops when its handler does not
-re-arm it, and destroying an actor removes its reminders.
-
-Self-scheduling actors should also have a low-frequency application reconciler.
-It may read `SolidObjects::Instance.states_for`, `.without_pending_work`, and
-`.orphaned`, but every repair must go through `async`. Never bulk-update actor
-state around the lease and fencing checks.
-
-Suspended actors should be reported rather than silently resumed. Spread large
-repair batches with `available_at:` so reconciliation cannot stampede one
-mailbox or the worker fleet.
+There is no `unschedule`; a reminder stops when its handler does not re-arm it.
+The [reminders guide](docs/reminders.md) covers the naming rules, one alarm for
+a whole queue, and reconciliation for self-scheduling actors.
 
 ## Destroying an object
 
-Destroy an actor incarnation through its reference:
-
-```ruby
-Counter.ref("global").destroy
-```
-
-`destroy` is synchronous and idempotent. It returns `true` when it deletes an
-existing incarnation and `false` when none exists. In one transaction it locks
-and deletes the actor instance; cascading foreign keys remove state, message
-history, ready and claimed mailbox rows, dead letters, reminders, effects, and
-broadcasts.
-
-Destruction has its own deny-by-default `authorize_destroy` policy and cannot be
-called synchronously from actor code. It does not run `on_deactivate`. A stale
-activation cannot commit after deletion because its fenced write targets the
-deleted instance primary key. Addressing the same type and ID later creates a
-fresh incarnation with default state and message sequence 1.
-
-Pending outboxes are deleted. An external effect, actor-to-actor delivery, or
-broadcast that already started cannot be recalled, but its stale completion
-cannot enqueue a callback or recreate the source actor. See
-[destruction semantics](docs/correctness.md#destruction) before using deletion
-as application workflow.
+`Counter.ref("global").destroy` is synchronous and idempotent. In one
+transaction it locks and deletes the instance, and cascading foreign keys
+remove state, message history, mailbox rows, dead letters, reminders, effects,
+and broadcasts. It has its own deny-by-default `authorize_destroy` policy,
+cannot be called synchronously from actor code, and does not run
+`on_deactivate`. A stale activation cannot commit afterwards, and addressing
+the same type and ID later creates a fresh incarnation with sequence 1. Read
+[destruction semantics](docs/correctness.md#destruction) first.
 
 ## State migrations
 
-Actor state has an independent schema version:
+Actor state has an independent schema version. An actor refuses activation when
+stored state is newer than the running code, and published migration blocks
+cannot be squashed, because a long-idle actor may still hold an old
+representation:
 
 ```ruby
-class ShoppingCart < SolidObjects::Actor
-  state_version 2
+state_version 2
 
-  migrate_state from: 1, to: 2 do |state|
-    state["currency"] ||= "USD"
-    state
-  end
+migrate_state from: 1, to: 2 do |state|
+  state["currency"] ||= "USD"
+  state
 end
 ```
 
-An actor refuses activation when stored state is newer than the running code.
-Published migration blocks cannot be squashed because a long-idle actor may
-still hold an old representation. Destructive changes need an expand/contract
-rolling deployment. Read the [state migration guide](docs/state-migrations.md)
-before changing persisted state.
+Read the [state migration guide](docs/state-migrations.md) before changing
+persisted state.
 
 ## Configuration
 
-Configure Solid Objects in `config/initializers/solid_objects.rb`:
+Configure Solid Objects in `config/initializers/solid_objects.rb`. Invalid
+lease intervals, component counts, and size limits fail fast at boot. The
+[operations guide](docs/operations.md#configuration) lists every setting with
+its default, and covers polling intervals and cross-process wake-up adapters.
 
 ```ruby
 SolidObjects.configure do |configuration|
   configuration.worker_count = 4
   configuration.lease_duration = 30.seconds
-  configuration.lease_renewal_interval = 10.seconds
-  configuration.max_messages_per_activation_pass = 50
-  configuration.max_activation_duration = 5.seconds
 end
 ```
-
-Important defaults:
-
-| Setting | Default |
-| --- | ---: |
-| `polling_interval` | 0.1 seconds |
-| `idle_polling_interval` | 1 second |
-| `sync_polling_interval` | 0.05 seconds |
-| `lease_duration` | 30 seconds |
-| `lease_renewal_interval` | 10 seconds |
-| `idle_deactivation_timeout` | 30 seconds |
-| `max_messages_per_activation_pass` | 50 |
-| `max_activation_duration` | 5 seconds |
-| `max_mailbox_length` | 10,000 |
-| `max_attempts` | 5 |
-| `process_heartbeat_interval` | 15 seconds |
-| `process_alive_threshold` | 60 seconds |
-| `message_retention` | 30 days |
-| `message_retention_by_actor_type` | `{}` |
-| `instance_retention_by_actor_type` | `{}`; instances never expire unless listed |
-| `process_retention` | 7 days |
-| `prune_batch_size` | 1,000 |
-| `worker_count` | 1 |
-| `effect_worker_count` | 1 |
-| `broadcast_worker_count` | 1 |
-| `reminder_scheduler_count` | 1 |
-
-Payload, state, and result limits; retry delay; table prefix; logging; wake-up;
-broadcast; database; and authorization adapters are also configurable. Invalid
-lease intervals, component counts, and size limits fail fast at boot.
-
-`polling_interval` is the fast interval after work or a wake-up. Consecutive
-empty passes double it up to `idle_polling_interval`. Actor workers never wait
-longer than `lease_renewal_interval`. Set the fast and idle values equal for a
-fixed cadence. The default wake-up reaches only the current Ruby process;
-configure PostgreSQL notifications or optional Redis Pub/Sub when separate
-processes need low-latency delivery. The runtime warns once when it sees that
-topology without an adapter.
 
 ## Workers and operations
 
 `solid_objects start` runs actor, effect, reminder, and broadcast roles under
-one supervisor:
+one supervisor. Administration commands require the administration policy:
 
 ```bash
 bundle exec solid_objects start
-```
-
-Worker and outbox counts can be overridden:
-
-```bash
-bundle exec solid_objects start \
-  --workers 4 \
-  --effect-workers 2 \
-  --broadcast-workers 2 \
-  --reminder-schedulers 1
-```
-
-Administration commands require the administration policy:
-
-```bash
 bundle exec solid_objects status
-bundle exec solid_objects cleanup
 bundle exec solid_objects prune_messages
-bundle exec solid_objects prune_instances
-bundle exec solid_objects prune_processes
-bundle exec solid_objects dead_letters
 bundle exec solid_objects retry_dead_letter 123
 ```
 
-The prune commands preview counts by default. Add `--execute` only after
-reviewing the configured retention policy.
-
-The supervisor stops new claims, drains active loops, releases cached leases,
-and marks process rows stopped on graceful shutdown. A hard-killed worker's
-claimed turn is recovered after its process heartbeat or activation lease
-becomes stale.
-
-The engine loads actors from the host application's `app/actors` directories
-through Rails' main autoloader, in every process that boots the application.
-This works when eager loading is disabled and does not require actor
-references in an initializer. A web process therefore resolves an actor by
-name for a Cable subscription or a component render without having loaded that
-class through an earlier request.
-
-See the [operations guide](docs/operations.md) for monitoring, reconciliation,
-shutdown, retention, and backup guidance.
+Prune commands preview counts by default; add `--execute` after reviewing the
+retention policy. Graceful shutdown stops new claims, drains active loops,
+releases cached leases, and marks process rows stopped. A hard-killed worker's
+claimed turn is recovered once its heartbeat or lease goes stale. The engine
+loads `app/actors` in every process that boots the application, so a web
+process can resolve an actor by name for a Cable subscription or a component
+render. See the [operations guide](docs/operations.md).
 
 ## Dashboard
 
-`SolidObjects::Web` is a Rack application that shows instances and their state,
-the mailbox, reminders, effects, broadcasts, dead letters, and the registered
-processes. Mount it inside the application routes, so the Rails session
-middleware runs first:
+`SolidObjects::Web` is a Rack application showing instances and their state,
+the mailbox, reminders, effects, broadcasts, dead letters, and processes. Mount
+it inside the application routes so the Rails session middleware runs first:
 
 ```ruby
-# config/routes.rb
 require "solid_objects/web"
 
-Rails.application.routes.draw do
-  mount SolidObjects::Web => "/solid_objects/dashboard"
-end
+mount SolidObjects::Web => "/solid_objects/dashboard"
 ```
 
-It is not loaded by `require "solid_objects"`: a worker process must not carry
-a web stack. The dashboard and the engine are separate mounts, so an
-application that uses reactive ERB mounts both on different paths.
-
-Every page asks `authorize_administration` before its handler runs, and that
-policy denies by default, so a mount alone exposes nothing. The block receives
-the route's own `action:` and `resource:`, and an `authorization_context:` that
-answers `request`, `session`, and `env`.
-
-The dashboard changes only two things. Retrying a dead letter goes through
-`SolidObjects.dead_letters.retry`, which is idempotent. Pausing an instance
-sets `paused_at` so the activation manager stops claiming that identity; a pass
-already in flight finishes its turn, and a synchronous caller waiting on a
-paused instance times out rather than receiving a result.
-
-The dashboard draws instances per actor type, mailbox depth, and outbox status
-with Chart.js, loaded from a CDN with a subresource integrity hash. A
-deployment with no outbound network access can vendor the file, or turn the
-charts off:
-
-```ruby
-SolidObjects::Web.chart_library_url = "/javascripts/chart.umd.min.js"
-SolidObjects::Web.chart_library_integrity = nil
-```
-
-Read the [dashboard guide](docs/dashboard.md) for the full policy table,
-extension registration, and query cost.
+It is not loaded by `require "solid_objects"`, because a worker process must
+not carry a web stack. Every page asks `authorize_administration` first, and
+that policy denies by default, so a mount alone exposes nothing. See the
+[dashboard guide](docs/dashboard.md).
 
 ## Database support
 
-Solid Objects supports:
+PostgreSQL 14 or newer, MySQL 8.0 or newer on InnoDB through either the
+`mysql2` or `trilogy` client, and SQLite 3.35 or newer. PostgreSQL and MySQL
+claim hot-table rows with `FOR UPDATE SKIP LOCKED`; SQLite uses its serialized
+writer. All three run the same locking, fencing, mailbox, outbox, and engine
+test suite, and no Redis or Kafka service is required.
 
-- PostgreSQL 14 or newer
-- MySQL 8.0 or newer using InnoDB, through either the `mysql2` or `trilogy`
-  client
-- SQLite 3.35 or newer
-
-PostgreSQL and MySQL use `FOR UPDATE SKIP LOCKED` when claiming hot-table rows.
-SQLite uses its serialized writer behavior. All three adapters run the same
-locking, fencing, mailbox, outbox, and engine integration test suite.
-
-No Redis or Kafka service is required.
-
-By default, actor tables use the application's Active Record connection. A
-separate database role is optional:
+Actor tables use the application's Active Record connection by default. A
+separate database role is optional, and every table participating in an actor
+commit must share one database:
 
 ```ruby
-SolidObjects.configure do |configuration|
-  configuration.connects_to = {
-    database: {
-      writing: :actors,
-      reading: :actors
-    }
-  }
-end
+configuration.connects_to = { database: { writing: :actors, reading: :actors } }
 ```
-
-Every table participating in an actor commit must share one database.
-
-Completed message history lives in `solid_objects_messages`, while ready and
-claimed work lives in small membership tables. Polling indexes stay
-proportional to live work, and no partial indexes are required.
 
 ## Guarantees
 
-For one actor identity, messages are:
-
-- durably enqueued with explicit sequence numbers;
-- processed sequentially in sequence order;
-- delivered at least once; and
-- committed by at most one valid activation owner and fencing generation.
-
-Different actor identities may execute concurrently.
-
-Actor destruction is authorized, synchronous, and linearized by the instance
-row lock. It removes the current incarnation and all actor-owned durable rows.
-A later message may create a fresh incarnation of the same logical identity.
-
-The following writes are atomic for one successful turn:
-
-- actor state and state version;
-- message result and completion;
-- effect outbox entries;
-- reminder changes;
-- actor-to-actor messages; and
-- observable broadcast entries.
+For one actor identity, messages are durably enqueued with explicit sequence
+numbers, processed sequentially in that order, delivered at least once, and
+committed by at most one valid activation owner and fencing generation.
+Different identities may execute concurrently. One successful turn commits
+actor state and version, the message result and completion, effect outbox
+entries, reminder changes, actor-to-actor messages, and observable broadcasts
+together, or none of them.
 
 Solid Objects does not promise:
 
 - exactly-once handler or effect execution;
-- global order across actors;
-- distributed transactions;
+- global order across actors, or distributed transactions;
 - bounded end-to-end latency;
 - cancellation when a synchronous caller times out; or
-- that a lease prevents stale Ruby code from continuing to run.
+- that a lease stops stale Ruby code from running.
 
-The fencing generation prevents stale code from committing.
-
-Read [Correctness and delivery semantics](docs/correctness.md) for the full
-contract and crash matrix.
-
-## When to use it
-
-Solid Objects fits the same coordination-heavy domains that lead developers to
-Cloudflare Durable Objects, when the application belongs in Rails and its
-existing database:
-
-- shopping carts;
-- chat rooms and presence;
-- device twins;
-- user-specific schedules;
-- long-lived workflows;
-- collaborative sessions; and
-- game rooms.
-
-Do not use it for stateless work, bulk pipelines, CPU-heavy computation,
-cross-actor transactions, slow network calls inside handlers, or domains that
-are clearer as normalized Active Record models and direct service objects.
-
-High-QPS request reads, rate-limit counters, impression pipelines, large JSON
-documents, and latency budgets that cannot tolerate several coordination
-transactions are explicit anti-patterns. Read the full
-[fit and anti-pattern guide](docs/fit.md) before migrating an existing
-surface, and use the [legacy-state migration cookbook](docs/migrating-existing-state.md)
-for staged cutovers.
+The fencing generation is what stops stale code from committing. Read
+[correctness](docs/correctness.md) for the full contract.
 
 ## Comparisons
 
 | Tool | What Solid Objects adds or changes |
 | --- | --- |
-| Cloudflare Durable Objects | Solid Objects ports the named, stateful, serialized-object model to Ruby and Rails. It uses your SQL database and Rails workers rather than Cloudflare's globally distributed serverless runtime, placement, and storage APIs. |
-| Active Job | Jobs are independent work units. Solid Objects adds addressable identity, durable state, explicit per-identity order, activation leases, and fencing. |
-| Solid Queue | Solid Queue is a database backend for Active Job. Its concurrency controls cap overlap but do not guarantee order. Solid Objects provides actor mailboxes, state, fencing, per-identity reminders, and state-driven views. |
-| Action Cable | Cable transports transient realtime messages. Solid Objects owns durable state and work; Cable is an optional delivery path for committed observable projections. |
-| Orleans | Orleans provides the virtual-actor lineage behind the model, with grains, reminders, and activation lifecycle. Solid Objects is a smaller Rails-native runtime and does not match Orleans clustering or placement breadth. |
-| Active Record service object | A service object runs directly against records. Solid Objects adds durable asynchronous ordering, retries, activation fencing, reminders, and outboxes at greater operational cost. |
+| `with_lock` or `SELECT ... FOR UPDATE` | A lock serializes writers for one transaction, on one connection, in one process, and needs nothing installed. Solid Objects covers the part that outlives the transaction: an alarm that fires later, work that survives a restart, and a broadcast that commits with the state change. Prefer the lock when the whole job fits inside one request. |
+| Cloudflare Durable Objects | The same named, stateful, serialized-object model, on your SQL database and Rails workers rather than Cloudflare's globally distributed runtime, placement, and storage APIs. |
+| Active Job and Solid Queue | Jobs are independent work units, and Solid Queue's concurrency controls cap overlap without guaranteeing order. Solid Objects adds addressable identity, durable state, per-identity order, activation leases, and fencing. |
+| Action Cable | Cable transports transient realtime messages. Solid Objects owns the durable state and work; Cable is an optional delivery path for committed observable projections. |
+| Orleans | The virtual-actor lineage behind the model. Solid Objects is a smaller Rails-native runtime and does not match Orleans clustering or placement breadth. |
+| Active Record service object | A service object runs directly against records. Solid Objects adds durable ordering, retries, fencing, reminders, and outboxes at greater operational cost. |
 
-## Development
+## Development and contributing
 
 Solid Objects uses Minitest and follows Solid Queue's test organization and
-RuboCop policy. Ruby source carries inline RBS annotations.
+RuboCop policy. Ruby source carries inline RBS annotations, and concurrency
+tests use real database locks rather than mocked locking. `bundle exec rake`
+runs the SQLite suite and static checks; set `SOLID_OBJECTS_DATABASE_URL` for
+PostgreSQL or MySQL.
 
-Run the full SQLite suite and static checks:
+A change here can affect durable state and recovery, so start with a failing
+test and quote the observed failure in the pull request:
 
-```bash
-bundle install
-bundle exec rake
-```
-
-Run the database integration suite against PostgreSQL or MySQL:
-
-```bash
-SOLID_OBJECTS_DATABASE_URL=postgresql://localhost/solid_objects_test \
-  bundle exec rake test
-
-SOLID_OBJECTS_DATABASE_URL=mysql2://localhost/solid_objects_test \
-  bundle exec rake test
-```
-
-Concurrency tests use real database locks and deterministic synchronization,
-not mocked locking behavior.
-
-See the [development guide](docs/development.md) and
-[local benchmarks](docs/benchmarks.md).
+- [Contributing](CONTRIBUTING.md) covers setup, the quality gates, and what a
+  correctness change must show.
+- [Development guide](docs/development.md) covers the test layout and the
+  adapter matrix.
+- [Changelog](CHANGELOG.md) and the
+  [roadmap](docs/roadmap.md) record what shipped and what is still open.
+- Report a vulnerability through
+  [GitHub security advisories](https://github.com/cardmagic/solid-objects-ruby/security/advisories/new)
+  rather than a public issue.
 
 ## Status
 
-Implemented and tested in 0.4:
+The correctness core is implemented and tested against SQLite, PostgreSQL, and
+MySQL: ordered mailboxes, fenced activation, retries and dead letters,
+reminders, effects, commit actions, destruction, and reactive views. Still
+open: Turbo append actions, distributed rate limits and global admission
+control, and scheduled maintenance beyond the pruning commands.
 
-- Rails engine, install generator, migrations, and `solid_objects` executable;
-- actor registry, references, JSON state, and state migrations;
-- direct synchronous actor RPC, explicit `sync`, and durable `async`;
-- guarded transaction boundaries, same-database commit actions, adapter lock
-  deadlines, structured synchronous timeout diagnostics, and result recovery;
-- durable message history plus ready and claimed membership tables;
-- concurrent sequence allocation and actor creation;
-- activation leases, per-activation tokens, fencing generations, and
-  stale-write rejection;
-- bounded activation passes, idle activation cache, and hot-actor fairness;
-- retries, terminal domain rejection, strict poison ordering, dead letters,
-  and retry tooling;
-- transactional effects and asynchronous actor-to-actor messages;
-- one-shot and recurring per-actor reminders;
-- authorized actor destruction with fenced stale-write rejection and cascading
-  durable-work cleanup;
-- durable observable invalidations, scalar Turbo replacement, and authorized
-  request-time ERB component refresh;
-- process registration, heartbeats, caller shutdown, cleanup, and bounded
-  message/process retention plus opt-in actor-instance expiration;
-- an opt-in Minitest helper for actor-state isolation and deterministic async
-  actor/reminder/effect/broadcast draining;
-- authorized mailbox-free state snapshots and mutable JSON copies; and
-- SQLite, PostgreSQL, and MySQL integration tests.
-
-Partially implemented:
-
-- the supervisor starts and drains roles but does not replace a crashed role or
-  run periodic maintenance automatically;
-- PostgreSQL notifications and optional Redis acceleration are implemented,
-  but adapter selection remains explicit and polling is the durable fallback;
-- live observable and component replacement work, while Turbo append actions
-  remain future work;
-- local admission limits exist, but distributed rate limits and global
-  admission control do not; and
-- administration views and pruning commands exist, but scheduled maintenance
-  and richer audit tools do not.
-
-Production readiness requires hardening and operational soak evidence. The
-[roadmap](docs/roadmap.md) tracks that work.
+There is no production-ready claim; that needs hardening and operational soak
+evidence. The [roadmap](docs/roadmap.md) tracks what is done, what is partial,
+and what is measured rather than assumed.
 
 ## License
 

@@ -435,6 +435,45 @@ send_to(InventoryActor.ref("sku-123")).reserve(order_id: id, quantity: 2)
 
 The source actor commit never waits for the target. The outbox worker allocates the target's sequence after source commit. There is no global order across actors.
 
+## Registering effect and commit-action handlers
+
+Register an effect handler during application boot. The stable effect ID is the
+idempotency key for the provider call:
+
+```ruby
+SolidObjects.register_effect(:charge_payment) do |arguments, context|
+  Payments.charge(
+    idempotency_key: context.id,
+    payment_id: arguments.fetch("payment_id"),
+    amount_cents: arguments.fetch("amount_cents")
+  )
+end
+```
+
+A success callback receives `effect_id:`, the originally staged `arguments:`,
+and `result:`. A failure callback receives `effect_id:`, `arguments:`, and
+`error:`, so an actor can correlate concurrent effects without storing a
+separate callback ledger.
+
+A commit action is registered the same way and runs inside the short fenced
+transaction:
+
+```ruby
+SolidObjects.register_commit_action(:complete_attempt) do |arguments, context|
+  AssessmentAttempt.find(arguments.fetch("attempt_id")).update!(
+    score: arguments.fetch("score"),
+    actor_message_id: context.message_id
+  )
+end
+```
+
+Commit actions require Solid Objects and `ActiveRecord::Base` to share one
+connection pool, and may be invoked again after a database rollback, so keep
+them deterministic, bounded, and database-only. When Solid Objects uses a
+separate actor database, use `emit` and an idempotent effect consumer instead;
+two databases cannot share one transaction.
+
+
 ## Reminders
 
 A reminder record contains actor identity, a reminder name, target message, JSON arguments, next run time, optional interval, status, and occurrence counter.
@@ -443,7 +482,7 @@ A reminder record contains actor identity, a reminder name, target message, JSON
 schedule(at: 30.minutes.from_now).expire
 ```
 
-Reminders are keyed by `(actor, reminder name)`, enforced by a unique index on `(instance_id, name)`. `schedule` is therefore an upsert: scheduling a name that is already armed moves that alarm instead of adding another, which is what makes re-arming safe from a handler that may run more than once. An actor needing several pending items should arm one alarm for the earliest and drain everything due when it fires, rather than one alarm per item; the [reminders guide](../README.md#a-reminder-is-one-named-alarm-per-actor) shows that pattern. A move that changes `next_run_at` emits `solid_objects.reminder.replaced`, because the replacement is otherwise indistinguishable from a first schedule.
+Reminders are keyed by `(actor, reminder name)`, enforced by a unique index on `(instance_id, name)`. `schedule` is therefore an upsert: scheduling a name that is already armed moves that alarm instead of adding another, which is what makes re-arming safe from a handler that may run more than once. An actor needing several pending items should arm one alarm for the earliest and drain everything due when it fires, rather than one alarm per item; the [reminders guide](reminders.md#one-alarm-for-a-whole-queue) shows that pattern. A move that changes `next_run_at` emits `solid_objects.reminder.replaced`, because the replacement is otherwise indistinguishable from a first schedule.
 
 When due, the scheduler locks the source instance and creates a normal mailbox
 row with an idempotency key derived from reminder ID and occurrence. The
