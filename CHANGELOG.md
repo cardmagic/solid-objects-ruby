@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+- Align the use-case claims with solid-objects-js. "Is it worth installing
+  here?" listed long-lived workflows without a limit, while `docs/fit.md`
+  called a rate limiter an anti-pattern and the JS README sold per-key rate
+  limits. Both projects now say the same thing: a low-rate quota that a
+  reminder refills fits, because each check is one durable ordered message; a
+  limiter that every request touches does not; and a workflow fits when one
+  entity owns the mutable state and its mailbox holds the step order. A durable
+  execution engine that replays named steps from a step log remains a different
+  tool.
+- Name Solid Objects Pro in `docs/fit.md` for the high-QPS cases the guide
+  rejects, and map its three capabilities onto them: grouped operations,
+  ephemeral operations, and reactive projections. The README already pointed
+  there; the fit guide stopped at "anti-pattern".
+- Title the README "Solid Objects Ruby", matching "Solid Objects JS" in the
+  Node package, and give both the same two badges. The CI badge now pins
+  `?branch=main`, and a RubyGems version badge sits beside it. The gem name,
+  the module, and the published metadata do not change.
+
 ## 0.14.2 - 2026-08-25
 
 - Rewrite the first screen around the objection a reader actually has. The
