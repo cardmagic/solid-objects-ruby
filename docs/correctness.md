@@ -78,8 +78,8 @@ Destruction is synchronous, forbidden from actor context, authorized by
 
 ## Handler idempotency
 
-Sequential does not mean once. A message such as `launch` still needs a durable
-guard:
+Ordered execution does not prevent repeated execution. A message such as
+`launch` still needs a durable guard:
 
 ```ruby
 def launch

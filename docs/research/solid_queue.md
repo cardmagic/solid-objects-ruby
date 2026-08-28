@@ -472,7 +472,7 @@ The current `cardmagic/classifier` source uses RBS::Inline directly in Ruby file
 - [`.github/workflows/ruby.yml`](https://github.com/cardmagic/classifier/blob/48cdfa63f3efdba8149c8f47dd053ceebce5dfc1/.github/workflows/ruby.yml) generates signatures, validates them with RBS, and runs Steep.
 - [`Steepfile`](https://github.com/cardmagic/classifier/blob/48cdfa63f3efdba8149c8f47dd053ceebce5dfc1/Steepfile) enables strict diagnostics for the typed library while explicitly isolating incompatible extension files.
 
-Solid Objects will use the same source-adjacent convention. Every owned Ruby source file starts with `# rbs_inline: enabled`, declares its instance variables, and annotates public and private methods. Generated signatures are checked rather than hand-maintained as a competing source of truth.
+Solid Objects will use the same source-adjacent convention. Every owned Ruby source file starts with `# rbs_inline: enabled`, declares its instance variables, and annotates public and private methods. The build checks the generated signatures. Nobody maintains them by hand as a second authority.
 
 ## Related primary-source findings
 

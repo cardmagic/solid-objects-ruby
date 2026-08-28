@@ -421,8 +421,8 @@ configuration.component_authorization_context = ->(controller:) { controller.cur
 configuration.payload_authorization_context = ->(connection:) { connection.current_account }
 ```
 
-The resolved value is what the payload block receives as its second argument and
-what `authorize_query` receives as `authorization_context`. A resolver may also
+The payload block receives the resolved value as its second argument, and
+`authorize_query` receives it as `authorization_context`. A resolver may also
 accept `payload_name:` when the subject depends on which payload was requested.
 The default returns the connection unchanged, so an application that has not
 configured one is unaffected.

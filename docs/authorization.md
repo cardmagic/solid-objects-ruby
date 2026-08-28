@@ -1,9 +1,9 @@
 # Authorization policies
 
-Solid Objects treats actor identities as identifiers, never capabilities.
-Knowing an actor ID, message ID, or signed stream token grants no permission.
-All five policies deny by default, so a generated installation is
-intentionally inert until the host application defines its trust boundary.
+Solid Objects treats actor identities as identifiers. They are not
+capabilities. An actor ID, a message ID, or a signed stream token grants no
+permission. All five policies deny by default, so a generated installation
+answers nothing until the host application defines its trust boundary.
 
 ## Policy reference
 

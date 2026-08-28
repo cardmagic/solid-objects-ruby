@@ -24,9 +24,9 @@ SOLID_OBJECTS_DATABASE_URL=postgresql://solid_objects:solid_objects@127.0.0.1:54
   bundle exec rake test
 ```
 
-Running this locally is worth the setup: it is what caught the PostgreSQL
-version comparison reading a packed integer, where `170010` compared greater
-than any minimum and made the check useless on the adapter it mattered most for.
+The setup is worth the effort. This local suite caught a PostgreSQL version
+comparison that read a packed integer, where `170010` compared greater than any
+minimum and made the check useless on the adapter that needed it most.
 
 ## MySQL and Redis in Docker
 

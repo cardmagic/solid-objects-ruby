@@ -48,15 +48,17 @@ sale = TicketSale.ref("event-42")
 sale.reserve(buyer: current_user.id)
 ```
 
-That example wants three things from the same number. It must never go below
-zero. It must give the seat back if the buyer does not pay within ten minutes.
-It must show the current count to everyone watching the page.
+The example needs three behaviors from the same number:
 
-The first is one line of SQL. The second is an `expires_at` column plus a cron
-job that sweeps it. The third is a broadcast on every code path that changes
-the number. The combination is what costs, not any one of them. Here the guard,
-the ten-minute alarm, and the live count are one class, and they commit
-together.
+- the count must never go below zero;
+- the seat must return if the buyer does not pay within ten minutes; and
+- every open page must show the current count.
+
+Written by hand, the first needs one line of SQL, the second needs an
+`expires_at` column and a cron job that sweeps it, and the third needs a
+broadcast on every code path that changes the number. These three must agree
+with each other. In the example above the guard, the alarm, and the live count
+are one class, and they commit in one transaction.
 
 `TicketSale / event-42` is a logical identity. Like a Durable Object named with
 `idFromName`, it can be addressed from anywhere without first creating or
@@ -65,11 +67,10 @@ its ordered turns one at a time, persists its state, and deactivates it when
 idle. Different identities run concurrently, so two events never wait on each
 other.
 
-The invocation model is the first adoption decision. A direct call or `sync`
-needs no worker fleet, because the Rails caller helps execute the actor through
-the same mailbox, lease, and fencing path a worker would use. `async` only
-enqueues and returns a `MessageReference`, so a runtime process handles it
-later.
+There are two ways to invoke an actor. A direct call or `sync` needs no worker
+fleet, because the Rails caller helps execute the actor through the same
+mailbox, lease, and fencing path a worker would use. `async` only enqueues and
+returns a `MessageReference`, so a runtime process handles it later.
 
 | Call | Returns | Worker fleet required? |
 | --- | --- | --- |
@@ -110,22 +111,21 @@ are rejected so they cannot escape a later actor failure. Use a same-database
 
 ## Why not just use transactions?
 
-Often you should. If the whole job is read a row, decide, write it back, and
-answer the user, then `with_lock` does that and you need nothing else
-installed. Reach for it first.
+Often you should. If the whole job is to read a row, decide, write it back, and
+answer the user, then `with_lock` does that, and you install nothing else.
 
-The argument for an actor is scope, not discipline. A lock is scoped to one
-transaction, on one connection, in one process. The ticket sale above leaves
-that scope on one line: the hold expires in ten minutes, and no transaction
-stays open for ten minutes.
+An actor helps when the work goes outside the scope of a lock. A lock holds for
+one transaction, on one connection, in one process. The ticket sale above goes
+outside that scope on one line: the hold expires in ten minutes, and no
+transaction stays open for ten minutes.
 
-Any column named `expires_at`, `scheduled_at`, or `next_run_at` is evidence
-that the critical section already outlived the lock that was supposed to cover
-it. What follows such a column is a sweeper that looks for due rows, and then a
-race between that sweeper and the next writer of the same row. The column, the
-sweeper, and the race are what a Solid Objects actor replaces.
+A column named `expires_at`, `scheduled_at`, or `next_run_at` shows that the
+critical section already outlived the lock that was supposed to cover it. Such
+a column usually comes with a sweeper that looks for due rows, and the sweeper
+can race the next writer of the same row. A Solid Objects actor replaces the
+column, the sweeper, and the race.
 
-Three things a lock cannot reach:
+A lock cannot reach three cases:
 
 - work that fires at a future moment, when no transaction of yours is open;
 - work that must survive a process restart, which rules out an in-process
@@ -133,31 +133,32 @@ Three things a lock cannot reach:
 - a fan-in whose critical section spans many jobs over minutes, such as an
   import that counts its own chunks as each one finishes.
 
-If it all happens inside one request, use a lock.
+If all the work happens inside one request, use a lock.
 
 ## Is it worth installing here?
 
-Worth it when several requests, jobs, or processes act on the same cart, chat
+Install it when several requests, jobs, or processes act on the same cart, chat
 room, device twin, game room, long-lived workflow, or refillable quota, and
-each next action needs the last committed state. Worth it when that same thing
-also owns work that fires later, or a number a live page must show.
+each next action needs the last committed state. It also helps when that same
+thing owns work that fires later, or a number that a live page must show.
 
-Two of those have a limit. A workflow fits when one entity owns the mutable
-state and its mailbox holds the step order. A durable execution engine that
-replays named steps from a step log is a different tool, because Solid Objects
-redelivers an ordered message and retries it. A quota fits when one identity
-checks it a few times per minute, because each check is one durable ordered
-message with a retained history row. A limiter that every request to that
-identity touches does not fit here.
+Two of those cases have a limit. A workflow fits when one entity owns the
+mutable state and its mailbox holds the step order. A durable execution engine
+that replays named steps from a step log is a different tool, because Solid
+Objects redelivers an ordered message and retries it. A quota fits when one
+identity checks it a few times per minute, because each check is one durable
+ordered message with a retained history row. A limiter that every request to
+that identity touches does not fit here.
 
-Not worth it for a plain counter, a single-row update inside one transaction, a
-stateless job, bulk ingestion or a data-parallel pipeline, CPU-heavy work, a
-large JSON document that belongs in normalized rows, high-QPS request reads, or
-a rate-limit counter that every request touches. One hot identity is serialized
-on purpose, so making everything one identity makes a queue.
+Do not install it for a plain counter, a single-row update inside one
+transaction, a stateless job, bulk ingestion or a data-parallel pipeline,
+CPU-heavy work, a large JSON document that belongs in normalized rows, high-QPS
+request reads, or a rate-limit counter that every request touches. Solid
+Objects serializes one identity on purpose. If you put all the work in one
+identity, you get a queue.
 
-High-QPS reads and hot identities are where this runtime stops being the right
-tool on its own. [Solid Objects Pro](https://solidobjects.pro/) is a commercial
+This runtime alone does not handle high-QPS reads or hot identities well.
+[Solid Objects Pro](https://solidobjects.pro/) is a commercial
 performance layer for this gem that adds grouped commits, which coalesce
 concurrent writes into fewer database commits; optional ephemeral operations,
 which take loss-tolerant calls out of the durable journal; and materialized
@@ -167,10 +168,10 @@ mailbox work.
 Before moving an existing surface, read the
 [fit and anti-pattern guide](docs/fit.md), the
 [measured costs](docs/benchmarks.md), and the
-[migration cookbook](docs/migrating-existing-state.md). This ports the
-programming model, not Cloudflare's edge runtime; the exact Rails guarantees
-are in [correctness](docs/correctness.md), and this is an early release with no
-production-readiness claim.
+[migration cookbook](docs/migrating-existing-state.md). This gem ports the
+programming model. It does not port Cloudflare's edge runtime. The
+[correctness guide](docs/correctness.md) gives the exact Rails guarantees. This
+is an early release, and it makes no production-readiness claim.
 
 ## Cloudflare Durable Objects for Rails
 
@@ -202,20 +203,20 @@ worker can finish running Ruby but cannot commit.
 ## Reactive ERB
 
 For a comment count or a dashboard number, lock the row, update it, and call
-`broadcast_replace_to`. That is less code than this gem and it works.
+`broadcast_replace_to`. That needs less code than this gem, and it is
+sufficient for that case.
 
-It gets harder when several people write to the same record at once. Each
-request renders the fragment in its own process and pushes it. The lock decided
-who wrote first, but it has no say over which push arrives last, so a viewer
-can be left looking at the older number. The second gap is that the push is not
-part of the save: if the process dies after the database commits and before the
-push goes out, the browser keeps a wrong number and nothing corrects it.
+Two problems occur when several people write to the same record at once. First,
+each request renders the fragment in its own process and pushes it. The lock
+sets the write order, but it does not set the order in which the pushes arrive,
+so a viewer can keep the older number. Second, the push is not part of the save.
+If the process stops after the database commits and before the push goes out,
+the browser keeps a wrong number, and nothing corrects it.
 
-An observable is the alternative. The state change and the broadcast row commit
-together, a worker delivers that row and retries until it succeeds, and Cable
-ignores an older `(instance_id, state_revision)` pair after a newer one. A
-viewer cannot end up on an older number, though delivery itself is still at
-least once.
+An observable prevents both problems. The state change and the broadcast row
+commit together, a worker delivers that row and retries until it succeeds, and
+Cable ignores an older `(instance_id, state_revision)` pair after a newer one. A
+viewer cannot end up on an older number. Delivery is still at least once.
 
 ```erb
 <%= solid_object @sale, authorization_context: current_user do |sale| %>
@@ -224,15 +225,15 @@ least once.
 <% end %>
 ```
 
-The two observables in the ticket sale are what make that template live: a
-committed turn that changes `remaining` replaces the span, and one that changes
-`holds` re-renders the component from `actors/ticket_sale/_buyers`. Observables
-are invalidation-only unless declared `broadcast: :value`, which is why
-`remaining` carries it and `holds` does not: only an opted-in scalar sends its
-value to every authorized subscriber, and rendering an invalidation-only
-observable as a span raises. Per-viewer state belongs in `broadcast_payload`.
-Signed tokens protect integrity, not access: rendering, Cable, and every
-refresh each authorize again.
+The two observables in the ticket sale make that template live. A committed
+turn that changes `remaining` replaces the span, and a turn that changes `holds`
+re-renders the component from `actors/ticket_sale/_buyers`. An observable only
+invalidates unless you declare `broadcast: :value`, so `remaining` carries that
+option and `holds` does not. Only an opted-in scalar sends its value to every
+authorized subscriber, and a template that renders an invalidation-only
+observable as a span raises an error. Put per-viewer state in
+`broadcast_payload`. Signed tokens protect integrity. They do not grant access:
+rendering, Cable, and every refresh authorize again.
 
 Reactive views require `turbo-rails`, an Action Cable adapter, and
 `mount SolidObjects::Engine => "/solid_objects"`. They are optional; the actor
@@ -256,18 +257,18 @@ The doctor validates configuration and schema shape, reports authorization
 posture and live roles, and completes a real synchronous actor round-trip
 without a worker.
 
-The generated initializer is intentionally inert: all five policies deny by
-default. Replace them before sending messages, querying state, destroying
-actors, subscribing to streams, or mounting administration routes. Knowledge of
-an actor ID or a signed stream token is never authorization. Read the
+In the generated initializer, all five policies deny by default. Replace them
+before you send messages, query state, destroy actors, subscribe to streams, or
+mount administration routes. An actor ID or a signed stream token is not
+authorization. Read the
 [policy reference](docs/authorization.md) first. Upgrades, the RuboCop
 exclusion for engine migrations, and Sorbet RBI generation are in the
 [operations guide](docs/operations.md#installing-and-upgrading).
 
 ## Worker requirements
 
-Synchronous actors can be adopted without adding a long-running process. Start
-the runtime when the feature introduces asynchronous delivery or outboxes:
+You can adopt synchronous actors without a long-running process. Start the
+runtime when the feature adds asynchronous delivery or outboxes:
 
 | Feature | Runtime roles required |
 | --- | --- |
@@ -286,12 +287,12 @@ run beside the built-in roles; see the
 
 ## Defining an actor
 
-`TicketSale` above is the whole shape. Class-level `attribute` declarations are
-the per-object durable storage schema. Public instance methods are durable
-message handlers, so declare helpers private. Attributes also become ordered
-read queries on a reference: `sale.remaining` goes through the mailbox, while
-`sale.snapshot.remaining` reads the most recently committed state without one
-and does not activate a missing actor.
+The `TicketSale` class above shows the full structure. Class-level `attribute`
+declarations are the per-object durable storage schema. Public instance methods
+are durable message handlers, so declare helpers private. Attributes also
+become ordered read queries on a reference: `sale.remaining` goes through the
+mailbox, while `sale.snapshot.remaining` reads the most recently committed
+state without one and does not activate a missing actor.
 
 State, arguments, results, effects, and reminder arguments accept
 JSON-compatible values only, and Solid Objects never deserializes Ruby
@@ -356,9 +357,9 @@ durable for audit, actor state rolls back, and no later turn is blocked. A code
 must match `\A[A-Za-z_][A-Za-z0-9_]*\z`, and an invalid one raises
 `SolidObjects::InvalidRejectionCode`.
 
-Sequential does not mean once. A handler can run again after a crash or lease
-loss, so guard logical transitions in durable actor state and deduplicate
-external effects on the stable effect ID. See
+Ordered execution does not prevent repeated execution. A handler can run again
+after a crash or lease loss, so guard logical transitions in durable actor state
+and deduplicate external effects on the stable effect ID. See
 [handler idempotency](docs/correctness.md#handler-idempotency).
 
 ## Application database writes
@@ -538,7 +539,7 @@ Solid Objects does not promise:
 - cancellation when a synchronous caller times out; or
 - that a lease stops stale Ruby code from running.
 
-The fencing generation is what stops stale code from committing. Read
+The fencing generation stops stale code from committing. Read
 [correctness](docs/correctness.md) for the full contract.
 
 ## Comparisons

@@ -13,7 +13,7 @@ Mailbox delivery is at least once. State mutation, message completion, result pe
 
 Actor code receives message ID, request ID, attempt, enqueue time, and idempotency key. Documentation requires idempotency for effects outside the actor commit.
 
-Message handlers themselves can run more than once. Sequential execution means one valid activation runs one turn at a time; it does not mean a handler runs once. Handlers for transitions such as `launch`, `checkout`, or `submit` must inspect durable actor state and return safely when the transition already happened. External calls belong in an outbox and still require downstream idempotency.
+Message handlers themselves can run more than once. Sequential execution means that one valid activation runs one turn at a time. It does not guarantee that a handler runs only once. Handlers for transitions such as `launch`, `checkout`, or `submit` must inspect durable actor state and return safely when the transition already happened. External calls belong in an outbox and still require downstream idempotency.
 
 ## Consequences
 

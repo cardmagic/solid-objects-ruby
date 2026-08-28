@@ -143,9 +143,9 @@ loader participates in Rails preparation callbacks so a development reload can
 replace a registered actor class without loading unrelated application code.
 
 An actor registers itself as its class loads, and a web process resolves
-actors by name for Cable subscriptions and component renders. Loading them in
-every process is what lets a freshly booted web process serve a live card for
-an actor no request in that process has rendered yet.
+actors by name for Cable subscriptions and component renders. Solid Objects
+loads the actors in every process, so a freshly booted web process can serve a
+live card for an actor that no request in that process has rendered yet.
 
 Worker and outbox counts can be overridden on the command line:
 
@@ -278,7 +278,7 @@ Use:
 
 Spread large repairs with `available_at:`. Report at least bootstrapped,
 reconfigured, revived, suspended, and orphaned counts. A nonzero revived count
-is evidence that alarms are being lost.
+shows that alarms are lost.
 
 Never bulk-update actor state. That bypasses lease ownership and fencing.
 

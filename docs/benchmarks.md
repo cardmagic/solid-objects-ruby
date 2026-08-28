@@ -1,8 +1,8 @@
 # Performance and storage costs
 
-These numbers are development measurements, not universal capacity guarantees.
-They include the runtime's Active Record and database query overhead and will
-vary with hardware, schema size, connection pools, durability settings, and
+These numbers are development measurements. They do not guarantee capacity.
+They include the runtime's Active Record and database query overhead, and they
+change with hardware, schema size, connection pools, durability settings, and
 contention.
 
 ## Idle SQLite polling
