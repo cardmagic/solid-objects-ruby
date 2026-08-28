@@ -2,7 +2,7 @@
 
 Moving an existing Redis, cache, or key-value state machine into Solid Objects
 is a data migration and a coordination cutover. Treat it as a staged production
-change, not a rewrite that switches storage in one deploy.
+change. Do not switch the storage in one deploy.
 
 ## 1. Write down the existing contract
 

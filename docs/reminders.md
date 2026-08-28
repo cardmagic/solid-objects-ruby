@@ -22,9 +22,9 @@ The uniqueness key is `(actor, reminder name)`. Scheduling a name that is
 already armed **moves the existing alarm** rather than adding a second one. The
 database enforces this with a unique index on `(instance_id, name)`.
 
-This is the same model as Orleans reminders and Durable Objects alarms, and it
-is what makes a reminder safe to re-arm from a handler that may run more than
-once. Without a key the name is the operation, so this is a data-loss bug:
+This is the same model as Orleans reminders and Durable Objects alarms. It
+makes a reminder safe to re-arm from a handler that may run more than once.
+Without a key the name is the operation, so this is a data-loss bug:
 
 ```ruby
 # Wrong. Every entry overwrites the previous entry's alarm.
@@ -51,9 +51,9 @@ end
 ```
 
 Two entries now leave two reminders. Scheduling the same key again moves that
-item's alarm and leaves the others alone, which is what makes a keyed reminder
-as safe to re-arm as an unkeyed one. The operation still decides which handler
-runs; the key only decides which alarm is which.
+item's alarm and leaves the others alone, so a keyed reminder is as safe to
+re-arm as an unkeyed one. The operation still decides which handler runs; the
+key only decides which alarm is which.
 
 A key must be non-empty, and the name it becomes must fit the 191-character
 column, which is checked on the composed name rather than the key alone so a

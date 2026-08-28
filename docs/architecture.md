@@ -7,8 +7,9 @@ It is a database-backed virtual actor runtime for MySQL, PostgreSQL, and
 SQLite. A virtual actor is a logical object addressed by type and ID whose
 in-memory activation is created on demand, processes one mailbox turn at a
 time, persists JSON state, and can disappear when idle without losing its
-identity or state. This ports the programming model, not Cloudflare's
-serverless runtime, global placement, storage API, or platform guarantees.
+identity or state. This gem ports the programming model. It does not port
+Cloudflare's serverless runtime, global placement, storage API, or platform
+guarantees.
 
 The runtime contract is:
 
@@ -128,8 +129,8 @@ instance first prevents a claimed reminder from recreating a destroyed actor.
 The broadcast worker claims committed observable-change rows, renders
 idempotent scalar Turbo replacements with component invalidation metadata,
 broadcasts to a signed actor stream, and records delivery. It never renders
-personalized component HTML. Current actor state remains the reconnect and
-request-time component source of truth.
+personalized component HTML. On reconnect, and on a request-time component
+render, Solid Objects reads the current actor state.
 
 ### Process registry
 
@@ -482,7 +483,7 @@ A reminder record contains actor identity, a reminder name, target message, JSON
 schedule(at: 30.minutes.from_now).expire
 ```
 
-Reminders are keyed by `(actor, reminder name)`, enforced by a unique index on `(instance_id, name)`. `schedule` is therefore an upsert: scheduling a name that is already armed moves that alarm instead of adding another, which is what makes re-arming safe from a handler that may run more than once. An actor needing several pending items should arm one alarm for the earliest and drain everything due when it fires, rather than one alarm per item; the [reminders guide](reminders.md#one-alarm-for-a-whole-queue) shows that pattern. A move that changes `next_run_at` emits `solid_objects.reminder.replaced`, because the replacement is otherwise indistinguishable from a first schedule.
+Reminders are keyed by `(actor, reminder name)`, enforced by a unique index on `(instance_id, name)`. `schedule` is therefore an upsert: scheduling a name that is already armed moves that alarm instead of adding another, so re-arming is safe from a handler that may run more than once. An actor needing several pending items should arm one alarm for the earliest and drain everything due when it fires, rather than one alarm per item; the [reminders guide](reminders.md#one-alarm-for-a-whole-queue) shows that pattern. A move that changes `next_run_at` emits `solid_objects.reminder.replaced`, because the replacement is otherwise indistinguishable from a first schedule.
 
 When due, the scheduler locks the source instance and creates a normal mailbox
 row with an idempotency key derived from reminder ID and occurrence. The
@@ -698,7 +699,7 @@ Backoff and a retry limit prevent tight loops. The poison message blocks its act
 
 ### Handler redelivery
 
-Sequential processing does not mean single execution. A handler can run, lose its lease before commit, and run again. Logical transitions must guard on durable state:
+Ordered processing does not prevent repeated execution. A handler can run, lose its lease before commit, and run again. Logical transitions must guard on durable state:
 
 ```ruby
 def launch

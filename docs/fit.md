@@ -57,8 +57,8 @@ request-critical, and often expires rather than requiring permanent message
 history. A low-rate quota is the case that does fit, such as five password
 resets an hour for one account, where a reminder refills the bucket and each
 check is one durable ordered message. An impressions pipeline is also a poor
-actor: its value is high-throughput append and aggregation, not serialized
-mutable state.
+actor, because its value comes from high-throughput append and aggregation. It
+does not need serialized mutable state.
 
 [Solid Objects Pro](https://solidobjects.pro/) is the commercial scaling layer
 for the high-QPS cases in this section. Grouped operations coalesce concurrent
@@ -111,5 +111,5 @@ Before adopting an actor, answer:
 10. How will existing state be cut over and rolled back?
 
 Benchmark the actual host database and deployment topology before committing a
-latency-sensitive surface. Local benchmark results are evidence about query
-shape, not universal capacity guarantees.
+latency-sensitive surface. Local benchmark results show query shape. They do
+not guarantee capacity.
