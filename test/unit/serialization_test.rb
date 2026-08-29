@@ -50,6 +50,41 @@ class SerializationTest < ActiveSupport::TestCase
     end
   end
 
+  test "does not encode a value that has no byte limit" do
+    invalid = +"\xC3"
+    invalid.force_encoding(Encoding::UTF_8)
+
+    assert_equal invalid, SolidObjects::Serialization.dump(invalid)
+  end
+
+  test "rejects a value that is not JSON-compatible when it has no byte limit" do
+    assert_raises(SolidObjects::InvalidPayload) do
+      SolidObjects::Serialization.dump(Object.new)
+    end
+  end
+
+  test "converts an encoding failure into an invalid payload" do
+    invalid = +"\xC3"
+    invalid.force_encoding(Encoding::UTF_8)
+
+    assert_raises(SolidObjects::InvalidPayload) do
+      SolidObjects::Serialization.dump(invalid, max_bytes: 1_024)
+    end
+  end
+
+  test "reports the encoded byte size beside the normalized value" do
+    dumped = SolidObjects::Serialization.dump_with_byte_size({ quantity: 1 }, max_bytes: 1_024)
+
+    assert_equal({ "quantity" => 1 }, dumped.value)
+    assert_equal 14, dumped.byte_size
+  end
+
+  test "enforces the encoded byte limit while it reports the byte size" do
+    assert_raises(SolidObjects::PayloadTooLarge) do
+      SolidObjects::Serialization.dump_with_byte_size("four", max_bytes: 5)
+    end
+  end
+
   test "returns an independent deep copy" do
     original = { "items" => [ { "quantity" => 1 } ] }
     copy = SolidObjects::Serialization.deep_copy(original)

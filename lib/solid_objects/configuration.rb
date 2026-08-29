@@ -15,6 +15,7 @@ module SolidObjects
     # @rbs @claim_scan_limit: Integer
     # @rbs @max_payload_bytes: Integer
     # @rbs @max_state_bytes: Integer
+    # @rbs @state_size_warning_bytes: Integer
     # @rbs @max_result_bytes: Integer
     # @rbs @max_attempts: Integer
     # @rbs @retry_delay: Proc
@@ -63,6 +64,7 @@ module SolidObjects
       :claim_scan_limit,
       :max_payload_bytes,
       :max_state_bytes,
+      :state_size_warning_bytes,
       :max_result_bytes,
       :max_attempts,
       :retry_delay,
@@ -116,6 +118,7 @@ module SolidObjects
       @claim_scan_limit = 100
       @max_payload_bytes = 1.megabyte
       @max_state_bytes = 5.megabytes
+      @state_size_warning_bytes = 64.kilobytes
       @max_result_bytes = 1.megabyte
       @max_attempts = 5
       @retry_delay = ->(attempt) { [ 2**(attempt - 1), 60 ].min.to_f }
@@ -260,6 +263,7 @@ module SolidObjects
         claim_scan_limit:,
         max_payload_bytes:,
         max_state_bytes:,
+        state_size_warning_bytes:,
         max_result_bytes:,
         max_attempts:,
         process_heartbeat_interval:,

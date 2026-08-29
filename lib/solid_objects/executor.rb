@@ -25,9 +25,15 @@ module SolidObjects
 
       SolidObjects.instrument(:"message.started", **instrumentation_payload)
       result = invoke_actor(message_context)
-      ensure_query_did_not_mutate_state!(state_before)
       observable_changes = changed_observables(observables_before, actor.observable_values)
-      complete(result, observable_changes, state_changed: actor.state.to_h != state_before)
+      state_after = actor.state.to_h
+      ensure_query_did_not_mutate_state!(state_before, state_after)
+      complete(
+        result,
+        observable_changes,
+        state_after:,
+        state_changed: state_after != state_before
+      )
       true
     rescue LostActivation
       raise
@@ -59,11 +65,11 @@ module SolidObjects
       end
     end
 
-    # @rbs (Hash[String, untyped]) -> void
-    def ensure_query_did_not_mutate_state!(state_before)
+    # @rbs (Hash[String, untyped], Hash[String, untyped]) -> void
+    def ensure_query_did_not_mutate_state!(state_before, state_after)
       return unless message.delivery_mode == "sync"
       return unless actor.class.definition.queries.key?(message.operation.to_sym)
-      return if actor.state.to_h == state_before
+      return if state_after == state_before
 
       raise InvalidActor, "query #{message.operation.inspect} mutated actor state"
     end
@@ -75,10 +81,10 @@ module SolidObjects
       end
     end
 
-    # @rbs (untyped, Hash[String, untyped], state_changed: bool) -> void
-    def complete(result, observable_changes, state_changed:)
-      serialized_state = Serialization.dump(
-        actor.state.to_h,
+    # @rbs (untyped, Hash[String, untyped], state_after: Hash[String, untyped], state_changed: bool) -> void
+    def complete(result, observable_changes, state_after:, state_changed:)
+      dumped_state = Serialization.dump_with_byte_size(
+        state_after,
         max_bytes: SolidObjects.configuration.max_state_bytes
       )
       serialized_result = Serialization.dump(
@@ -102,7 +108,7 @@ module SolidObjects
         locked_message = Message.lock.find(message.id)
         execute_commit_actions(commit_action_intents)
         instance.update!(
-          state: serialized_state,
+          state: dumped_state.value,
           state_version: actor.class.state_version,
           state_revision: locked_message.sequence,
           last_used_at: SolidObjects.database_adapter.database_now
@@ -148,8 +154,23 @@ module SolidObjects
           actor_id: message.actor_id
         )
       end
+      report_large_state(dumped_state.byte_size)
       SolidObjects.instrument(:"message.completed", **instrumentation_payload)
       SolidObjects.wake_up.signal
+    end
+
+    # @rbs (Integer) -> void
+    def report_large_state(byte_size)
+      threshold = SolidObjects.configuration.state_size_warning_bytes
+      return if byte_size <= threshold
+
+      SolidObjects.instrument(
+        :"state.large",
+        actor_type: message.actor_type,
+        actor_id: message.actor_id,
+        state_bytes: byte_size,
+        threshold_bytes: threshold
+      )
     end
 
     # @rbs (Array[Actor::CommitActionIntent]) -> void

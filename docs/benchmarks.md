@@ -109,6 +109,43 @@ result is why Solid Objects does not publish one latency promise. Network
 topology, adapter behavior, host schema, logging, callbacks, and contention all
 matter.
 
+## State size and committed throughput
+
+A turn commits the whole state image. It copies the state, encodes it, and
+writes the row, so every message pays for the size of the state its actor
+keeps. Run the scenario with:
+
+```bash
+COUNT=300 bundle exec ruby -Ilib benchmark/state_size.rb
+```
+
+Measured 2026-08-29 on an Apple M5 with 24 GB RAM, Ruby 4.0.5, Rails 8.1.3.1,
+and SQLite 3.53.2. One hot actor received 300 messages at each state size. Each
+figure is the median of five runs, and the two trees ran one after the other in
+each round. The state holds many small entries, because a copy visits every
+node, and one long string of the same length costs much less.
+
+| Committed state | Before | After | Change |
+| ---: | ---: | ---: | ---: |
+| 23 bytes | 1,171.4 messages/s | 1,204.0 messages/s | +2.8% |
+| 13,662 bytes | 642.8 messages/s | 644.9 messages/s | +0.3% |
+| 118,786 bytes | 165.5 messages/s | 181.2 messages/s | +9.5% |
+| 1,026,356 bytes | 20.6 messages/s | 24.5 messages/s | +18.9% |
+
+The "before" tree copied the whole state three times per committed turn and
+encoded a string that it discarded whenever the caller gave no byte limit. The
+"after" tree copies it twice and encodes only where a limit applies. The gain
+grows with the state, because the database write dominates a small turn.
+
+The curve matters more than the change. Throughput falls about 26 times between
+13 KB and 1 MB of state, and about 49 times between an empty state and 1 MB.
+The `max_state_bytes` default of 5 MB is therefore a limit rather than an
+operating point. `state_size_warning_bytes` defaults to 64 KB, and each commit
+above it reports `solid_objects.state.large`.
+
+These are developer-laptop numbers on one adapter. They show shape and ratio,
+not a capacity guarantee.
+
 ## Reactive delivery paths
 
 Measured 2026-08-09 on an Apple M5 with 200 iterations, for one actor mutation

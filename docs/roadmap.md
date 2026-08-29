@@ -134,7 +134,15 @@
   loads them in every process, and a rejected subscription reports which
   condition caused it instead of closing the socket silently.
 - Backpressure: mailbox/payload/state/result caps and fair yields exist;
-  distributed per-actor rate limits and global admission control do not.
+  distributed per-actor rate limits and global admission control do not. The
+  state cap is a limit rather than an operating point. `max_state_bytes`
+  defaults to 5 MB, and committed throughput measured on SQLite falls about 49
+  times between an empty state and 1 MB of state, which `docs/benchmarks.md`
+  records. A soft `state_size_warning_bytes` threshold, 64 KB by default, now
+  reports each commit above it as `solid_objects.state.large`. The hard default
+  stays at 5 MB, because lowering it would break an application whose actors
+  already exceed a lower value; a major release can lower it from the measured
+  curve.
 - Administration: `SolidObjects::Web` is a mountable Rack dashboard covering
   instances, mailbox, reminders, effects, broadcasts, dead letters, and
   processes, with actor-type and actor-id filtering, status filters, paging, a

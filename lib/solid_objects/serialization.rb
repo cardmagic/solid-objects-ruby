@@ -4,17 +4,26 @@ module SolidObjects
   module Serialization
     MAX_NESTING = 100
 
+    Dumped = Data.define(:value, :byte_size)
+
     class << self
       # @rbs (untyped, ?max_bytes: Integer?) -> untyped
       def dump(value, max_bytes: nil)
-        normalized = normalize(value)
-        encoded = JSON.generate(normalized, max_nesting: MAX_NESTING)
+        return normalize(value) unless max_bytes
 
-        if max_bytes && encoded.bytesize > max_bytes
+        dump_with_byte_size(value, max_bytes:).value
+      end
+
+      # @rbs (untyped, ?max_bytes: Integer?) -> Dumped
+      def dump_with_byte_size(value, max_bytes: nil)
+        normalized = normalize(value)
+        byte_size = JSON.generate(normalized, max_nesting: MAX_NESTING).bytesize
+
+        if max_bytes && byte_size > max_bytes
           raise PayloadTooLarge, "serialized value exceeds #{max_bytes} bytes"
         end
 
-        normalized
+        Dumped.new(value: normalized, byte_size:)
       rescue JSON::GeneratorError, EncodingError => error
         raise InvalidPayload, error.message
       end

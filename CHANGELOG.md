@@ -1,6 +1,28 @@
 # Changelog
 
-## Unreleased
+## 0.14.3 - 2026-08-29
+
+- Cut one of the three full state copies a committed turn made. The executor
+  built the after image twice, once to answer whether the state changed and
+  once for the committed row, and a synchronous query built a third for the
+  mutation guard. One image now answers all three. Measured on SQLite,
+  committed throughput rises 9.5% at 116 KB of state and 18.9% at 1 MB.
+  `benchmark/state_size.rb` is the scenario and `docs/benchmarks.md` holds the
+  numbers. The guard now compares the image taken after the observables are
+  read, so a query whose observable mutates state also fails with
+  `InvalidActor`.
+- Stop building an encoded string that `Serialization.dump` discarded. The
+  method encoded every value to measure it, while most call sites pass no
+  `max_bytes`. It now encodes only when a limit applies. A value that
+  `normalize` rejects still raises `InvalidPayload`, and a value that JSON
+  cannot encode still raises `InvalidPayload` where a limit applies. Without a
+  limit, that value now passes through, which affects a string that carries
+  invalid encoding.
+- Add `state_size_warning_bytes`, a soft threshold that defaults to 64 KB. A
+  commit above it reports `solid_objects.state.large` with the actor identity,
+  the byte count, and the threshold. The event carries no application state,
+  and it reports after the commit. `max_state_bytes` keeps its 5 MB default,
+  which measurement shows is a limit rather than an operating point.
 
 - Align the use-case claims with solid-objects-js. "Is it worth installing
   here?" listed long-lived workflows without a limit, while `docs/fit.md`

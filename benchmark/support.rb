@@ -7,6 +7,25 @@ require "solid_objects"
 
 module SolidObjectsBenchmark
   DATABASE_PATH = File.expand_path("../tmp/solid_objects_benchmark.sqlite3", __dir__)
+  STATE_SIZES = [ 0, 16 * 1_024, 128 * 1_024, 1_024 * 1_024 ].freeze
+  STATE_ENTRY_BYTES = 26
+
+  class StateSizeActor < SolidObjects::Actor
+    actor_type "benchmark-state-size"
+
+    attribute :count, default: 0
+    attribute :filler, default: -> { {} }
+
+    def fill(size:)
+      entries = size / STATE_ENTRY_BYTES
+      self.filler = Array.new(entries) { |index| [ "key-#{index}", "value-#{index}" ] }.to_h
+      filler.length
+    end
+
+    def increment
+      self.count = count + 1
+    end
+  end
 
   class CounterActor < SolidObjects::Actor
     actor_type "benchmark-counter"
@@ -290,6 +309,12 @@ module SolidObjectsBenchmark
     end
 
     # @rbs () -> void
+    def state_size
+      warm_up_state_size
+      STATE_SIZES.each { |size| measure_state_size(size) }
+    end
+
+    # @rbs () -> void
     def query_count
       turn = message_turn_query_count
       caller_queries = synchronous_caller_query_count
@@ -431,6 +456,36 @@ module SolidObjectsBenchmark
       actor_count = [ concurrency * 10, count ].min
       references = Array.new(actor_count) { |index| CounterActor.ref("actor-#{index}") }
       count.times { |index| references[index % actor_count].async.increment }
+    end
+
+    # @rbs () -> void
+    def warm_up_state_size
+      reference = StateSizeActor.ref("state-size-warm-up")
+      reference.fill(size: 0)
+      count.times { reference.async.increment }
+      worker = SolidObjects::Worker.new
+      drain(worker)
+    ensure
+      worker&.stop
+    end
+
+    # @rbs (Integer) -> void
+    def measure_state_size(size)
+      actor_id = "state-size-#{size}"
+      reference = StateSizeActor.ref(actor_id)
+      reference.fill(size:)
+      state_bytes = committed_state_bytes(actor_id)
+      count.times { reference.async.increment }
+      worker = SolidObjects::Worker.new
+      measure("process #{count} messages with #{state_bytes} bytes of state") { drain(worker) }
+    ensure
+      worker&.stop
+    end
+
+    # @rbs (String) -> Integer
+    def committed_state_bytes(actor_id)
+      instance = SolidObjects::Instance.find_by!(actor_type: "benchmark-state-size", actor_id:)
+      JSON.generate(instance.state).bytesize
     end
 
     # @rbs (SolidObjects::Worker) -> Integer
