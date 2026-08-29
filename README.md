@@ -176,7 +176,7 @@ robust interplay with its own table of contents.
 
 ## Status and license
 
-Solid Objects 0.14.2 is a pre-1.0 early release. Its correctness core is tested
+Solid Objects Ruby is a pre-1.0 early release. Its correctness core is tested
 against SQLite, PostgreSQL, and MySQL, but the project makes no production-ready
 claim. That requires more hardening and operational soak evidence. Pre-1.0 is
 not decorative punctuation.
