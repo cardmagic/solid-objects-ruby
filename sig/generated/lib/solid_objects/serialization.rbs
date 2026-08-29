@@ -4,8 +4,24 @@ module SolidObjects
   module Serialization
     MAX_NESTING: ::Integer
 
+    class Dumped < Data
+      attr_reader value(): untyped
+
+      attr_reader byte_size(): untyped
+
+      def self.new: (untyped value, untyped byte_size) -> instance
+                  | (value: untyped, byte_size: untyped) -> instance
+
+      def self.members: () -> [ :value, :byte_size ]
+
+      def members: () -> [ :value, :byte_size ]
+    end
+
     # @rbs (untyped, ?max_bytes: Integer?) -> untyped
     def self.dump: (untyped, ?max_bytes: Integer?) -> untyped
+
+    # @rbs (untyped, ?max_bytes: Integer?) -> Dumped
+    def self.dump_with_byte_size: (untyped, ?max_bytes: Integer?) -> Dumped
 
     # @rbs (untyped) -> untyped
     def self.load: (untyped) -> untyped

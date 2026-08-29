@@ -15,6 +15,7 @@ module SolidObjects
     # @rbs @claim_scan_limit: Integer
     # @rbs @max_payload_bytes: Integer
     # @rbs @max_state_bytes: Integer
+    # @rbs @warn_state_bytes: Integer
     # @rbs @max_result_bytes: Integer
     # @rbs @max_attempts: Integer
     # @rbs @retry_delay: Proc
@@ -63,6 +64,7 @@ module SolidObjects
       :claim_scan_limit,
       :max_payload_bytes,
       :max_state_bytes,
+      :warn_state_bytes,
       :max_result_bytes,
       :max_attempts,
       :retry_delay,
@@ -116,6 +118,7 @@ module SolidObjects
       @claim_scan_limit = 100
       @max_payload_bytes = 1.megabyte
       @max_state_bytes = 5.megabytes
+      @warn_state_bytes = 64.kilobytes
       @max_result_bytes = 1.megabyte
       @max_attempts = 5
       @retry_delay = ->(attempt) { [ 2**(attempt - 1), 60 ].min.to_f }
@@ -223,6 +226,9 @@ module SolidObjects
       positive_values.each do |name, value|
         raise ArgumentError, "#{name} must be positive" unless value.positive?
       end
+      if warn_state_bytes > max_state_bytes
+        raise ArgumentError, "warn_state_bytes must not exceed max_state_bytes"
+      end
       message_retention_by_actor_type.each do |actor_type, retention|
         raise ArgumentError, "actor type cannot be empty" if actor_type.to_s.empty?
         raise ArgumentError, "message retention must be positive" unless retention.positive?
@@ -260,6 +266,7 @@ module SolidObjects
         claim_scan_limit:,
         max_payload_bytes:,
         max_state_bytes:,
+        warn_state_bytes:,
         max_result_bytes:,
         max_attempts:,
         process_heartbeat_interval:,

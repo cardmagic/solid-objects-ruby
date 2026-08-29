@@ -1,6 +1,39 @@
 # Changelog
 
-## Unreleased
+## 0.14.3 - 2026-08-29
+
+- Cut one of the three full state copies a committed turn made. The executor
+  built the after image twice, once to answer whether the state changed and
+  once for the committed row, and a synchronous query built a third for the
+  mutation guard. One image now answers all three. Measured on SQLite,
+  committed throughput rises 4.8% at 13 KB of state, 3.1% at 116 KB, and 10.2%
+  at 1 MB. `benchmark/state_size.rb` is the scenario and `docs/benchmarks.md`
+  holds the numbers. The guard now compares the image taken after the
+  observables are read, so a query whose observable mutates state also fails
+  with `InvalidActor`.
+- Stop building an encoded string that `Serialization.dump` discarded. The
+  method encoded every value to measure it, while most call sites pass no
+  `max_bytes`. It now encodes only when a limit applies. That encoding was also
+  the only check that a string held valid bytes, so `normalize` now checks the
+  encoding of every string and key it visits. A value it rejects raises
+  `InvalidPayload` at the call that staged it, as before, rather than a
+  `JSON::GeneratorError` from inside the commit transaction.
+- Add `warn_state_bytes`, a soft threshold that defaults to 64 KB and must not
+  exceed `max_state_bytes`. A commit above it reports
+  `solid_objects.state.large` with the actor identity, the `byte_count`, and
+  the threshold. The event carries no application state, and it reports after
+  the commit. `max_state_bytes` keeps its 5 MB default, which measurement shows
+  is a limit rather than an operating point. The setting, the event, and its
+  payload match `warnStateBytes` in solid-objects-js, which defaults to 128 KB,
+  because the Node curve falls later than this one.
+- Report a committed turn without letting a subscriber fail it. Every event
+  the executor emitted after its commit ran outside a rescue, so a subscriber
+  that raised turned a committed turn into a failed one: the runtime skipped
+  `message.completed`, tried to fail a message whose claim it had already
+  destroyed, and lost the worker pass. Those reports now go through
+  `instrument_after_commit`, which reports a raising subscriber as
+  `solid_objects.instrumentation.failed` and continues. This matches the
+  isolation `solid-objects-js` already applied to every event it emits.
 
 - Align the use-case claims with solid-objects-js. "Is it worth installing
   here?" listed long-lived workflows without a limit, while `docs/fit.md`

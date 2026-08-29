@@ -49,6 +49,31 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert_equal "instance retention must be positive", error.message
   end
 
+  test "warns about large state well below the hard state limit" do
+    configuration = SolidObjects::Configuration.new
+
+    assert_equal 64.kilobytes, configuration.warn_state_bytes
+    assert_operator configuration.warn_state_bytes, :<, configuration.max_state_bytes
+  end
+
+  test "rejects a soft state threshold above the hard state limit" do
+    configuration = SolidObjects::Configuration.new
+    configuration.warn_state_bytes = configuration.max_state_bytes + 1
+
+    error = assert_raises(ArgumentError) { configuration.validate! }
+
+    assert_equal "warn_state_bytes must not exceed max_state_bytes", error.message
+  end
+
+  test "rejects a non-positive state size warning threshold" do
+    configuration = SolidObjects::Configuration.new
+    configuration.warn_state_bytes = 0
+
+    error = assert_raises(ArgumentError) { configuration.validate! }
+
+    assert_equal "warn_state_bytes must be positive", error.message
+  end
+
   test "rejects a non-positive idle polling interval" do
     configuration = SolidObjects::Configuration.new
     configuration.idle_polling_interval = 0

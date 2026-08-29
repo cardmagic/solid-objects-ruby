@@ -4,17 +4,26 @@ module SolidObjects
   module Serialization
     MAX_NESTING = 100
 
+    Dumped = Data.define(:value, :byte_size)
+
     class << self
       # @rbs (untyped, ?max_bytes: Integer?) -> untyped
       def dump(value, max_bytes: nil)
-        normalized = normalize(value)
-        encoded = JSON.generate(normalized, max_nesting: MAX_NESTING)
+        return normalize(value) unless max_bytes
 
-        if max_bytes && encoded.bytesize > max_bytes
+        dump_with_byte_size(value, max_bytes:).value
+      end
+
+      # @rbs (untyped, ?max_bytes: Integer?) -> Dumped
+      def dump_with_byte_size(value, max_bytes: nil)
+        normalized = normalize(value)
+        byte_size = JSON.generate(normalized, max_nesting: MAX_NESTING).bytesize
+
+        if max_bytes && byte_size > max_bytes
           raise PayloadTooLarge, "serialized value exceeds #{max_bytes} bytes"
         end
 
-        normalized
+        Dumped.new(value: normalized, byte_size:)
       rescue JSON::GeneratorError, EncodingError => error
         raise InvalidPayload, error.message
       end
@@ -60,7 +69,11 @@ module SolidObjects
         raise InvalidPayload, "serialized value is nested too deeply" if depth > MAX_NESTING
 
         case value
-        when nil, true, false, String, Integer
+        when nil, true, false, Integer
+          value
+        when String
+          raise InvalidPayload, "strings must hold valid #{value.encoding} bytes" unless value.valid_encoding?
+
           value
         when Float
           raise InvalidPayload, "non-finite numbers are not supported" unless value.finite?
@@ -89,7 +102,7 @@ module SolidObjects
 
       # @rbs (untyped) -> String
       def normalize_key(key)
-        return key if key.is_a?(String)
+        return normalize(key) if key.is_a?(String)
         return key.to_s if key.is_a?(Symbol)
 
         raise InvalidPayload, "JSON object keys must be strings or symbols"

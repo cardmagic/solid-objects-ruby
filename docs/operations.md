@@ -200,6 +200,7 @@ end
 | `max_messages_per_activation_pass` | 50 |
 | `max_activation_duration` | 5 seconds |
 | `max_mailbox_length` | 10,000 |
+| `warn_state_bytes` | 64 KB |
 | `max_attempts` | 5 |
 | `process_heartbeat_interval` | 15 seconds |
 | `process_alive_threshold` | 60 seconds |
@@ -216,6 +217,15 @@ end
 Payload, state, and result byte limits; retry delay; table prefix; logging;
 wake-up; broadcast; database; and authorization adapters are also configurable.
 Invalid lease intervals, component counts, and size limits fail fast at boot.
+
+`max_state_bytes` defaults to 5 MB, which is a limit rather than an operating
+point. A turn copies the whole state, encodes it, and writes the row, so
+committed throughput falls long before that limit: measured on SQLite, about 28
+times between 13 KB and 1 MB of state. See `docs/benchmarks.md` for the curve.
+`warn_state_bytes` is the soft threshold, and it must not exceed
+`max_state_bytes`. Each commit above it reports `solid_objects.state.large` and
+nothing else changes, so an application that already keeps a large state keeps
+working while its operator learns the cost.
 
 Keep lease duration comfortably above renewal interval and expected database
 pause time. A handler can exceed the pass-duration budget because Ruby code is
@@ -308,6 +318,7 @@ Alert on:
 - ready and claimed membership counts;
 - mailbox-full rejections;
 - actor turn duration and failures;
+- committed state above `warn_state_bytes`;
 - lost-activation rate;
 - dead-letter creation;
 - actor destruction rate;
@@ -343,6 +354,23 @@ alarm. That is deliberate, and it is silent: an actor that arms one reminder
 per queued item keeps only the last, and the earlier wake-up never happens.
 Watch this event if your actors schedule from a loop or from a handler that can
 run more than once. Rescheduling to the same time reports nothing.
+
+`solid_objects.state.large` reports a committed turn whose state exceeded
+`warn_state_bytes`. The payload carries the actor identity, the `byte_count`
+the commit wrote, and the `threshold_bytes` it passed. It never carries the
+state. The event reports after the commit, so a turn that rolled back reports
+nothing. Every commit above the threshold reports, including a synchronous
+query and a turn that changed nothing, so a hot actor reports once per message.
+Aggregate by actor rather than alert on each event, and watch the reported size
+rather than the event rate: a state that grows without a bound is what this
+event exists to find. `solid-objects-js` emits the same event under the same
+name and payload.
+
+`solid_objects.instrumentation.failed` reports a subscriber that raised while
+the runtime reported a committed turn. The payload carries the
+`instrumentation_event` that failed and the `error_class`. The turn itself is
+unaffected, because it already committed. Watch this event to find a broken
+subscriber, which would otherwise be silent.
 
 `solid_objects.component.refreshed` covers every authorized component refresh
 request. Its payload carries the actor identity, `component_name`,

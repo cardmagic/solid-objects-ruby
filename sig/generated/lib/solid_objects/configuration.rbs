@@ -2,7 +2,7 @@
 
 module SolidObjects
   class Configuration
-    @table_name_prefix: String
+    @process_alive_threshold: Float
 
     @shutdown_timeout: Float
 
@@ -60,6 +60,8 @@ module SolidObjects
 
     @transmission_actor_type_resolver: Proc
 
+    @table_name_prefix: String
+
     @polling_interval: Float
 
     @idle_polling_interval: Float
@@ -84,6 +86,8 @@ module SolidObjects
 
     @max_state_bytes: Integer
 
+    @warn_state_bytes: Integer
+
     @max_result_bytes: Integer
 
     @max_attempts: Integer
@@ -93,8 +97,6 @@ module SolidObjects
     @lock_retry_attempts: Integer
 
     @process_heartbeat_interval: Float
-
-    @process_alive_threshold: Float
 
     attr_accessor table_name_prefix: untyped
 
@@ -121,6 +123,8 @@ module SolidObjects
     attr_accessor max_payload_bytes: untyped
 
     attr_accessor max_state_bytes: untyped
+
+    attr_accessor warn_state_bytes: untyped
 
     attr_accessor max_result_bytes: untyped
 
