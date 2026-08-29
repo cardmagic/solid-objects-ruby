@@ -123,28 +123,33 @@ Measured 2026-08-29 on an Apple M5 with 24 GB RAM, Ruby 4.0.5, Rails 8.1.3.1,
 and SQLite 3.53.2. One hot actor received 300 messages at each state size. Each
 figure is the median of five runs, and the two trees ran one after the other in
 each round. The state holds many small entries, because a copy visits every
-node, and one long string of the same length costs much less.
+node, and one long string of the same length costs much less. The harness sets
+`warn_state_bytes` to the hard limit, so neither tree pays for an event that
+only one of them can emit.
 
 | Committed state | Before | After | Change |
 | ---: | ---: | ---: | ---: |
-| 23 bytes | 1,171.4 messages/s | 1,204.0 messages/s | +2.8% |
-| 13,662 bytes | 642.8 messages/s | 644.9 messages/s | +0.3% |
-| 118,786 bytes | 165.5 messages/s | 181.2 messages/s | +9.5% |
-| 1,026,356 bytes | 20.6 messages/s | 24.5 messages/s | +18.9% |
+| 23 bytes | 1,268.0 messages/s | 1,252.5 messages/s | -1.2% |
+| 13,662 bytes | 624.1 messages/s | 654.1 messages/s | +4.8% |
+| 118,786 bytes | 169.3 messages/s | 174.6 messages/s | +3.1% |
+| 1,026,356 bytes | 21.6 messages/s | 23.8 messages/s | +10.2% |
 
 The "before" tree copied the whole state three times per committed turn and
 encoded a string that it discarded whenever the caller gave no byte limit. The
-"after" tree copies it twice and encodes only where a limit applies. The gain
-grows with the state, because the database write dominates a small turn.
+"after" tree copies it twice and encodes only where a limit applies. It also
+checks the encoding of every string it normalizes, which the discarded encoding
+used to do, so part of the saving pays for that check. The gain grows with the
+state, because the database write dominates a small turn. The empty-state row
+sits inside run-to-run variance.
 
-The curve matters more than the change. Throughput falls about 26 times between
-13 KB and 1 MB of state, and about 49 times between an empty state and 1 MB.
+The curve matters more than the change. Throughput falls about 28 times between
+13 KB and 1 MB of state, and about 53 times between an empty state and 1 MB.
 The `max_state_bytes` default of 5 MB is therefore a limit rather than an
 operating point. `warn_state_bytes` defaults to 64 KB, and each commit above it
 reports `solid_objects.state.large`. The Node package carries the same setting
 as `warnStateBytes` and defaults it to 128 KB, because its measured curve falls
 later: it keeps 98% of its empty-state throughput at 16 KB, where this gem
-keeps 55%.
+keeps 52% at 13 KB.
 
 These are developer-laptop numbers on one adapter. They show shape and ratio,
 not a capacity guarantee.

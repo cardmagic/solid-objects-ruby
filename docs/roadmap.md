@@ -136,7 +136,7 @@
 - Backpressure: mailbox/payload/state/result caps and fair yields exist;
   distributed per-actor rate limits and global admission control do not. The
   state cap is a limit rather than an operating point. `max_state_bytes`
-  defaults to 5 MB, and committed throughput measured on SQLite falls about 49
+  defaults to 5 MB, and committed throughput measured on SQLite falls about 53
   times between an empty state and 1 MB of state, which `docs/benchmarks.md`
   records. A soft `warn_state_bytes` threshold, 64 KB by default, now
   reports each commit above it as `solid_objects.state.large`. The hard default

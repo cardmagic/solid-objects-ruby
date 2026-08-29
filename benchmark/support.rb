@@ -471,6 +471,7 @@ module SolidObjectsBenchmark
 
     # @rbs (Integer) -> void
     def measure_state_size(size)
+      silence_large_state_warning
       actor_id = "state-size-#{size}"
       reference = StateSizeActor.ref(actor_id)
       reference.fill(size:)
@@ -480,6 +481,13 @@ module SolidObjectsBenchmark
       measure("process #{count} messages with #{state_bytes} bytes of state") { drain(worker) }
     ensure
       worker&.stop
+    end
+
+    # @rbs () -> void
+    def silence_large_state_warning
+      return unless SolidObjects.configuration.respond_to?(:warn_state_bytes=)
+
+      SolidObjects.configuration.warn_state_bytes = SolidObjects.configuration.max_state_bytes
     end
 
     # @rbs (String) -> Integer

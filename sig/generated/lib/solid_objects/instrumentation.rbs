@@ -4,5 +4,13 @@ module SolidObjects
   module Instrumentation
     # @rbs (Symbol, **untyped) { (Hash[Symbol, untyped]) -> untyped } -> untyped
     def instrument: (Symbol, **untyped) { (Hash[Symbol, untyped]) -> untyped } -> untyped
+
+    # @rbs (Symbol, **untyped) -> void
+    def instrument_after_commit: (Symbol, **untyped) -> void
+
+    private
+
+    # @rbs (Symbol, Exception) -> void
+    def report_instrumentation_failure: (Symbol, Exception) -> void
   end
 end

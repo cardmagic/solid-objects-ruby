@@ -226,6 +226,9 @@ module SolidObjects
       positive_values.each do |name, value|
         raise ArgumentError, "#{name} must be positive" unless value.positive?
       end
+      if warn_state_bytes > max_state_bytes
+        raise ArgumentError, "warn_state_bytes must not exceed max_state_bytes"
+      end
       message_retention_by_actor_type.each do |actor_type, retention|
         raise ArgumentError, "actor type cannot be empty" if actor_type.to_s.empty?
         raise ArgumentError, "message retention must be positive" unless retention.positive?

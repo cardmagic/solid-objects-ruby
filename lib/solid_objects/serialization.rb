@@ -69,7 +69,11 @@ module SolidObjects
         raise InvalidPayload, "serialized value is nested too deeply" if depth > MAX_NESTING
 
         case value
-        when nil, true, false, String, Integer
+        when nil, true, false, Integer
+          value
+        when String
+          raise InvalidPayload, "strings must hold valid #{value.encoding} bytes" unless value.valid_encoding?
+
           value
         when Float
           raise InvalidPayload, "non-finite numbers are not supported" unless value.finite?
@@ -98,7 +102,7 @@ module SolidObjects
 
       # @rbs (untyped) -> String
       def normalize_key(key)
-        return key if key.is_a?(String)
+        return normalize(key) if key.is_a?(String)
         return key.to_s if key.is_a?(Symbol)
 
         raise InvalidPayload, "JSON object keys must be strings or symbols"

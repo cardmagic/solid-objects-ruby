@@ -51,10 +51,11 @@ class SerializationTest < ActiveSupport::TestCase
   end
 
   test "does not encode a value that has no byte limit" do
-    invalid = +"\xC3"
-    invalid.force_encoding(Encoding::UTF_8)
+    assert_equal 0, json_generate_calls { SolidObjects::Serialization.dump({ quantity: 1 }) }
+  end
 
-    assert_equal invalid, SolidObjects::Serialization.dump(invalid)
+  test "encodes once when it must enforce a byte limit" do
+    assert_equal 1, json_generate_calls { SolidObjects::Serialization.dump({ quantity: 1 }, max_bytes: 1_024) }
   end
 
   test "rejects a value that is not JSON-compatible when it has no byte limit" do
@@ -63,12 +64,27 @@ class SerializationTest < ActiveSupport::TestCase
     end
   end
 
-  test "converts an encoding failure into an invalid payload" do
-    invalid = +"\xC3"
-    invalid.force_encoding(Encoding::UTF_8)
-
+  test "rejects a string that cannot be encoded when it has no byte limit" do
     assert_raises(SolidObjects::InvalidPayload) do
-      SolidObjects::Serialization.dump(invalid, max_bytes: 1_024)
+      SolidObjects::Serialization.dump(invalid_encoding_string)
+    end
+  end
+
+  test "rejects a string that cannot be encoded inside a nested value" do
+    assert_raises(SolidObjects::InvalidPayload) do
+      SolidObjects::Serialization.dump({ "items" => [ { "note" => invalid_encoding_string } ] })
+    end
+  end
+
+  test "rejects a key that cannot be encoded" do
+    assert_raises(SolidObjects::InvalidPayload) do
+      SolidObjects::Serialization.dump({ invalid_encoding_string => "value" })
+    end
+  end
+
+  test "converts an encoding failure into an invalid payload" do
+    assert_raises(SolidObjects::InvalidPayload) do
+      SolidObjects::Serialization.dump(invalid_encoding_string, max_bytes: 1_024)
     end
   end
 
@@ -102,5 +118,20 @@ class SerializationTest < ActiveSupport::TestCase
     assert_predicate copy.fetch("items"), :frozen?
     assert_predicate copy.fetch("items").first, :frozen?
     assert_raises(FrozenError) { copy.fetch("items").first["quantity"] = 2 }
+  end
+
+  private
+
+  def json_generate_calls
+    calls = 0
+    trace = TracePoint.new(:call, :c_call) do |point|
+      calls += 1 if point.method_id == :generate && point.self == JSON
+    end
+    trace.enable { yield }
+    calls
+  end
+
+  def invalid_encoding_string
+    (+"\xC3").force_encoding(Encoding::UTF_8)
   end
 end

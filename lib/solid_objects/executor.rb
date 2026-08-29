@@ -135,17 +135,17 @@ module SolidObjects
       end
 
       observable_changes.each_key do |observable_name|
-        SolidObjects.instrument(
+        SolidObjects.instrument_after_commit(
           :"broadcast.enqueued",
           **instrumentation_payload,
           observable_name:
         )
       end
       moved_reminders.each do |moved|
-        SolidObjects.instrument(:"reminder.replaced", **moved)
+        SolidObjects.instrument_after_commit(:"reminder.replaced", **moved)
       end
       enqueued_effects.each do |effect|
-        SolidObjects.instrument(
+        SolidObjects.instrument_after_commit(
           :"effect.enqueued",
           effect_id: effect.effect_id,
           effect_name: effect.name,
@@ -155,20 +155,20 @@ module SolidObjects
         )
       end
       report_large_state(dumped_state.byte_size)
-      SolidObjects.instrument(:"message.completed", **instrumentation_payload)
+      SolidObjects.instrument_after_commit(:"message.completed", **instrumentation_payload)
       SolidObjects.wake_up.signal
     end
 
     # @rbs (Integer) -> void
-    def report_large_state(byte_size)
+    def report_large_state(byte_count)
       threshold = SolidObjects.configuration.warn_state_bytes
-      return if byte_size <= threshold
+      return if byte_count <= threshold
 
-      SolidObjects.instrument(
+      SolidObjects.instrument_after_commit(
         :"state.large",
         actor_type: message.actor_type,
         actor_id: message.actor_id,
-        state_bytes: byte_size,
+        byte_count:,
         threshold_bytes: threshold
       )
     end
@@ -373,7 +373,7 @@ module SolidObjects
         end
       end
 
-      SolidObjects.instrument(
+      SolidObjects.instrument_after_commit(
         :"message.failed",
         **instrumentation_payload,
         error_class: error.class.name,
@@ -408,7 +408,7 @@ module SolidObjects
         claimed_message.destroy!
       end
 
-      SolidObjects.instrument(
+      SolidObjects.instrument_after_commit(
         :"message.rejected",
         **instrumentation_payload,
         code: rejection.code

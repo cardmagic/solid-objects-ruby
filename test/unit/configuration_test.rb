@@ -56,6 +56,15 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert_operator configuration.warn_state_bytes, :<, configuration.max_state_bytes
   end
 
+  test "rejects a soft state threshold above the hard state limit" do
+    configuration = SolidObjects::Configuration.new
+    configuration.warn_state_bytes = configuration.max_state_bytes + 1
+
+    error = assert_raises(ArgumentError) { configuration.validate! }
+
+    assert_equal "warn_state_bytes must not exceed max_state_bytes", error.message
+  end
+
   test "rejects a non-positive state size warning threshold" do
     configuration = SolidObjects::Configuration.new
     configuration.warn_state_bytes = 0
