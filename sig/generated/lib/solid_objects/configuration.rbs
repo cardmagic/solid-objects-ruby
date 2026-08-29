@@ -86,7 +86,7 @@ module SolidObjects
 
     @max_state_bytes: Integer
 
-    @state_size_warning_bytes: Integer
+    @warn_state_bytes: Integer
 
     @max_result_bytes: Integer
 
@@ -124,7 +124,7 @@ module SolidObjects
 
     attr_accessor max_state_bytes: untyped
 
-    attr_accessor state_size_warning_bytes: untyped
+    attr_accessor warn_state_bytes: untyped
 
     attr_accessor max_result_bytes: untyped
 

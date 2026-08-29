@@ -140,8 +140,11 @@ grows with the state, because the database write dominates a small turn.
 The curve matters more than the change. Throughput falls about 26 times between
 13 KB and 1 MB of state, and about 49 times between an empty state and 1 MB.
 The `max_state_bytes` default of 5 MB is therefore a limit rather than an
-operating point. `state_size_warning_bytes` defaults to 64 KB, and each commit
-above it reports `solid_objects.state.large`.
+operating point. `warn_state_bytes` defaults to 64 KB, and each commit above it
+reports `solid_objects.state.large`. The Node package carries the same setting
+as `warnStateBytes` and defaults it to 128 KB, because its measured curve falls
+later: it keeps 98% of its empty-state throughput at 16 KB, where this gem
+keeps 55%.
 
 These are developer-laptop numbers on one adapter. They show shape and ratio,
 not a capacity guarantee.

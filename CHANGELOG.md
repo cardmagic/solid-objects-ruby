@@ -18,11 +18,13 @@
   cannot encode still raises `InvalidPayload` where a limit applies. Without a
   limit, that value now passes through, which affects a string that carries
   invalid encoding.
-- Add `state_size_warning_bytes`, a soft threshold that defaults to 64 KB. A
-  commit above it reports `solid_objects.state.large` with the actor identity,
-  the byte count, and the threshold. The event carries no application state,
-  and it reports after the commit. `max_state_bytes` keeps its 5 MB default,
-  which measurement shows is a limit rather than an operating point.
+- Add `warn_state_bytes`, a soft threshold that defaults to 64 KB. A commit
+  above it reports `solid_objects.state.large` with the actor identity, the
+  byte count, and the threshold. The event carries no application state, and it
+  reports after the commit. `max_state_bytes` keeps its 5 MB default, which
+  measurement shows is a limit rather than an operating point. The setting and
+  the event match `warnStateBytes` in solid-objects-js, which defaults to
+  128 KB, because the Node curve falls later than this one.
 
 - Align the use-case claims with solid-objects-js. "Is it worth installing
   here?" listed long-lived workflows without a limit, while `docs/fit.md`

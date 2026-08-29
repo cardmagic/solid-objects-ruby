@@ -161,7 +161,7 @@ module SolidObjects
 
     # @rbs (Integer) -> void
     def report_large_state(byte_size)
-      threshold = SolidObjects.configuration.state_size_warning_bytes
+      threshold = SolidObjects.configuration.warn_state_bytes
       return if byte_size <= threshold
 
       SolidObjects.instrument(

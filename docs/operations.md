@@ -200,7 +200,7 @@ end
 | `max_messages_per_activation_pass` | 50 |
 | `max_activation_duration` | 5 seconds |
 | `max_mailbox_length` | 10,000 |
-| `state_size_warning_bytes` | 64 KB |
+| `warn_state_bytes` | 64 KB |
 | `max_attempts` | 5 |
 | `process_heartbeat_interval` | 15 seconds |
 | `process_alive_threshold` | 60 seconds |
@@ -222,7 +222,7 @@ Invalid lease intervals, component counts, and size limits fail fast at boot.
 point. A turn copies the whole state, encodes it, and writes the row, so
 committed throughput falls long before that limit: measured on SQLite, about 26
 times between 13 KB and 1 MB of state. See `docs/benchmarks.md` for the curve.
-`state_size_warning_bytes` is the soft threshold. Each commit above it reports
+`warn_state_bytes` is the soft threshold. Each commit above it reports
 `solid_objects.state.large` and nothing else changes, so an application that
 already keeps a large state keeps working while its operator learns the cost.
 
@@ -317,7 +317,7 @@ Alert on:
 - ready and claimed membership counts;
 - mailbox-full rejections;
 - actor turn duration and failures;
-- committed state above `state_size_warning_bytes`;
+- committed state above `warn_state_bytes`;
 - lost-activation rate;
 - dead-letter creation;
 - actor destruction rate;
@@ -355,7 +355,7 @@ Watch this event if your actors schedule from a loop or from a handler that can
 run more than once. Rescheduling to the same time reports nothing.
 
 `solid_objects.state.large` reports a committed turn whose state exceeded
-`state_size_warning_bytes`. The payload carries the actor identity, the
+`warn_state_bytes`. The payload carries the actor identity, the
 `state_bytes` the commit wrote, and the `threshold_bytes` it passed. It never
 carries the state. The event reports after the commit, so a turn that rolled
 back reports nothing. Watch it to find the actors whose state grows without a

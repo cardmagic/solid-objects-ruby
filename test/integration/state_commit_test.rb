@@ -82,7 +82,7 @@ class StateCommitTest < ActiveSupport::TestCase
   end
 
   test "reports committed state above the soft threshold" do
-    SolidObjects.configuration.state_size_warning_bytes = 64
+    SolidObjects.configuration.warn_state_bytes = 64
     events = []
     subscription = ActiveSupport::Notifications.subscribe("solid_objects.state.large") do |event|
       events << event.payload
@@ -104,7 +104,7 @@ class StateCommitTest < ActiveSupport::TestCase
   end
 
   test "stays silent for committed state under the soft threshold" do
-    SolidObjects.configuration.state_size_warning_bytes = 4_096
+    SolidObjects.configuration.warn_state_bytes = 4_096
     events = []
     subscription = ActiveSupport::Notifications.subscribe("solid_objects.state.large") do |event|
       events << event.payload

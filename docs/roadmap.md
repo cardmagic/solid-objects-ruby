@@ -138,7 +138,7 @@
   state cap is a limit rather than an operating point. `max_state_bytes`
   defaults to 5 MB, and committed throughput measured on SQLite falls about 49
   times between an empty state and 1 MB of state, which `docs/benchmarks.md`
-  records. A soft `state_size_warning_bytes` threshold, 64 KB by default, now
+  records. A soft `warn_state_bytes` threshold, 64 KB by default, now
   reports each commit above it as `solid_objects.state.large`. The hard default
   stays at 5 MB, because lowering it would break an application whose actors
   already exceed a lower value; a major release can lower it from the measured
