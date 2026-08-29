@@ -78,6 +78,20 @@ class StateCommitTest < ActiveSupport::TestCase
     end
   end
 
+  class RaisingLogger
+    def error(*)
+      raise "logger failed"
+    end
+
+    def method_missing(*)
+      nil
+    end
+
+    def respond_to_missing?(*)
+      true
+    end
+  end
+
   setup do
     CountingActor.state_copies = 0
     ObservableMutatingActor.mutate_on_read = false
@@ -213,6 +227,29 @@ class StateCommitTest < ActiveSupport::TestCase
     assert_equal 1, completions.length, "a committed turn must still report completion"
     assert_equal 1, failures.length
     assert_equal "solid_objects.state.large", failures.sole.fetch(:instrumentation_event)
+    assert_empty SolidObjects::ReadyMessage.all, "a committed turn must not run again"
+  ensure
+    subscriptions&.each { |subscription| ActiveSupport::Notifications.unsubscribe(subscription) }
+    worker&.stop
+  end
+
+  test "a failure that reports a failure does not disturb a committed turn" do
+    SolidObjects.configuration.warn_state_bytes = 64
+    SolidObjects.configuration.logger = RaisingLogger.new
+    completions = []
+    subscriptions = [
+      ActiveSupport::Notifications.subscribe("solid_objects.state.large") { raise "subscriber failed" },
+      ActiveSupport::Notifications.subscribe("solid_objects.instrumentation.failed") { raise "reporter failed" },
+      ActiveSupport::Notifications.subscribe("solid_objects.message.completed") { completions << true }
+    ]
+
+    LargeStateActor.ref("hostile").async.grow(size: 512)
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+
+    message = SolidObjects::Message.find_by!(actor_type: "state-commit-large", actor_id: "hostile")
+    assert_predicate message, :completed?
+    assert_equal 1, completions.length, "a committed turn must still report completion"
     assert_empty SolidObjects::ReadyMessage.all, "a committed turn must not run again"
   ensure
     subscriptions&.each { |subscription| ActiveSupport::Notifications.unsubscribe(subscription) }

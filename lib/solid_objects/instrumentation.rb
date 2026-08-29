@@ -24,13 +24,20 @@ module SolidObjects
         error_class: error.class.name
       )
     rescue => failure
+      log_instrumentation_failure(event, failure)
+    end
+
+    # @rbs (Symbol, Exception) -> void
+    def log_instrumentation_failure(event, error)
       SolidObjects.configuration.logger.error(
         {
           event: "solid_objects.instrumentation.failed",
           instrumentation_event: "solid_objects.#{event}",
-          error_class: failure.class.name
+          error_class: error.class.name
         }
       )
+    rescue
+      nil
     end
   end
 end

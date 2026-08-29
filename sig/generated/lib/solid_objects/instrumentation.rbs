@@ -12,5 +12,8 @@ module SolidObjects
 
     # @rbs (Symbol, Exception) -> void
     def report_instrumentation_failure: (Symbol, Exception) -> void
+
+    # @rbs (Symbol, Exception) -> void
+    def log_instrumentation_failure: (Symbol, Exception) -> void
   end
 end
