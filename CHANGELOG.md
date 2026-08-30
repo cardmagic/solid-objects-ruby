@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.14.4 - 2026-08-30
+
+- Reuse the encoding the after image already built. `State#to_h` copies the
+  state by encoding it and parsing the result, then threw the encoded string
+  away, and `complete` normalized and encoded the same hash a second time to
+  measure it. `to_h_with_byte_size` returns the copy with the size of the
+  encoding that produced it, so a committed turn now traverses the state twice
+  rather than three times and encodes it twice rather than three times.
+  Measured on SQLite against 0.14.3, committed throughput rises 5.3% at 13 KB
+  of state, 16.1% at 116 KB, and 12.0% at 1 MB. `docs/benchmarks.md` holds the
+  numbers. `solid-objects-js` already measured the string it commits; this
+  brings the gem to the same shape.
+- Add `Serialization.deep_copy_with_byte_size`, which returns a deep copy
+  beside the size of its encoded form. `deep_copy` now calls it, so both
+  encode once.
+- Enforce `max_state_bytes` against the size the after image reports rather
+  than by encoding the state again. The turn still fails with
+  `PayloadTooLarge` before it opens its commit transaction, which a test now
+  covers end to end.
+
 ## 0.14.3 - 2026-08-29
 
 - Cut one of the three full state copies a committed turn made. The executor

@@ -101,6 +101,26 @@ class SerializationTest < ActiveSupport::TestCase
     end
   end
 
+  test "reports the encoded byte size beside a deep copy" do
+    copied = SolidObjects::Serialization.deep_copy_with_byte_size({ quantity: 1 })
+
+    assert_equal({ "quantity" => 1 }, copied.value)
+    assert_equal 14, copied.byte_size
+  end
+
+  test "copies independently while it reports the byte size" do
+    original = { "items" => [ { "quantity" => 1 } ] }
+
+    copied = SolidObjects::Serialization.deep_copy_with_byte_size(original)
+    copied.value.fetch("items").first["quantity"] = 2
+
+    assert_equal 1, original.fetch("items").first.fetch("quantity")
+  end
+
+  test "encodes a deep copy once" do
+    assert_equal 1, json_generate_calls { SolidObjects::Serialization.deep_copy_with_byte_size({ quantity: 1 }) }
+  end
+
   test "returns an independent deep copy" do
     original = { "items" => [ { "quantity" => 1 } ] }
     copy = SolidObjects::Serialization.deep_copy(original)

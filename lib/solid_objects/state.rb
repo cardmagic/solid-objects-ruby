@@ -52,6 +52,11 @@ module SolidObjects
       Serialization.deep_copy(data)
     end
 
+    # @rbs () -> Serialization::Dumped
+    def to_h_with_byte_size
+      Serialization.deep_copy_with_byte_size(data)
+    end
+
     # @rbs (Symbol | String) -> untyped
     def fetch(name)
       key = name.to_s

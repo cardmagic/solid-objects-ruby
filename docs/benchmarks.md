@@ -142,6 +142,22 @@ used to do, so part of the saving pays for that check. The gain grows with the
 state, because the database write dominates a small turn. The empty-state row
 sits inside run-to-run variance.
 
+`0.14.4` removed the traversal that remained. Copying the state encodes it and
+parses the result, and the commit then normalized and encoded the same hash
+again to measure it. The copy now reports the size of the encoding that
+produced it. Measured the same way, against the released `0.14.3` tree:
+
+| Committed state | 0.14.3 | 0.14.4 | Change |
+| ---: | ---: | ---: | ---: |
+| 23 bytes | 1,251.2 messages/s | 1,242.8 messages/s | -0.7% |
+| 13,662 bytes | 612.0 messages/s | 644.7 messages/s | +5.3% |
+| 118,786 bytes | 171.9 messages/s | 199.6 messages/s | +16.1% |
+| 1,026,356 bytes | 23.4 messages/s | 26.2 messages/s | +12.0% |
+
+A committed turn now traverses the state twice and encodes it twice, against
+three of each before. The empty-state row again sits inside run-to-run
+variance.
+
 The curve matters more than the change. Throughput falls about 28 times between
 13 KB and 1 MB of state, and about 53 times between an empty state and 1 MB.
 The `max_state_bytes` default of 5 MB is therefore a limit rather than an

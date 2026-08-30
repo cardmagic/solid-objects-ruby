@@ -26,13 +26,13 @@ module SolidObjects
       SolidObjects.instrument(:"message.started", **instrumentation_payload)
       result = invoke_actor(message_context)
       observable_changes = changed_observables(observables_before, actor.observable_values)
-      state_after = actor.state.to_h
-      ensure_query_did_not_mutate_state!(state_before, state_after)
+      state_after = actor.state.to_h_with_byte_size
+      ensure_query_did_not_mutate_state!(state_before, state_after.value)
       complete(
         result,
         observable_changes,
         state_after:,
-        state_changed: state_after != state_before
+        state_changed: state_after.value != state_before
       )
       true
     rescue LostActivation
@@ -81,12 +81,9 @@ module SolidObjects
       end
     end
 
-    # @rbs (untyped, Hash[String, untyped], state_after: Hash[String, untyped], state_changed: bool) -> void
+    # @rbs (untyped, Hash[String, untyped], state_after: Serialization::Dumped, state_changed: bool) -> void
     def complete(result, observable_changes, state_after:, state_changed:)
-      dumped_state = Serialization.dump_with_byte_size(
-        state_after,
-        max_bytes: SolidObjects.configuration.max_state_bytes
-      )
+      ensure_state_fits!(state_after.byte_size)
       serialized_result = Serialization.dump(
         (message.delivery_mode == "sync") ? result : nil,
         max_bytes: SolidObjects.configuration.max_result_bytes
@@ -108,7 +105,7 @@ module SolidObjects
         locked_message = Message.lock.find(message.id)
         execute_commit_actions(commit_action_intents)
         instance.update!(
-          state: dumped_state.value,
+          state: state_after.value,
           state_version: actor.class.state_version,
           state_revision: locked_message.sequence,
           last_used_at: SolidObjects.database_adapter.database_now
@@ -154,9 +151,17 @@ module SolidObjects
           actor_id: message.actor_id
         )
       end
-      report_large_state(dumped_state.byte_size)
+      report_large_state(state_after.byte_size)
       SolidObjects.instrument_after_commit(:"message.completed", **instrumentation_payload)
       SolidObjects.wake_up.signal
+    end
+
+    # @rbs (Integer) -> void
+    def ensure_state_fits!(byte_size)
+      max_bytes = SolidObjects.configuration.max_state_bytes
+      return if byte_size <= max_bytes
+
+      raise PayloadTooLarge, "serialized value exceeds #{max_bytes} bytes"
     end
 
     # @rbs (Integer) -> void

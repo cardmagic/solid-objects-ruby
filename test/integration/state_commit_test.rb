@@ -30,9 +30,11 @@ class StateCommitTest < ActiveSupport::TestCase
 
     def count_state_copies
       actor_class = self.class
-      state.define_singleton_method(:to_h) do |*arguments|
-        actor_class.state_copies += 1
-        super(*arguments)
+      %i[to_h to_h_with_byte_size].each do |name|
+        state.define_singleton_method(name) do |*arguments|
+          actor_class.state_copies += 1
+          super(*arguments)
+        end
       end
     end
   end
@@ -97,6 +99,23 @@ class StateCommitTest < ActiveSupport::TestCase
     ObservableMutatingActor.mutate_on_read = false
   end
 
+  test "a state above the hard limit fails its message and commits nothing" do
+    SolidObjects.configuration.max_state_bytes = 512
+    SolidObjects.configuration.warn_state_bytes = 256
+    SolidObjects.configuration.max_attempts = 1
+
+    LargeStateActor.ref("over").async.grow(size: 4_096)
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+
+    message = SolidObjects::Message.find_by!(actor_type: "state-commit-large", actor_id: "over")
+    assert_equal "SolidObjects::PayloadTooLarge", message.error.fetch("class")
+    instance = SolidObjects::Instance.find_by!(actor_type: "state-commit-large", actor_id: "over")
+    assert_empty instance.state
+  ensure
+    worker&.stop
+  end
+
   test "a committed message copies the state once after its handler runs" do
     CountingActor.ref("message").async.increment
     worker = SolidObjects::Worker.new
@@ -109,11 +128,12 @@ class StateCommitTest < ActiveSupport::TestCase
     worker&.stop
   end
 
-  test "a committed message encodes the state once and the result once" do
+  test "a committed message does not encode the state a second time" do
     CountingActor.ref("encodes").async.increment
     worker = SolidObjects::Worker.new
 
-    assert_equal 2, measured_dumps { worker.run_until_idle }
+    assert_equal 1, measured_dumps { worker.run_until_idle },
+      "only the result should reach a byte-limited dump; the state carries its own size"
   ensure
     worker&.stop
   end

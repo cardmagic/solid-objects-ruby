@@ -30,8 +30,11 @@ module SolidObjects
     # @rbs (Hash[String, untyped], Hash[String, untyped]) -> Hash[String, untyped]
     def changed_observables: (Hash[String, untyped], Hash[String, untyped]) -> Hash[String, untyped]
 
-    # @rbs (untyped, Hash[String, untyped], state_after: Hash[String, untyped], state_changed: bool) -> void
-    def complete: (untyped, Hash[String, untyped], state_after: Hash[String, untyped], state_changed: bool) -> void
+    # @rbs (untyped, Hash[String, untyped], state_after: Serialization::Dumped, state_changed: bool) -> void
+    def complete: (untyped, Hash[String, untyped], state_after: Serialization::Dumped, state_changed: bool) -> void
+
+    # @rbs (Integer) -> void
+    def ensure_state_fits!: (Integer) -> void
 
     # @rbs (Integer) -> void
     def report_large_state: (Integer) -> void

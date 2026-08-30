@@ -37,7 +37,14 @@ module SolidObjects
 
       # @rbs (untyped) -> untyped
       def deep_copy(value)
-        JSON.parse(JSON.generate(normalize(value), max_nesting: MAX_NESTING))
+        deep_copy_with_byte_size(value).value
+      end
+
+      # @rbs (untyped) -> Dumped
+      def deep_copy_with_byte_size(value)
+        encoded = JSON.generate(normalize(value), max_nesting: MAX_NESTING)
+
+        Dumped.new(value: JSON.parse(encoded), byte_size: encoded.bytesize)
       rescue JSON::GeneratorError, JSON::ParserError, EncodingError => error
         raise InvalidPayload, error.message
       end
