@@ -45,6 +45,9 @@ module SolidObjects
     # @rbs () -> Hash[String, untyped]
     def to_h: () -> Hash[String, untyped]
 
+    # @rbs () -> Serialization::Dumped
+    def to_h_with_byte_size: () -> Serialization::Dumped
+
     # @rbs (Symbol | String) -> untyped
     def fetch: (Symbol | String) -> untyped
 

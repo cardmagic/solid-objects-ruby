@@ -29,6 +29,9 @@ module SolidObjects
     # @rbs (untyped) -> untyped
     def self.deep_copy: (untyped) -> untyped
 
+    # @rbs (untyped) -> Dumped
+    def self.deep_copy_with_byte_size: (untyped) -> Dumped
+
     # @rbs (untyped) -> untyped
     def self.readonly_copy: (untyped) -> untyped
 
