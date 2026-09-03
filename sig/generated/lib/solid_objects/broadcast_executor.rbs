@@ -47,6 +47,9 @@ module SolidObjects
     # @rbs () -> Broadcast?
     def claim_next: () -> Broadcast?
 
+    # @rbs (ActiveRecord::Relation[Broadcast]) -> Broadcast?
+    def claim_candidate: (ActiveRecord::Relation[Broadcast]) -> Broadcast?
+
     # @rbs () -> Proc | ActionCableBroadcastAdapter
     def broadcast_adapter: () -> Proc
 

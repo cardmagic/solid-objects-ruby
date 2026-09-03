@@ -48,6 +48,20 @@ class SchemaConstraintsTest < ActiveSupport::TestCase
     assert indexes.all? { |index| index.where.nil? }
   end
 
+  test "indexes each polling query in delivery order" do
+    expected_indexes = {
+      "solid_objects_effects" => %w[status available_at id],
+      "solid_objects_broadcasts" => %w[status available_at id],
+      "solid_objects_reminders" => %w[status next_run_at id]
+    }
+
+    expected_indexes.each do |table, columns|
+      indexes = ActiveRecord::Base.connection.indexes(table).map(&:columns)
+
+      assert_includes indexes, columns
+    end
+  end
+
   test "links every runtime claim owner to the process registry" do
     expected_claim_foreign_keys = {
       "solid_objects_claimed_messages" => "process_id",

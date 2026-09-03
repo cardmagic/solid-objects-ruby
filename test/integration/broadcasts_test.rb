@@ -149,4 +149,111 @@ class BroadcastsTest < ActiveSupport::TestCase
     broadcast_executor&.stop
     worker&.stop
   end
+
+  test "recovers the oldest broadcast across pending and stale work" do
+    pending_reference = PublicCounterActor.ref("pending").async.increment
+    stale_reference = PublicCounterActor.ref("stale").async.increment
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    stale_process_registry = SolidObjects::ProcessRegistry.new
+    stale_process = stale_process_registry.register(kind: "broadcast")
+    now = SolidObjects.database_adapter.database_now
+    pending_broadcast = SolidObjects::Broadcast.find_by!(message_id: pending_reference.id)
+    pending_broadcast.update!(available_at: now - 1.minute)
+    stale_broadcast = SolidObjects::Broadcast.find_by!(message_id: stale_reference.id)
+    stale_broadcast.update!(
+      status: "processing",
+      available_at: now - 2.minutes,
+      claimed_by: stale_process.id,
+      claimed_at: now - SolidObjects.configuration.process_alive_threshold - 1.second
+    )
+    delivered = Queue.new
+    SolidObjects.configuration.broadcast_adapter = ->(broadcast) { delivered << broadcast.id }
+    broadcast_executor = SolidObjects::BroadcastExecutor.new
+
+    assert broadcast_executor.run_once
+
+    assert_equal stale_broadcast.id, delivered.pop
+    assert_equal "delivered", stale_broadcast.reload.status
+    assert_equal "pending", pending_broadcast.reload.status
+  ensure
+    broadcast_executor&.stop
+    stale_process_registry&.stop
+    worker&.stop
+  end
+
+  test "concurrent executors claim different broadcasts" do
+    pending_reference = PublicCounterActor.ref("pending").async.increment
+    stale_reference = PublicCounterActor.ref("stale").async.increment
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    stale_process_registry = SolidObjects::ProcessRegistry.new
+    stale_process = stale_process_registry.register(kind: "broadcast")
+    now = SolidObjects.database_adapter.database_now
+    pending_broadcast = SolidObjects::Broadcast.find_by!(message_id: pending_reference.id)
+    pending_broadcast.update!(available_at: now - 1.minute)
+    stale_broadcast = SolidObjects::Broadcast.find_by!(message_id: stale_reference.id)
+    stale_broadcast.update!(
+      status: "processing",
+      available_at: now - 2.minutes,
+      claimed_by: stale_process.id,
+      claimed_at: now - SolidObjects.configuration.process_alive_threshold - 1.second
+    )
+    claims = Queue.new
+    release = Queue.new
+    SolidObjects.configuration.broadcast_adapter = lambda do |broadcast|
+      claims << broadcast.id
+      release.pop
+    end
+    executor_a = SolidObjects::BroadcastExecutor.new
+    executor_b = SolidObjects::BroadcastExecutor.new
+
+    thread_a = Thread.new { executor_a.run_once }
+    assert_equal stale_broadcast.id, Timeout.timeout(5) { claims.pop }
+    thread_b = Thread.new { executor_b.run_once }
+    assert_equal pending_broadcast.id, Timeout.timeout(5) { claims.pop }
+    2.times { release << true }
+
+    assert thread_a.value
+    assert thread_b.value
+    assert_equal %w[delivered delivered], SolidObjects::Broadcast.order(:id).pluck(:status)
+  ensure
+    2.times { release << true } if release
+    thread_a&.join(2)
+    thread_b&.join(2)
+    executor_a&.stop
+    executor_b&.stop
+    stale_process_registry&.stop
+    worker&.stop
+  end
+
+  test "polls pending and stale broadcasts separately" do
+    PublicCounterActor.ref("one").async.increment
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    SolidObjects.configuration.broadcast_adapter = ->(broadcast) { broadcast }
+    broadcast_executor = SolidObjects::BroadcastExecutor.new
+    polling_queries = []
+    subscription = ActiveSupport::Notifications.subscribe("sql.active_record") do |event|
+      query = event.payload.fetch(:sql).squish
+      if query.match?(/SELECT .* FROM ["`]solid_objects_broadcasts["`]/) &&
+          query.match?(/ORDER BY .*available_at.*id.*LIMIT/i)
+        polling_queries << query
+      end
+    end
+
+    assert broadcast_executor.run_once
+
+    assert_equal 2, polling_queries.length
+    assert polling_queries.one? { |query| !query.include?("claimed_at") }
+    assert polling_queries.one? { |query| query.include?("claimed_at") }
+    polling_queries.each { |query| refute_match(/\sOR\s/i, query) }
+    if database_family != :sqlite
+      polling_queries.each { |query| assert_match(/FOR UPDATE SKIP LOCKED\z/i, query) }
+    end
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
+    broadcast_executor&.stop
+    worker&.stop
+  end
 end

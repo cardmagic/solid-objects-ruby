@@ -112,11 +112,15 @@ module SolidObjects
       database_adapter.transaction do
         now = database_adapter.database_now
         stale_at = now - SolidObjects.configuration.process_alive_threshold
-        relation = Broadcast
-          .where(status: "pending", available_at: ..now)
-          .or(Broadcast.where(status: "processing", claimed_at: ..stale_at))
-          .order(:available_at, :id)
-        broadcast = database_adapter.lock_candidates(relation).first
+        pending_broadcast = claim_candidate(
+          Broadcast.where(status: "pending", available_at: ..now)
+        )
+        stale_broadcast = claim_candidate(
+          Broadcast.where(status: "processing", claimed_at: ..stale_at)
+        )
+        broadcast = [ pending_broadcast, stale_broadcast ]
+          .compact
+          .min_by { |candidate| [ candidate.available_at, candidate.id ] }
         next unless broadcast
 
         broadcast.update!(
@@ -127,6 +131,11 @@ module SolidObjects
         )
         broadcast
       end
+    end
+
+    # @rbs (ActiveRecord::Relation[Broadcast]) -> Broadcast?
+    def claim_candidate(relation)
+      database_adapter.lock_candidates(relation.order(:available_at, :id)).first
     end
 
     # @rbs () -> Proc | ActionCableBroadcastAdapter
