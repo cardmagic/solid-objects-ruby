@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.5 - 2026-09-03
+
+- Split broadcast claiming into separate pending and stale-processing probes,
+  then choose the oldest locked candidate across both. The old `OR` query made
+  MySQL, PostgreSQL, and SQLite collect and sort eligible rows before applying
+  `LIMIT 1`; each probe now follows the existing
+  `(status, available_at, id)` index while preserving delivery order, recovery,
+  and concurrent claimant safety. No migration or new index is required.
+
 ## 0.14.4 - 2026-08-30
 
 - Reuse the encoding the after image already built. `State#to_h` copies the
