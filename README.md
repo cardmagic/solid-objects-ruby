@@ -110,15 +110,13 @@ bundle exec solid_objects start
 ```
 
 Stop that process before the deadline and restart it afterwards. The reminder
-is still in the Rails database and runs when the process returns. We have given
-`self.available += 1` a supervisor and excellent posture.
+is still in the Rails database and runs when the process returns. The reminder survived the restart.
 
 ## Why this exists
 
 The handwritten Rails version usually starts with `with_lock`. Then it gains an
 `expires_at` column, a cron job, an Active Job retry policy, and an Action Cable
-broadcast that must agree with the write. A small invariant has become a rich
-tapestry of callbacks and scheduled cleanup.
+broadcast that must agree with the write. A small invariant has spread across callbacks and scheduled cleanup.
 
 This is complicated, hard to test, fragile and unnecessary.
 
@@ -133,14 +131,12 @@ PostgreSQL, or MySQL. Redis and a separate actor service are not required.
 - Account, device, assessment, and approval workflows that survive deploys.
 - Reactive ERB views that must follow committed actor revisions.
 
-Different identities can run concurrently. Put the whole application behind
-one actor ID and Rails will faithfully operate your new bottleneck.
+Different identities can run concurrently. One actor ID for the whole application is a bottleneck.
 
 ## When a transaction is better
 
 Often. If the entire invariant fits inside one request, use `with_lock`, a
-database constraint, or a short transaction. A row lock does not need a
-personal brand, and it is usually the clearest answer.
+database constraint, or a short transaction. A row lock is usually the clearest answer.
 
 Use Solid Objects when work must happen later, survive a restart, or stay
 ordered across several requests or jobs. A plain counter remains one line of
@@ -171,15 +167,13 @@ Exactly once is not hiding in a more advanced configuration. Read the
 - [Detailed documentation](docs/)
 
 The dashboard, benchmarks, migration cookbook, schema, and exhaustive API
-explanations remain in `docs/`. The README is stopping before it develops a
-robust interplay with its own table of contents.
+explanations remain in `docs/`. The README stops here.
 
 ## Status and license
 
 Solid Objects Ruby is a pre-1.0 early release. Its correctness core is tested
 against SQLite, PostgreSQL, and MySQL, but the project makes no production-ready
-claim. That requires more hardening and operational soak evidence. Pre-1.0 is
-not decorative punctuation.
+claim. That requires more hardening and operational soak evidence. Expect breaking changes.
 
 Solid Objects is released under the [MIT License](MIT-LICENSE). It is an
 independent project and is not affiliated with, sponsored by, or endorsed by
