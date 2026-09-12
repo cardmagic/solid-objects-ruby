@@ -123,17 +123,21 @@ module SolidObjects
 
     # @rbs () { () -> untyped } -> untyped
     def transaction(&block)
+      active_transaction = nil
       raise DatabaseDeadlineExceeded, "synchronous invocation deadline expired" if SyncDeadline.expired?
 
       with_connection do |connection|
         with_transaction_deadline(connection) do
           connection.transaction(requires_new: true) do
+            active_transaction = connection.current_transaction
             configure_transaction_deadline(connection)
             with_transaction_clock { block.call }
           end
         end
       end
     rescue => error
+      raise CommittedTransactionError.new(error) if active_transaction&.state&.fully_committed?
+
       raise unless deadline_error?(error)
 
       raise DatabaseDeadlineExceeded,

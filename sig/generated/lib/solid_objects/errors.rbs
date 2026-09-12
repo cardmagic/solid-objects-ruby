@@ -67,6 +67,18 @@ module SolidObjects
   class DatabaseDeadlineExceeded < Error
   end
 
+  class CommittedTransactionError < Error
+    @original_error: StandardError
+
+    attr_reader original_error: untyped
+
+    # @rbs (StandardError) -> void
+    def initialize: (StandardError) -> void
+
+    # @rbs () -> bot
+    def reraise: () -> bot
+  end
+
   class SyncEnqueueTimeout < Error
     @timeout: Numeric
 

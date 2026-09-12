@@ -33,6 +33,8 @@ module SolidObjects
         attempts = 0
         begin
           yield
+        rescue CommittedTransactionError
+          raise
         rescue => error
           raise unless busy_error?(error)
 
@@ -53,6 +55,8 @@ module SolidObjects
         with_connection do |connection|
           with_transaction_deadline(connection) { yield }
         end
+      rescue CommittedTransactionError
+        raise
       rescue DatabaseDeadlineExceeded
         raise if SyncDeadline.expired?
 

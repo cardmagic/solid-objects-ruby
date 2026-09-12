@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.6 - 2026-09-12
+
+- Preserve committed turns when an Active Record after-commit callback raises.
+  Caller assistance and workers expose the original callback exception without
+  restoring obsolete state, retrying/rejecting the completed message, or
+  masking the error as a missing claim. Track actual SQL commitment before
+  SQLite retries and deadline translation; retain pre-commit rollback, retry,
+  and domain-rejection behavior.
+
 ## 0.14.5 - 2026-09-03
 
 - Split broadcast claiming into separate pending and stale-processing probes,
