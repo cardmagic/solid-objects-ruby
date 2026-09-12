@@ -314,9 +314,30 @@ Any lease or message predicate failure raises `LostActivation` and rolls back ev
 
 The state version can advance because of state migration even when the message itself makes no state change.
 
+Active Record may raise from an application `after_commit` callback while the
+transaction call unwinds, after SQL has committed. The adapter retains the
+actual transaction object and checks its fully committed state before any
+deadline conversion or SQLite retry. Reaching the end of the block, releasing
+a savepoint, or observing an in-memory message update is not proof of SQL
+commitment. A failing `before_commit` callback follows the rollback path.
+
+An internal `CommittedTransactionError` carries the original error through
+executor, SQLite retry, and coordination rescue handlers. The synchronous
+invocation and worker boundaries re-raise the original exception with its
+original backtrace and cause. The wrapper prevents a callback's `Rejected`,
+`LostActivation`, or database error from being mistaken for a pre-commit
+outcome. It is not a durable message error or a new delivery mechanism.
+
+After commitment, actor state, application writes, message completion/result,
+and outboxes remain durable. The executor preserves the committed activation
+state and does not retry, reject, or dead-letter that turn. Caller assistance
+still deactivates and releases its lease during cleanup; cached worker state
+can process later messages. A worker running its continuous loop exposes the
+error and runs its existing shutdown cleanup.
+
 ## Failure path
 
-Actor exceptions roll back all in-memory changes by restoring the pre-turn state. A separate short transaction conditionally owned by the current generation:
+Before commitment, actor and commit-action exceptions roll back all in-memory changes by restoring the pre-turn state. A separate short transaction conditionally owned by the current generation:
 
 - Stores a sanitized error
 - Deletes claimed membership
@@ -403,9 +424,15 @@ outer commit, and callers timing out on work they indirectly block.
 waiting and immediately returns a `MessageReference`. Runtime workers process
 it normally.
 
+An executing caller receives an inline after-commit callback error even though
+the turn committed. An independently waiting caller observes the durable
+result and may return before that callback raises in the worker. Completed
+history is not changed retroactively; callback failures must be observed in
+the executing process. Later Rails callbacks may not run after one raises.
+
 ## Domain rejection
 
-Actor code can call `reject` for a validation or business-rule outcome that
+Before commitment, actor code can call `reject` for a validation or business-rule outcome that
 must not retry. The executor restores pre-turn state, discards staged intents,
 stores the structured rejection, completes the claimed membership, and
 continues with the next sequence in one fenced transaction. Synchronous callers

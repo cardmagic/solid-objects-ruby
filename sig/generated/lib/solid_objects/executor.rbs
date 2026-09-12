@@ -2,6 +2,8 @@
 
 module SolidObjects
   class Executor
+    @completion_transaction: untyped
+
     @message: Message
 
     @activation: Activation

@@ -20,6 +20,8 @@ module SolidObjects
       SyncDeadline.with(timeout:) do
         call_before_deadline(message_reference, timeout:)
       end
+    rescue CommittedTransactionError => error
+      error.reraise
     rescue ActiveRecord::RecordNotFound
       raise ActorDestroyed, "actor was destroyed while waiting for its result"
     end

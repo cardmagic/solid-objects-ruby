@@ -59,6 +59,8 @@ module SolidObjects
       ).around { activation.drain }
       release_activation(activation) if activation.pass_exhausted?
       processed
+    rescue CommittedTransactionError => error
+      error.reraise
     rescue ActorDestroyed
       release_activation(activation) if activation
       0

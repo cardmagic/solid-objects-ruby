@@ -4,6 +4,7 @@ module SolidObjects
   class Executor
     # @rbs @activation: Activation
     # @rbs @message: Message
+    # @rbs @completion_transaction: untyped
 
     # @rbs (activation: Activation, message: Message) -> void
     def initialize(activation:, message:)
@@ -35,7 +36,7 @@ module SolidObjects
         state_changed: state_after.value != state_before
       )
       true
-    rescue LostActivation
+    rescue CommittedTransactionError, LostActivation
       raise
     rescue Rejected => rejection
       activation.restore_state(state_before) if state_before
@@ -96,6 +97,7 @@ module SolidObjects
       moved_reminders = []
 
       activation.lease.fenced_transaction do |instance|
+        @completion_transaction = Record.connection.current_transaction
         # A busy database makes the adapter retry this whole block, so an
         # attempt that was rolled back must not leave its work in the lists the
         # reporting below reads. Each attempt starts from empty.
@@ -154,6 +156,12 @@ module SolidObjects
       report_large_state(state_after.byte_size)
       SolidObjects.instrument_after_commit(:"message.completed", **instrumentation_payload)
       SolidObjects.wake_up.signal
+    rescue CommittedTransactionError
+      raise
+    rescue => error
+      raise unless @completion_transaction&.state&.fully_committed?
+
+      raise CommittedTransactionError.new(error)
     end
 
     # @rbs (Integer) -> void

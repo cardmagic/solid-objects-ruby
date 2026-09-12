@@ -125,6 +125,29 @@ it is available only when Solid Objects and `ActiveRecord::Base` share one
 connection pool. Commit actions must contain only bounded database work.
 External I/O belongs in the effect outbox.
 
+### Errors after SQL commit
+
+Active Record `after_commit` callbacks registered by commit actions run after
+SQL commitment. If one raises, the application writes, actor state, message
+result/completion, and claimed-membership deletion remain committed. The
+executor does not restore the pre-turn snapshot, retry the business action,
+reject the message, or create a dead letter. A `before_commit` callback can
+still roll back everything even after the fenced transaction block finishes.
+
+The executing synchronous caller or `Worker#run_once` receives the original
+callback exception, including its identity, backtrace, and cause. This also
+applies when the callback raises `Rejected`, `LostActivation`, or a database
+deadline/lock error: its class does not change a committed turn into a failed
+one. Synchronous cleanup releases the activation; a worker retains the
+committed state until normal deactivation or shutdown, so later messages can
+continue from that state.
+
+A separate waiting caller can observe the durable result before the callback
+finishes. There is no retroactive failure delivery or durable callback-error
+result. Inspect and report errors in the executing process. Rails may skip
+later callbacks when one raises; these callbacks are not a durable delivery
+mechanism. Use an idempotent effect for work that needs independent retries.
+
 ## Reactive components
 
 A successful fenced turn advances `instances.state_revision` to that message's
@@ -205,7 +228,7 @@ wakes the caller, and raises `SolidObjects::ActorDestroyed`.
 
 ## Domain rejection
 
-`reject` is a terminal domain outcome, not an infrastructure failure. It rolls
+`reject` before commitment is a terminal domain outcome, not an infrastructure failure. It rolls
 back in-memory state and staged intents, stores a structured rejection on the
 message, removes claimed membership, and lets the next sequence run. It is
 never retried or dead-lettered. The synchronous caller receives
