@@ -5,6 +5,7 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 require "rubygems/package"
+require "rubygems/installer"
 
 class EffectPayloadTypesTest < ActiveSupport::TestCase
   test "packaged payload contracts check consumers and the actual constructors" do
@@ -31,7 +32,7 @@ class EffectPayloadTypesTest < ActiveSupport::TestCase
       configuration_path = File.join(project, "Steepfile")
       configuration = File.read(configuration_path)
       File.write(configuration_path, configuration.sub('signature "sig"', "library \"solid_objects\"\n  signature \"sig/consumer.rbs\""))
-      output, status = typecheck(project)
+      output, status = typecheck_installed(project, package)
       assert status.success?, output
       File.write(configuration_path, configuration)
 
@@ -76,6 +77,26 @@ class EffectPayloadTypesTest < ActiveSupport::TestCase
   def typecheck(project)
     output, error_output, status = Open3.capture3(
       Gem.ruby, Gem.bin_path("steep", "steep"), "check", "--no-daemon", "-j", "1",
+      chdir: project
+    )
+    [ output + error_output, status ]
+  end
+
+  def typecheck_installed(project, package)
+    gem_directory = File.join(project, "gems")
+    specification = Gem::Installer.at(package, install_dir: gem_directory, ignore_dependencies: true).install
+    script = <<~RUBY
+      gem "solid_objects", #{"= #{SolidObjects::VERSION}".inspect}
+      resolved = Gem.loaded_specs.fetch("solid_objects").full_gem_path
+      abort "loaded signatures outside the built gem: \#{resolved}" unless resolved == #{specification.full_gem_path.inspect}
+      load ARGV.shift
+    RUBY
+    output, error_output, status = Open3.capture3(
+      {
+        "RUBYOPT" => nil, "BUNDLE_GEMFILE" => nil,
+        "GEM_HOME" => gem_directory, "GEM_PATH" => ([ gem_directory ] + Gem.path).join(File::PATH_SEPARATOR)
+      },
+      Gem.ruby, "-e", script, Gem.bin_path("steep", "steep"), "check", "--no-daemon", "-j", "1",
       chdir: project
     )
     [ output + error_output, status ]

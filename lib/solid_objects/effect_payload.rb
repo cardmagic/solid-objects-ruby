@@ -15,7 +15,7 @@ module SolidObjects
 
       # @rbs (Exception) -> effect_error
       def error(exception)
-        message = exception.message.to_s.byteslice(0, 8_192).to_s
+        message = exception.message.to_s.byteslice(0, 8_192) # : String
         {
           "class" => exception.class.name,
           "message" => message,
