@@ -483,6 +483,50 @@ and `result:`. A failure callback receives `effect_id:`, `arguments:`, and
 `error:`, so an actor can correlate concurrent effects without storing a
 separate callback ledger.
 
+### Typing your on_failure handler
+
+The gem ships `SolidObjects::effect_error`,
+`SolidObjects::effect_failure_payload[Arguments]`, and
+`SolidObjects::effect_success_payload[Arguments, Result]` as public RBS aliases.
+They describe the existing string-keyed hashes; they are not Ruby wrapper classes.
+See [signature loading](development.md#public-effect-payload-signatures) for Steep setup.
+
+For an actor with `generation` and `status` attributes, declare the callback keywords
+in the application's RBS:
+
+```rbs
+class ChatRun < SolidObjects::Actor
+  type run_arguments = { "generation" => Integer }
+  def fail_turn: (effect_id: String, arguments: run_arguments, error: SolidObjects::effect_error) -> void
+end
+```
+
+```ruby
+def fail_turn(effect_id:, arguments:, error:)
+  return unless arguments["generation"] == generation
+
+  self.status = "failed"
+end
+```
+
+Record access with `arguments["generation"]` retains its declared `Integer` type.
+The callback receives top-level keywords, while nested arguments and error keys
+remain strings. The failure envelope requires `"effect_id"`, `"arguments"`, and
+`"error"`; the success envelope replaces `"error"` with `"result"`. Empty original
+arguments remain `{}`, and a success result may be `nil` or any supported JSON value.
+Ruby errors contain `"class"` (`String?`, including anonymous exception classes),
+`"message"` (`String`, limited to 8,192 bytes), and `"backtrace"` (`Array[String]`,
+limited to 50 entries and possibly empty).
+
+Applications supply the generic argument/result types to describe their serialized
+JSON values. These aliases do not infer or validate independently registered effect
+handlers. Their type parameters are deliberately unconstrained: Ruby serialization
+accepts and normalizes values such as symbols, and RBS cannot express that conversion
+as a generic bound. The constructors and consumer fixtures are checked with strict
+Steep diagnostics. JavaScript exposes equivalent contracts with its existing
+camelCase ID and `{ name, message }` error shape in
+[solid-objects-js#47](https://github.com/cardmagic/solid-objects-js/issues/47).
+
 A commit action is registered the same way and runs inside the short fenced
 transaction:
 

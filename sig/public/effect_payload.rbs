@@ -1,0 +1,19 @@
+module SolidObjects
+  type effect_error = {
+    "class" => String?,
+    "message" => String,
+    "backtrace" => Array[String]
+  }
+
+  type effect_failure_payload[Arguments] = {
+    "effect_id" => String,
+    "arguments" => Arguments,
+    "error" => effect_error
+  }
+
+  type effect_success_payload[Arguments, Result] = {
+    "effect_id" => String,
+    "arguments" => Arguments,
+    "result" => Result
+  }
+end

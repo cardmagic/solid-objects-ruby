@@ -1,0 +1,14 @@
+# Generated from lib/solid_objects/effect_payload.rb with RBS::Inline
+
+module SolidObjects
+  module EffectPayload
+    # @rbs [Arguments, Result] (effect_id: String, arguments: Arguments, result: Result) -> effect_success_payload[Arguments, Result]
+    def self.success: [Arguments, Result] (effect_id: String, arguments: Arguments, result: Result) -> effect_success_payload[Arguments, Result]
+
+    # @rbs [Arguments] (effect_id: String, arguments: Arguments, error: effect_error) -> effect_failure_payload[Arguments]
+    def self.failure: [Arguments] (effect_id: String, arguments: Arguments, error: effect_error) -> effect_failure_payload[Arguments]
+
+    # @rbs (Exception) -> effect_error
+    def self.error: (Exception) -> effect_error
+  end
+end

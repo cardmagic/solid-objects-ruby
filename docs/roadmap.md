@@ -14,6 +14,8 @@
   dead letters, and tail retry
 - Transactional effects with success/failure actor messages carrying the
   originally staged arguments for callback correlation
+- Public RBS effect success/failure envelopes and error records, checked against
+  the runtime constructors and a packaged consumer with strict Steep diagnostics
 - Actor-to-actor asynchronous outbox delivery. Effects and broadcasts use
   portable status rows with polling indexes and database check constraints on
   status, which works on all three adapters; a future version may add narrow

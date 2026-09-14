@@ -1,0 +1,10 @@
+class EffectPayloadConsumer < SolidObjects::Actor
+  type run_arguments = { "generation" => Integer }
+
+  def fail_turn: (effect_id: String, arguments: run_arguments, error: SolidObjects::effect_error) -> Integer
+  def success_value: (SolidObjects::effect_success_payload[run_arguments, String]) -> String
+  def error_message: (SolidObjects::effect_failure_payload[run_arguments]) -> String
+  def error_class: (SolidObjects::effect_failure_payload[run_arguments]) -> String?
+  def error_backtrace: (SolidObjects::effect_failure_payload[run_arguments]) -> Array[String]
+  def failure: (run_arguments) -> SolidObjects::effect_failure_payload[run_arguments]
+end
