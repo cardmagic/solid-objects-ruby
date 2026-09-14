@@ -13,6 +13,7 @@ class LoadContractTest < ActiveSupport::TestCase
   # else that stops being loaded is a role waiting to fail in production, so
   # this list is the place to argue that a role never reaches it.
   DEFERRED = {
+    "actor_signatures" => "opt-in development tooling that requires RBS",
     "caller_process" => "the caller path, required by SolidObjects.caller_process",
     "cli" => "loaded by exe/solid_objects, and pulls in thor",
     "client" => "the caller path, required by SolidObjects.client",

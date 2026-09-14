@@ -43,6 +43,10 @@ For watchdogs paired with an effect's give-up callback, see
 [typing your `on_failure` handler](architecture.md#typing-your-on_failure-handler)
 to retain the original argument types without repeating the error hash contract.
 
+For static checking of watchdog operation names and keyword arguments, opt into
+[actor-specific RBS signatures](development.md#actor-specific-dispatch-signatures).
+The Ruby `schedule(...).recover_if_stuck(generation: ...)` syntax stays the same.
+
 Pass `key:` when an actor is waiting on several things at once. The key is your
 own identifier for the item, and it names that item's alarm, so each item gets
 one:

@@ -6,6 +6,10 @@
   Check the runtime constructors and packaged consumer signatures strictly,
   preserving ordinary hashes, keyword callbacks, serialization, and retries.
 
+- Add optional actor-specific RBS generation for staged schedule/transmit calls
+  and effect callback names. Reuse application-declared operation argument types
+  without changing Ruby dispatch, runtime validation, or global effect registries.
+
 ## 0.14.6 - 2026-09-12
 
 - Preserve committed turns when an Active Record after-commit callback raises.

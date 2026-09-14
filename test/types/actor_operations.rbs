@@ -1,0 +1,18 @@
+class SignatureParent < SolidObjects::Actor
+  def recover_if_stuck: (generation: Integer) -> Integer
+end
+
+class SignatureChat < SignatureParent
+  def start: () -> nil
+  def dynamic: (operation: String, callback: Symbol) -> nil
+  def finish: () -> nil
+  def staged_result: () -> nil
+  def echo: [Value] (value: Value) -> Value
+  def optional: (?generation: Integer) -> Integer
+  def overloaded: (value: Integer) -> Integer
+                | (value: String) -> String
+  def fail_turn: (effect_id: String, arguments: { "generation" => Integer }, error: { "message" => String }) -> String
+  def block_callback: (result: String) -> String
+  private
+  def helper: () -> nil
+end
