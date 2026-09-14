@@ -28,6 +28,13 @@ class EffectPayloadTypesTest < ActiveSupport::TestCase
       output, status = typecheck(project)
       assert status.success?, output
 
+      configuration_path = File.join(project, "Steepfile")
+      configuration = File.read(configuration_path)
+      File.write(configuration_path, configuration.sub('signature "sig"', "library \"solid_objects\"\n  signature \"sig/consumer.rbs\""))
+      output, status = typecheck(project)
+      assert status.success?, output
+      File.write(configuration_path, configuration)
+
       [
         [ '"effect_id" => "effect-1"', '"effect_identifier" => "effect-1"' ],
         [ '"message" => "failed"', '"message" => 42' ],

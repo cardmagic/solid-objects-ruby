@@ -111,7 +111,7 @@ installed gem's complete signature tree alongside its own signatures:
 
 ```ruby
 target :app do
-  signature File.join(Gem::Specification.find_by_name("solid_objects").full_gem_path, "sig")
+  library "solid_objects"
   signature "sig"
   check "app/actors"
   configure_code_diagnostics(Diagnostic::Ruby.strict)
