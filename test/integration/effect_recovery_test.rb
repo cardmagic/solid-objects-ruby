@@ -60,6 +60,78 @@ class EffectRecoveryTest < ActiveSupport::TestCase
     assert_empty actor.send(:drain_effect_intents)
   end
 
+  test "a running effect keeps its process heartbeat fresh" do
+    SolidObjects.configuration.process_heartbeat_interval = 0.02
+    SolidObjects.configuration.process_alive_threshold = 0.1
+    ExportActor.ref("long-handler").async.start_recoverable_export
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    entered = Queue.new
+    release = Queue.new
+    heartbeats = Queue.new
+    executing = nil
+    registry = SolidObjects::ProcessRegistry.new
+    registry.define_singleton_method(:heartbeat) do
+      updated = super()
+      heartbeats << Thread.current if updated && executing
+      updated
+    end
+    SolidObjects.register_effect(:build_report) do
+      executing = Thread.current
+      entered << true
+      release.pop
+      { "artifact_key" => "report.pdf" }
+    end
+    executor = SolidObjects::EffectExecutor.new(process_registry: registry)
+    effect_thread = Thread.new do
+      SolidObjects::Record.connection_pool.with_connection { executor.run_once }
+    end
+    Timeout.timeout(5) { entered.pop }
+    heartbeat_thread = Timeout.timeout(2) { heartbeats.pop }
+    Timeout.timeout(2) { 7.times { heartbeats.pop } }
+    SolidObjects::EffectRecoveryCoordinator.new.recover_available
+    assert_equal "processing", SolidObjects::Effect.find_by!(name: "build_report").status
+    assert_empty SolidObjects::Message.where(operation: "retired")
+    release << true
+    assert effect_thread.value
+    refute heartbeat_thread.alive?
+    assert_equal "completed", SolidObjects::Effect.find_by!(name: "build_report").status
+  ensure
+    release&.push(true)
+    effect_thread&.join(5)
+    executor&.stop
+    worker&.stop
+  end
+
+  test "a failed handler stops its heartbeat before scheduling a retry" do
+    SolidObjects.configuration.process_heartbeat_interval = 0.01
+    ExportActor.ref("failing-handler").async.start_recoverable_export
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    heartbeats = Queue.new
+    registry = SolidObjects::ProcessRegistry.new
+    registry.define_singleton_method(:heartbeat) do
+      updated = super()
+      heartbeats << Thread.current if updated
+      updated
+    end
+    heartbeat_thread = nil
+    SolidObjects.register_effect(:build_report) do
+      heartbeats.pop(true) until heartbeats.empty?
+      heartbeat_thread = Timeout.timeout(2) { heartbeats.pop }
+      raise "remote request failed"
+    end
+    executor = SolidObjects::EffectExecutor.new(process_registry: registry)
+    refute executor.run_once
+    refute_nil heartbeat_thread
+    refute heartbeat_thread.alive?
+    assert_equal "pending", SolidObjects::Effect.find_by!(name: "build_report").status
+    assert_empty SolidObjects::Message.where(operation: "retired")
+  ensure
+    executor&.stop
+    worker&.stop
+  end
+
   test "a longer recovery timeout survives ordinary process cleanup" do
     ExportActor.ref("long-grace").async.start_with_timeout(timeout: 120)
     worker = SolidObjects::Worker.new

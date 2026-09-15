@@ -118,6 +118,12 @@ floored at that runtime threshold; changing configuration changes the effective
 floor even for existing effects. Database lookup errors surface as errors,
 never as missing/stale observations.
 
+Effect workers maintain their process heartbeat while the handler waits on
+external I/O and while committing success or failure. A long-running healthy
+handler therefore remains protected beyond the recovery timeout. This requires
+an available database connection for the heartbeat, as well as runtime threads
+that can continue running.
+
 ## Compatibility and installation
 
 Upgrade all effect workers and process cleanup roles before emitting effects

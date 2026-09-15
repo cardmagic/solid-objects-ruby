@@ -45,12 +45,16 @@ module SolidObjects
       effect = claim_next
       return false unless effect
 
+      heartbeat = ProcessHeartbeat.new(process_registry:)
+      heartbeat.start
       result = deliver(effect)
       complete(effect, result)
       true
     rescue => error
       fail_effect(effect, error) if effect
       false
+    ensure
+      heartbeat&.stop
     end
 
     # @rbs () -> void
