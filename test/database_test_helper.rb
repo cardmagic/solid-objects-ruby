@@ -24,10 +24,12 @@ ActiveRecord::Migration.verbose = false
 require_relative "../db/migrate/20260805000000_create_solid_objects_tables"
 require_relative "../db/migrate/20260806000000_add_state_revision_to_solid_objects_instances"
 require_relative "../db/migrate/20260813000000_rename_message_dispatch_columns"
+require_relative "../db/migrate/20260915000000_add_solid_objects_effect_recoveries"
 
 CreateSolidObjectsTables.new.migrate(:up)
 AddStateRevisionToSolidObjectsInstances.new.migrate(:up)
 RenameMessageDispatchColumns.new.migrate(:up)
+AddSolidObjectsEffectRecoveries.new.migrate(:up)
 
 ActiveRecord::Base.connection.create_table(:solid_objects_test_domain_records) do |table|
   table.string :name, null: false
@@ -42,6 +44,7 @@ require_relative "../app/models/solid_objects/ready_message"
 require_relative "../app/models/solid_objects/claimed_message"
 require_relative "../app/models/solid_objects/reminder"
 require_relative "../app/models/solid_objects/effect"
+require_relative "../app/models/solid_objects/effect_recovery"
 require_relative "../app/models/solid_objects/broadcast"
 require_relative "../app/models/solid_objects/dead_letter"
 

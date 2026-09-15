@@ -1,0 +1,38 @@
+# Generated from lib/solid_objects/process_heartbeat.rb with RBS::Inline
+
+module SolidObjects
+  class ProcessHeartbeat
+    @process_registry: ProcessRegistry
+
+    @mutex: Thread::Mutex
+
+    @condition: Thread::ConditionVariable
+
+    @stopped: bool
+
+    @thread: Thread?
+
+    # @rbs (process_registry: ProcessRegistry) -> void
+    def initialize: (process_registry: ProcessRegistry) -> void
+
+    # @rbs () -> void
+    def start: () -> void
+
+    # @rbs () -> void
+    def stop: () -> void
+
+    private
+
+    attr_reader process_registry: untyped
+
+    attr_reader mutex: untyped
+
+    attr_reader condition: untyped
+
+    # @rbs (Exception) -> void
+    def report_failure: (Exception) -> void
+
+    # @rbs () -> bool
+    def wait_for_interval: () -> bool
+  end
+end

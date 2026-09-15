@@ -149,6 +149,7 @@ SQL and should be allowed to enjoy that.
 - One successful turn commits actor state and staged reminders, messages, effects, commit actions, and broadcasts together.
 - Fencing prevents stale Ruby code from committing, but it cannot stop that code from continuing to run.
 - External effects can repeat and must deduplicate with the stable effect ID or another durable idempotency key.
+- [Effect recovery](docs/effect-recovery.md) uses stable `emit` handles and `on_recovery` to retire abandoned work atomically with a durable actor callback.
 - Actor handlers may read application records but cannot write them directly. Use `commit_action` for bounded same-database writes and `emit` for external I/O.
 - `async`, reminders, effects, and broadcasts need `bundle exec solid_objects start`. Pending work remains in SQL while it is down.
 - One hot identity is intentionally sequential. There are no transactions across actor identities.

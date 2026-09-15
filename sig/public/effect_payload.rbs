@@ -1,4 +1,18 @@
 module SolidObjects
+  type effect_handle = { "effect_id" => String }
+
+  type effect_retired_payload[Arguments] = {
+    "effect_id" => String, "arguments" => Arguments, "outcome" => "retired"
+  }
+
+  type effect_completed_recovery_payload[Arguments, Result] = {
+    "effect_id" => String, "arguments" => Arguments, "outcome" => "completed", "result" => Result
+  }
+
+  type effect_observation_outcome = "deferred" | "pending" | "dead" | "already_retired" | "missing"
+  type effect_observation_payload = { "effect_id" => String, "outcome" => effect_observation_outcome }
+  type effect_recovery_payload[Arguments, Result] = effect_retired_payload[Arguments] | effect_completed_recovery_payload[Arguments, Result] | effect_observation_payload
+
   type effect_error = {
     "class" => String?,
     "message" => String,

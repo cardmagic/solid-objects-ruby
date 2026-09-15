@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.15.0 - 2026-09-15
+
+- Maintain effect-owner heartbeats during long-running handlers, completion, and
+  failure handling, so healthy external I/O cannot trigger abandoned recovery.
+  Report failed heartbeat updates and retry on the next configured interval
+  without consuming effect attempts.
+- Return a stable effect handle from every `emit`. Wrappers must return it;
+  operations relying on an implicit `nil` result should return `nil` explicitly.
+- Add abandoned effect recovery with `on_recovery`, optional `on_status`, staged
+  `request_effect_recovery`, and an extending `recovery_timeout` in seconds.
+  Retirement and durable callbacks share the claim-locking transaction. Add
+  frozen outcome constants and public RBS envelopes. Install the new recovery
+  binding migration before upgrading runtime processes. External actions still
+  require idempotency; retirement does not cancel an old handler or remote call.
+
 ## 0.14.7 - 2026-09-14
 
 - Publish RBS contracts for effect callback envelopes and Ruby error summaries.

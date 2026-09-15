@@ -14,6 +14,11 @@
   dead letters, and tail retry
 - Transactional effects with success/failure actor messages carrying the
   originally staged arguments for callback correlation
+- Stable `emit` handles and opted-in abandoned effect retirement coordinated
+  with effect claims, with atomic recovery/status mailbox notifications and
+  per-effect extending heartbeat timeouts and heartbeats throughout long-running
+  effect handlers. See [effect recovery](effect-recovery.md)
+  for the SQL lock protocol, retention boundary, and external idempotency limit.
 - Public RBS effect success/failure envelopes and error records, checked against
   the runtime constructors and a packaged consumer with strict Steep diagnostics
 - Actor-to-actor asynchronous outbox delivery. Effects and broadcasts use

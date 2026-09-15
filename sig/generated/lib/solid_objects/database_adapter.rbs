@@ -55,6 +55,9 @@ module SolidObjects
     # @rbs () -> Time
     def database_now: () -> Time
 
+    # @rbs () -> Time
+    def database_clock_now: () -> Time
+
     # @rbs () { () -> untyped } -> untyped
     def with_lock_retry: () { () -> untyped } -> untyped
 

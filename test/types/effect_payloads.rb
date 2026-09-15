@@ -1,6 +1,28 @@
 # rbs_inline: enabled
 
 class EffectPayloadConsumer < SolidObjects::Actor
+  def recovery_result(payload)
+    return payload["result"] if payload["outcome"] == SolidObjects::EffectRecoveryOutcome::COMPLETED
+
+    nil
+  end
+
+  def retired(arguments)
+    { "effect_id" => "effect-1", "arguments" => arguments, "outcome" => SolidObjects::EffectRecoveryOutcome::RETIRED }
+  end
+
+  def completed_recovery(arguments)
+    { "effect_id" => "effect-1", "arguments" => arguments, "outcome" => SolidObjects::EffectRecoveryOutcome::COMPLETED, "result" => nil }
+  end
+
+  def retired_revision(payload)
+    payload["arguments"]["revision"]
+  end
+
+  def retired_outcome
+    SolidObjects::EffectRecoveryOutcome::RETIRED
+  end
+
   def fail_turn(effect_id:, arguments:, error:)
     arguments["generation"]
   end

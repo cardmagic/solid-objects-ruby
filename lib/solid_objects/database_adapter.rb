@@ -111,6 +111,19 @@ module SolidObjects
       ActiveSupport::IsolatedExecutionState[TRANSACTION_CLOCK] ||= read_database_now
     end
 
+    # @rbs () -> Time
+    def database_clock_now
+      value = with_connection do |connection|
+        expression = case self.class.family(connection)
+        when :postgresql then "clock_timestamp()"
+        when :mysql then "CURRENT_TIMESTAMP(6)"
+        else "STRFTIME('%Y-%m-%d %H:%M:%f', 'now')"
+        end
+        connection.select_value("SELECT #{expression}")
+      end
+      value.is_a?(Time) ? value.utc : Time.parse("#{value} UTC").utc
+    end
+
     # @rbs () { () -> untyped } -> untyped
     def with_lock_retry
       yield

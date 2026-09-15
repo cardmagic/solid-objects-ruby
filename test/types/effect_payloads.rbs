@@ -1,5 +1,11 @@
 class EffectPayloadConsumer < SolidObjects::Actor
   type run_arguments = { "generation" => Integer }
+  type report_arguments = { "revision" => Integer }
+  def recovery_result: (SolidObjects::effect_completed_recovery_payload[report_arguments, String]) -> String?
+  def retired: (report_arguments) -> SolidObjects::effect_retired_payload[report_arguments]
+  def completed_recovery: (report_arguments) -> SolidObjects::effect_completed_recovery_payload[report_arguments, nil]
+  def retired_revision: (SolidObjects::effect_retired_payload[report_arguments]) -> Integer
+  def retired_outcome: () -> "retired"
 
   def fail_turn: (effect_id: String, arguments: run_arguments, error: SolidObjects::effect_error) -> Integer
   def success_value: (SolidObjects::effect_success_payload[run_arguments, String]) -> String

@@ -45,12 +45,16 @@ module SolidObjects
       effect = claim_next
       return false unless effect
 
+      heartbeat = ProcessHeartbeat.new(process_registry:)
+      heartbeat.start
       result = deliver(effect)
       complete(effect, result)
       true
     rescue => error
       fail_effect(effect, error) if effect
       false
+    ensure
+      heartbeat&.stop
     end
 
     # @rbs () -> void
@@ -113,6 +117,7 @@ module SolidObjects
 
     # @rbs () -> Effect?
     def claim_next
+      EffectRecoveryCoordinator.new.recover_available
       database_adapter.transaction do
         now = database_adapter.database_now
         effect = database_adapter.lock_candidates(
@@ -178,6 +183,7 @@ module SolidObjects
       )
       result_message = nil
       database_adapter.transaction do
+        Instance.lock.find(effect.instance_id)
         locked_effect = Effect.lock.find(effect.id)
         verify_claim!(locked_effect)
         result_message = enqueue_result_message(
@@ -213,6 +219,7 @@ module SolidObjects
     def fail_effect(effect, error)
       result_message = nil
       database_adapter.transaction do
+        Instance.lock.find(effect.instance_id)
         locked_effect = Effect.lock.find(effect.id)
         verify_claim!(locked_effect)
         dead = locked_effect.attempt_count >= locked_effect.max_attempts
