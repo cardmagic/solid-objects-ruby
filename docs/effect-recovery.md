@@ -149,6 +149,13 @@ Mailbox insertion reuses the instance lock already held by the decision.
 Multiple checks in one actor commit lock all their effects and bindings before
 locking any processes. Unlocked candidate reads are hints, never decisions.
 
+Automatic passes prefilter owner freshness and the effective per-effect timeout
+using database time, and visit at most `claim_scan_limit` stale candidates. Fresh
+actors and owners are not locked, including owners protected by extended grace.
+Remaining stale effects are revisited on later polls. Every candidate still
+undergoes the authoritative locked recheck, and successful retirement announces
+the committed mailbox work through the existing wake-up mechanism.
+
 The decision samples database wall time after obtaining the owner lock. The
 effective timeout is the larger of the runtime's `process_alive_threshold` and
 the effect's persisted `recovery_timeout`, in seconds. A heartbeat newer than

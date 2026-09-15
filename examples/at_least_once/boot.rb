@@ -23,7 +23,7 @@ module AtLeastOnceBoot
     require "solid_objects/database_adapter"
     %w[
       record process instance message ready_message claimed_message
-      reminder effect broadcast dead_letter
+      reminder effect effect_recovery broadcast dead_letter
     ].each { |model| require File.join(ROOT, "app/models/solid_objects", model) }
 
     SolidObjects.configuration.authorize_message = ->(**) { true }
@@ -40,8 +40,10 @@ module AtLeastOnceBoot
     require File.join(ROOT, "db/migrate/20260805000000_create_solid_objects_tables")
     require File.join(ROOT, "db/migrate/20260806000000_add_state_revision_to_solid_objects_instances")
     require File.join(ROOT, "db/migrate/20260813000000_rename_message_dispatch_columns")
+    require File.join(ROOT, "db/migrate/20260915000000_add_solid_objects_effect_recoveries")
     CreateSolidObjectsTables.new.migrate(:up)
     AddStateRevisionToSolidObjectsInstances.new.migrate(:up)
     RenameMessageDispatchColumns.new.migrate(:up)
+    AddSolidObjectsEffectRecoveries.new.migrate(:up)
   end
 end

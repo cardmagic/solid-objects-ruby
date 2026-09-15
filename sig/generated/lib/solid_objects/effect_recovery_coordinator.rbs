@@ -26,6 +26,9 @@ module SolidObjects
 
     private
 
+    # @rbs () -> ActiveRecord::Relation[EffectRecovery]
+    def recovery_candidates: () -> ActiveRecord::Relation[EffectRecovery]
+
     # @rbs (instance: Instance, intent: Actor::EffectRecoveryIntent, recovery: EffectRecovery, effect: Effect?, owners: Hash[String, Process], now: Time) -> void
     def check_one: (instance: Instance, intent: Actor::EffectRecoveryIntent, recovery: EffectRecovery, effect: Effect?, owners: Hash[String, Process], now: Time) -> void
 

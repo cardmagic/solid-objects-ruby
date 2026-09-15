@@ -286,6 +286,57 @@ class EffectRecoveryTest < ActiveSupport::TestCase
     worker&.stop
   end
 
+  test "one remaining mailbox slot cannot partially commit retirement" do
+    worker, effect_executor, effect = processing_export("full-mailbox")
+    original_limit = SolidObjects.configuration.max_mailbox_length
+    SolidObjects.configuration.max_mailbox_length = 1
+    assert_raises(SolidObjects::MailboxFull) do
+      SolidObjects.database_adapter.transaction do
+        instance = SolidObjects::Instance.lock.find(effect.instance_id)
+        SolidObjects::EffectRecoveryCoordinator.new.check(instance:, intents: [ SolidObjects::Actor::EffectRecoveryIntent.new(effect_id: effect.effect_id, request_id: "full") ])
+      end
+    end
+    assert_equal "processing", effect.reload.status
+    assert_nil SolidObjects::EffectRecovery.find(effect.effect_id).retired_at
+    assert_empty SolidObjects::Message.where(operation: [ "retired", "checked" ])
+  ensure
+    SolidObjects.configuration.max_mailbox_length = original_limit if original_limit
+    effect_executor&.stop
+    worker&.stop
+  end
+
+  test "runtime floor changes and missing owners are rechecked for existing effects" do
+    worker, effect_executor, effect = processing_export("runtime-floor")
+    SolidObjects::EffectRecovery.find(effect.effect_id).update!(recovery_timeout: 1)
+    SolidObjects::Process.find(effect.claimed_by).update!(last_heartbeat_at: SolidObjects.database_adapter.database_clock_now - 70)
+    SolidObjects.configuration.process_alive_threshold = 120
+    SolidObjects::EffectRecoveryCoordinator.new.recover_available
+    assert_equal "processing", effect.reload.status
+    assert_empty SolidObjects::Message.where(operation: "retired")
+    effect.update!(claimed_by: nil)
+    SolidObjects::EffectRecoveryCoordinator.new.recover_available
+    assert_equal 1, SolidObjects::Message.where(operation: "retired").count
+  ensure
+    effect_executor&.stop
+    worker&.stop
+  end
+
+  test "database time lookup failure rolls back without an abandonment outcome" do
+    worker, effect_executor, effect = processing_export("lookup-error")
+    adapter = SolidObjects.database_adapter
+    adapter.define_singleton_method(:database_clock_now) do
+      SolidObjects::Record.connection.select_value("SELECT absent_recovery_column FROM #{SolidObjects.table_name(:processes)}")
+    end
+    assert_raises(ActiveRecord::StatementInvalid) { SolidObjects::EffectRecoveryCoordinator.new.recover_available }
+    assert_equal "processing", effect.reload.status
+    assert_nil SolidObjects::EffectRecovery.find(effect.effect_id).retired_at
+    assert_empty SolidObjects::Message.where(operation: [ "retired", "checked" ])
+  ensure
+    adapter&.singleton_class&.remove_method(:database_clock_now)
+    effect_executor&.stop
+    worker&.stop
+  end
+
   test "a changed claimant is rechecked after the effect lock becomes available" do
     skip "PostgreSQL lock observation" unless database_family == :postgresql
 
@@ -306,6 +357,176 @@ class EffectRecoveryTest < ActiveSupport::TestCase
     assert_empty SolidObjects::Message.where(operation: "retired")
   ensure
     recovery_thread&.join(5)
+    effect_executor&.stop
+    worker&.stop
+  end
+
+  test "pending work does not wait on a recovery candidate within its extended grace" do
+    skip "PostgreSQL independent claims" unless database_family == :postgresql
+
+    worker, effect_executor, effect = processing_export("fresh-candidate")
+    SolidObjects::EffectRecovery.find(effect.effect_id).update!(recovery_timeout: 120)
+    SolidObjects::Process.find(effect.claimed_by).update!(last_heartbeat_at: SolidObjects.database_adapter.database_clock_now - 75)
+    ExportActor.ref("other").async.start_export
+    worker.run_until_idle
+    claimant = SolidObjects::EffectExecutor.new
+    results = Queue.new
+    claim_thread = nil
+    SolidObjects.database_adapter.transaction do
+      SolidObjects::Instance.lock.find(effect.instance_id)
+      claim_thread = Thread.new do
+        SolidObjects::Record.connection_pool.with_connection do
+          results << claimant.send(:claim_next)
+        end
+      end
+      selected = Timeout.timeout(2) { results.pop }
+      assert_equal "other", selected.instance.actor_id
+    end
+  ensure
+    claim_thread&.join(5)
+    claimant&.stop
+    effect_executor&.stop
+    worker&.stop
+  end
+
+  test "recovery notification survives a process crash after retirement" do
+    worker, effect_executor, effect = processing_export("crash")
+    worker.stop
+    configuration = SolidObjects::Record.connection_db_config.configuration_hash
+    script = <<~RUBY
+      require "solid_objects"
+      ActiveRecord::Base.establish_connection(JSON.parse(ENV.fetch("RECOVERY_DATABASE_CONFIGURATION")))
+      %w[record process instance message ready_message claimed_message reminder effect effect_recovery broadcast dead_letter].each do |model|
+        require File.expand_path("app/models/solid_objects/\#{model}")
+      end
+      class RecoveryExport < SolidObjects::Actor
+        actor_type "effect-recovery-export"
+        def retired(effect_id:, arguments:, outcome:)
+        end
+      end
+      SolidObjects::EffectRecoveryCoordinator.new.recover_available
+      ::Process.kill("KILL", ::Process.pid)
+    RUBY
+    process_id = ::Process.spawn({ "RECOVERY_DATABASE_CONFIGURATION" => JSON.generate(configuration) }, Gem.ruby, "-Ilib", "-e", script)
+    _, status = ::Process.wait2(process_id)
+    assert status.signaled?
+    assert_equal Signal.list.fetch("KILL"), status.termsig
+    assert_equal 1, SolidObjects::Message.where(operation: "retired").count
+    assert_empty effect.instance.reload.state.fetch("notifications")
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    assert_equal 1, effect.instance.reload.state.fetch("notifications").length
+    assert_nil effect_executor.send(:claim_next)
+  ensure
+    effect_executor&.stop
+    worker&.stop
+  end
+
+  test "a pending claimant wins before the explicit check and is rechecked" do
+    skip "PostgreSQL independent claims" unless database_family == :postgresql
+
+    ExportActor.ref("claim-first").async.start_checked_export
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    effect = SolidObjects::Effect.find_by!(name: "build_report")
+    claimant = SolidObjects::EffectExecutor.new
+    adapter = SolidObjects.database_adapter
+    original_lock = adapter.method(:lock_candidates)
+    locked = Queue.new
+    release = Queue.new
+    results = Queue.new
+    origin_locked = Queue.new
+    adapter.define_singleton_method(:lock_candidates) do |scope|
+      relation = original_lock.call(scope).load
+      locked << true
+      release.pop
+      relation
+    end
+    claim_thread = Thread.new do
+      SolidObjects::Record.connection_pool.with_connection { results << claimant.send(:claim_next) }
+    end
+    Timeout.timeout(5) { locked.pop }
+    check_thread = Thread.new do
+      SolidObjects::Record.connection_pool.with_connection do
+        SolidObjects.database_adapter.transaction do
+          instance = SolidObjects::Instance.lock.find(effect.instance_id)
+          origin_locked << true
+          SolidObjects::EffectRecoveryCoordinator.new.check(instance:, intents: [ SolidObjects::Actor::EffectRecoveryIntent.new(effect_id: effect.effect_id, request_id: "claim-first") ])
+        end
+      end
+    end
+    Timeout.timeout(5) { origin_locked.pop }
+    release << true
+    assert_equal effect.id, Timeout.timeout(5) { results.pop }.id
+    check_thread.join(5)
+    assert_equal "deferred", SolidObjects::Message.find_by!(operation: "checked").arguments.fetch("outcome")
+    assert_empty SolidObjects::Message.where(operation: "retired")
+  ensure
+    release&.push(true)
+    claim_thread&.join(5)
+    check_thread&.join(5)
+    adapter&.singleton_class&.remove_method(:lock_candidates)
+    claimant&.stop
+    worker&.stop
+  end
+
+  test "an explicit check can win and leave pending work for the claimant" do
+    skip "PostgreSQL independent claims" unless database_family == :postgresql
+
+    ExportActor.ref("check-first").async.start_checked_export
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    effect = SolidObjects::Effect.find_by!(name: "build_report")
+    claimant = SolidObjects::EffectExecutor.new
+    results = Queue.new
+    claim_thread = nil
+    SolidObjects.database_adapter.transaction do
+      instance = SolidObjects::Instance.lock.find(effect.instance_id)
+      SolidObjects::EffectRecoveryCoordinator.new.check(instance:, intents: [ SolidObjects::Actor::EffectRecoveryIntent.new(effect_id: effect.effect_id, request_id: "check-first") ])
+      claim_thread = Thread.new do
+        SolidObjects::Record.connection_pool.with_connection { results << claimant.send(:claim_next) }
+      end
+      assert_nil Timeout.timeout(5) { results.pop }
+    end
+    assert_equal effect.id, claimant.send(:claim_next).id
+    assert_equal "pending", SolidObjects::Message.find_by!(operation: "checked").arguments.fetch("outcome")
+    assert_empty SolidObjects::Message.where(operation: "retired")
+  ensure
+    claim_thread&.join(5)
+    claimant&.stop
+    worker&.stop
+  end
+
+  test "concurrent explicit checks and a replay share one retirement" do
+    skip "PostgreSQL independent checks" unless database_family == :postgresql
+
+    worker, effect_executor, effect = processing_export("explicit-race")
+    process_ids = Queue.new
+    check = ->(request_id) do
+      SolidObjects.database_adapter.transaction do
+        instance = SolidObjects::Instance.lock.find(effect.instance_id)
+        SolidObjects::EffectRecoveryCoordinator.new.check(instance:, intents: [ SolidObjects::Actor::EffectRecoveryIntent.new(effect_id: effect.effect_id, request_id:) ])
+      end
+    end
+    threads = []
+    SolidObjects.database_adapter.transaction do
+      SolidObjects::Instance.lock.find(effect.instance_id)
+      %w[one two].each do |request_id|
+        threads << Thread.new do
+          SolidObjects::Record.connection_pool.with_connection do |connection|
+            process_ids << connection.select_value("SELECT pg_backend_pid()").to_i
+            check.call(request_id)
+          end
+        end
+      end
+      2.times { wait_for_blocked_process(Timeout.timeout(5) { process_ids.pop }) }
+    end
+    threads.each { |thread| thread.join(5) }
+    check.call("one")
+    assert_equal 1, SolidObjects::Message.where(operation: "retired").count
+    assert_equal %w[retired already_retired], SolidObjects::Message.where(operation: "checked").order(:sequence).map { |message| message.arguments.fetch("outcome") }
+  ensure
+    threads&.each { |thread| thread.join(5) }
     effect_executor&.stop
     worker&.stop
   end

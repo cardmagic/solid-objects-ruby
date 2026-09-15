@@ -277,5 +277,8 @@ module SolidObjects
 
     # @rbs (Symbol | String?) -> void
     def validate_effect_callback!: (Symbol | String?) -> void
+
+    # @rbs (timeout: Numeric?, operation: String | Symbol?) -> void
+    def validate_recovery_timeout!: (timeout: Numeric?, operation: String | Symbol?) -> void
   end
 end

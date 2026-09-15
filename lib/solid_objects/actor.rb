@@ -185,12 +185,7 @@ module SolidObjects
       validate_effect_callback!(on_failure)
       validate_effect_callback!(on_recovery)
       validate_effect_callback!(on_status)
-      unless recovery_timeout.nil?
-        unless recovery_timeout.is_a?(Numeric) && recovery_timeout.real? && recovery_timeout.to_f.finite? && recovery_timeout.positive?
-          raise ArgumentError, "recovery_timeout must be a positive finite duration in seconds"
-        end
-        raise ArgumentError, "recovery_timeout requires on_recovery" unless on_recovery
-      end
+      validate_recovery_timeout!(timeout: recovery_timeout, operation: on_recovery)
       effect_id = SecureRandom.uuid
       EffectIntent.new(
         effect_id:,
@@ -445,6 +440,16 @@ module SolidObjects
       return if self.class.definition.messages.key?(operation.to_sym)
 
       raise UnknownMessage, "unknown effect callback operation #{operation.inspect}"
+    end
+
+    # @rbs (timeout: Numeric?, operation: String | Symbol?) -> void
+    def validate_recovery_timeout!(timeout:, operation:)
+      return if timeout.nil?
+
+      unless timeout.is_a?(Numeric) && timeout.real? && timeout.to_f.finite? && timeout.to_f.positive?
+        raise ArgumentError, "recovery_timeout must be a positive finite duration in seconds"
+      end
+      raise ArgumentError, "recovery_timeout requires on_recovery" unless operation
     end
   end
 end
