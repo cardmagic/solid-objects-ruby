@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.15.0 - 2026-09-15
 
 - Return a stable effect handle from every `emit`. Wrappers must return it;
   operations relying on an implicit `nil` result should return `nil` explicitly.
