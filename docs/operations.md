@@ -69,6 +69,12 @@ Rails schema migrations and actor state migrations are separate concerns.
 
 ### Host application tooling
 
+RBS/Steep applications can generate
+[actor-specific dispatch signatures](development.md#actor-specific-dispatch-signatures)
+for reminders, transmit calls, and effect callback names. This is optional development
+tooling; generated signatures do not change runtime dispatch. The generator does
+not supply equivalent Sorbet/Tapioca actor-specific types.
+
 Installed engine migrations are copied as
 `db/migrate/*_create_solid_objects_tables.solid_objects.rb`. If the host enables
 `Rails/CreateTableWithTimestamps`, exclude engine-owned migrations rather than

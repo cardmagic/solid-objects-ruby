@@ -67,6 +67,10 @@
   gem's dependencies
 - Inline RBS generation/validation, Steep, Standard Ruby, Solid Queue's exact
   RuboCop policy, and a warning-free Brakeman scan
+- Opt-in actor-specific RBS generation for schedule/transmit keyword arguments
+  and effect callback names, using application declarations and checked consumer
+  fixtures. Dynamic names remain an explicit escape hatch; complete reference
+  typing and actor-specific RBI generation are separate work
 - Compatibility CI across the supported span: Ruby 3.3, 3.4, and 4.0 against
   Rails 7.1, 7.2, 8.0, and 8.1, pinned through `RAILS_VERSION` so the advertised
   range is verified rather than assumed. The compatibility job runs SQLite only;

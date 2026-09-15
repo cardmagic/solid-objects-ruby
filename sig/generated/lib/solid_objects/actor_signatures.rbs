@@ -1,0 +1,24 @@
+# Generated from lib/solid_objects/actor_signatures.rb with RBS::Inline
+
+module SolidObjects
+  class ActorSignatures
+    # @rbs (actors: Array[Class], signatures: Array[String]) -> String
+    def self.generate: (actors: Array[Class], signatures: Array[String]) -> String
+
+    @builder: untyped
+
+    # @rbs (signatures: Array[String]) -> void
+    def initialize: (signatures: Array[String]) -> void
+
+    # @rbs (actors: Array[Class]) -> String
+    def generate: (actors: Array[Class]) -> String
+
+    private
+
+    # @rbs (untyped) -> String
+    def actor_signature: (untyped) -> String
+
+    # @rbs (untyped, String, Symbol) -> untyped
+    def staged_type: (untyped, String, Symbol) -> untyped
+  end
+end

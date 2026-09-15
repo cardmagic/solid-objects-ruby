@@ -443,6 +443,10 @@ a dead letter.
 
 `emit` creates a staged effect:
 
+Typed applications can generate [actor-specific RBS signatures](development.md#actor-specific-dispatch-signatures)
+to check callback names and staged `schedule`/`transmit` calls without changing
+their Ruby syntax. Effect and commit-action registry names remain independent.
+
 ```ruby
 emit(
   :charge_payment,
