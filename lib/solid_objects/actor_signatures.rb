@@ -60,7 +60,7 @@ module SolidObjects
 
           def schedule: (at: Time, ?every: Numeric?, ?missed: Symbol | String, ?key: (String | Symbol | Integer)?) -> #{name}::_SolidObjectsOperations
           def transmit: () -> #{name}::_SolidObjectsOperations
-          def emit: (Symbol | String, ?on_success: (#{callbacks}), ?on_failure: (#{callbacks}), **untyped) -> nil
+          def emit: (Symbol | String, ?on_success: (#{callbacks}), ?on_failure: (#{callbacks}), ?on_recovery: (#{callbacks}), ?on_status: (#{callbacks}), ?recovery_timeout: Numeric?, **untyped) -> SolidObjects::effect_handle
         end
       RBS
     end

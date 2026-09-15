@@ -35,6 +35,7 @@ module SolidObjects
           ClaimedMessage,
           ReadyMessage,
           Broadcast,
+          EffectRecovery,
           Effect,
           Reminder,
           Message,

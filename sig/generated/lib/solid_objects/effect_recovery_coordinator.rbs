@@ -1,0 +1,38 @@
+# Generated from lib/solid_objects/effect_recovery_coordinator.rb with RBS::Inline
+
+module SolidObjects
+  module EffectRecoveryOutcome
+    RETIRED: "retired"
+
+    DEFERRED: "deferred"
+
+    PENDING: "pending"
+
+    COMPLETED: "completed"
+
+    DEAD: "dead"
+
+    ALREADY_RETIRED: "already_retired"
+
+    MISSING: "missing"
+  end
+
+  class EffectRecoveryCoordinator
+    # @rbs (instance: Instance, intents: Array[Actor::EffectRecoveryIntent]) -> void
+    def check: (instance: Instance, intents: Array[Actor::EffectRecoveryIntent]) -> void
+
+    # @rbs () -> void
+    def recover_available: () -> void
+
+    private
+
+    # @rbs (instance: Instance, intent: Actor::EffectRecoveryIntent, recovery: EffectRecovery, effect: Effect?, owners: Hash[String, Process], now: Time) -> void
+    def check_one: (instance: Instance, intent: Actor::EffectRecoveryIntent, recovery: EffectRecovery, effect: Effect?, owners: Hash[String, Process], now: Time) -> void
+
+    # @rbs (effect: Effect?, recovery: EffectRecovery, owners: Hash[String, Process], now: Time) -> String
+    def observe: (effect: Effect?, recovery: EffectRecovery, owners: Hash[String, Process], now: Time) -> String
+
+    # @rbs (instance: Instance, effect: Effect, recovery: EffectRecovery, now: Time) -> Message
+    def retire: (instance: Instance, effect: Effect, recovery: EffectRecovery, now: Time) -> Message
+  end
+end

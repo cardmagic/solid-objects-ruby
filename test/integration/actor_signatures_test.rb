@@ -62,6 +62,8 @@ class ActorSignaturesTest < ActiveSupport::TestCase
         emit :run_model, on_failure: :helper
         emit :run_model, on_success: :status
         emit :run_model, on_failure: :schedule
+        emit :build_report, on_recovery: :recvoer
+        emit :build_report, on_status: :inspec
       RUBY
       File.write(consumer_path, consumer.sub("    commit_action :global_action, generation: 1", invalid_calls))
       output, status = typecheck(directory)

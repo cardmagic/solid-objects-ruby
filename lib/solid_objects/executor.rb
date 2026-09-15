@@ -90,6 +90,7 @@ module SolidObjects
         max_bytes: SolidObjects.configuration.max_result_bytes
       )
       effect_intents = actor.drain_effect_intents
+      recovery_intents = actor.drain_effect_recovery_intents
       commit_action_intents = actor.drain_commit_action_intents
       reminder_intents = actor.drain_reminder_intents
       outbound_message_intents = actor.drain_outbound_message_intents
@@ -130,6 +131,7 @@ module SolidObjects
           observable_changes:,
           state_changed:
         )
+        EffectRecoveryCoordinator.new.check(instance:, intents: recovery_intents)
         claimed_message.destroy!
       end
 
@@ -241,10 +243,10 @@ module SolidObjects
     # @rbs (message: Message, instance: Instance, intents: Array[Actor::EffectIntent]) -> Array[Effect]
     def enqueue_effects(message:, instance:, intents:)
       intents.map do |intent|
-        Effect.create!(
+        effect = Effect.create!(
           message:,
           instance:,
-          effect_id: SecureRandom.uuid,
+          effect_id: intent.effect_id,
           name: intent.name,
           arguments: intent.arguments,
           success_operation: intent.success_operation,
@@ -253,6 +255,16 @@ module SolidObjects
           max_attempts: SolidObjects.configuration.max_attempts,
           available_at: SolidObjects.database_adapter.database_now
         )
+        if intent.recovery_operation || intent.status_operation
+          EffectRecovery.create!(
+            effect_id: intent.effect_id,
+            instance:,
+            recovery_operation: intent.recovery_operation,
+            status_operation: intent.status_operation,
+            recovery_timeout: intent.recovery_timeout
+          )
+        end
+        effect
       end
     end
 

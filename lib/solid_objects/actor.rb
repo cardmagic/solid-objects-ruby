@@ -2,7 +2,9 @@
 
 module SolidObjects
   class Actor
-    EffectIntent = Data.define(:name, :arguments, :success_operation, :failure_operation)
+    EffectIntent = Data.define(:effect_id, :name, :arguments, :success_operation, :failure_operation,
+      :recovery_operation, :status_operation, :recovery_timeout)
+    EffectRecoveryIntent = Data.define(:effect_id, :request_id)
     CommitActionIntent = Data.define(:name, :arguments)
     # The reminders table holds a name in 191 characters.
     REMINDER_NAME_LIMIT = 191
@@ -143,6 +145,7 @@ module SolidObjects
     # @rbs @actor_id: String
     # @rbs @state: State
     # @rbs @effect_intents: Array[EffectIntent]
+    # @rbs @effect_recovery_intents: Array[EffectRecoveryIntent]
     # @rbs @commit_action_intents: Array[CommitActionIntent]
     # @rbs @reminder_intents: Array[ReminderIntent]
     # @rbs @outbound_message_intents: Array[OutboundMessageIntent]
@@ -154,6 +157,7 @@ module SolidObjects
       @actor_id = actor_id
       @state = state
       @effect_intents = []
+      @effect_recovery_intents = []
       @commit_action_intents = []
       @reminder_intents = []
       @outbound_message_intents = []
@@ -175,18 +179,41 @@ module SolidObjects
       raise Rejected.new(code: rejection_code, message:, details:)
     end
 
-    # @rbs (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> nil
-    def emit(name, on_success: nil, on_failure: nil, **arguments)
+    # @rbs (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, ?on_recovery: Symbol | String?, ?on_status: Symbol | String?, ?recovery_timeout: Numeric?, **untyped) -> effect_handle
+    def emit(name, on_success: nil, on_failure: nil, on_recovery: nil, on_status: nil, recovery_timeout: nil, **arguments)
       validate_effect_callback!(on_success)
       validate_effect_callback!(on_failure)
+      validate_effect_callback!(on_recovery)
+      validate_effect_callback!(on_status)
+      unless recovery_timeout.nil?
+        unless recovery_timeout.is_a?(Numeric) && recovery_timeout.real? && recovery_timeout.to_f.finite? && recovery_timeout.positive?
+          raise ArgumentError, "recovery_timeout must be a positive finite duration in seconds"
+        end
+        raise ArgumentError, "recovery_timeout requires on_recovery" unless on_recovery
+      end
+      effect_id = SecureRandom.uuid
       EffectIntent.new(
+        effect_id:,
         name: name.to_s,
         arguments: Serialization.dump(arguments),
         success_operation: on_success&.to_s,
-        failure_operation: on_failure&.to_s
+        failure_operation: on_failure&.to_s,
+        recovery_operation: on_recovery&.to_s,
+        status_operation: on_status&.to_s,
+        recovery_timeout: recovery_timeout&.to_f
       ).tap do |intent|
         effect_intents << intent
       end
+      { "effect_id" => effect_id }
+    end
+
+    # @rbs (effect_handle) -> nil
+    def request_effect_recovery(handle)
+      unless handle.is_a?(Hash) && handle["effect_id"].is_a?(String) && !handle.fetch("effect_id").empty?
+        raise InvalidPayload, "expected an effect handle returned by emit"
+      end
+
+      effect_recovery_intents << EffectRecoveryIntent.new(effect_id: handle.fetch("effect_id"), request_id: SecureRandom.uuid)
       nil
     end
 
@@ -360,6 +387,11 @@ module SolidObjects
       effect_intents.shift(effect_intents.length)
     end
 
+    # @rbs () -> Array[EffectRecoveryIntent]
+    def drain_effect_recovery_intents
+      effect_recovery_intents.shift(effect_recovery_intents.length)
+    end
+
     # @rbs () -> Array[CommitActionIntent]
     def drain_commit_action_intents
       commit_action_intents.shift(commit_action_intents.length)
@@ -378,6 +410,7 @@ module SolidObjects
     # @rbs () -> void
     def discard_intents
       effect_intents.clear
+      effect_recovery_intents.clear
       commit_action_intents.clear
       reminder_intents.clear
       outbound_message_intents.clear
@@ -386,6 +419,7 @@ module SolidObjects
     private
 
     attr_reader :effect_intents,
+      :effect_recovery_intents,
       :commit_action_intents,
       :reminder_intents,
       :outbound_message_intents

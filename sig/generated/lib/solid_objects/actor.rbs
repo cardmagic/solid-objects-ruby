@@ -3,6 +3,8 @@
 module SolidObjects
   class Actor
     class EffectIntent < Data
+      attr_reader effect_id(): untyped
+
       attr_reader name(): untyped
 
       attr_reader arguments(): untyped
@@ -11,12 +13,31 @@ module SolidObjects
 
       attr_reader failure_operation(): untyped
 
-      def self.new: (untyped name, untyped arguments, untyped success_operation, untyped failure_operation) -> instance
-                  | (name: untyped, arguments: untyped, success_operation: untyped, failure_operation: untyped) -> instance
+      attr_reader recovery_operation(): untyped
 
-      def self.members: () -> [ :name, :arguments, :success_operation, :failure_operation ]
+      attr_reader status_operation(): untyped
 
-      def members: () -> [ :name, :arguments, :success_operation, :failure_operation ]
+      attr_reader recovery_timeout(): untyped
+
+      def self.new: (untyped effect_id, untyped name, untyped arguments, untyped success_operation, untyped failure_operation, untyped recovery_operation, untyped status_operation, untyped recovery_timeout) -> instance
+                  | (effect_id: untyped, name: untyped, arguments: untyped, success_operation: untyped, failure_operation: untyped, recovery_operation: untyped, status_operation: untyped, recovery_timeout: untyped) -> instance
+
+      def self.members: () -> [ :effect_id, :name, :arguments, :success_operation, :failure_operation, :recovery_operation, :status_operation, :recovery_timeout ]
+
+      def members: () -> [ :effect_id, :name, :arguments, :success_operation, :failure_operation, :recovery_operation, :status_operation, :recovery_timeout ]
+    end
+
+    class EffectRecoveryIntent < Data
+      attr_reader effect_id(): untyped
+
+      attr_reader request_id(): untyped
+
+      def self.new: (untyped effect_id, untyped request_id) -> instance
+                  | (effect_id: untyped, request_id: untyped) -> instance
+
+      def self.members: () -> [ :effect_id, :request_id ]
+
+      def members: () -> [ :effect_id, :request_id ]
     end
 
     class CommitActionIntent < Data
@@ -139,6 +160,8 @@ module SolidObjects
 
     @commit_action_intents: Array[CommitActionIntent]
 
+    @effect_recovery_intents: Array[EffectRecoveryIntent]
+
     @effect_intents: Array[EffectIntent]
 
     @state: State
@@ -158,8 +181,11 @@ module SolidObjects
     # @rbs (Symbol | String, String, ?details: Hash[String | Symbol, untyped]) -> bot
     def reject: (Symbol | String, String, ?details: Hash[String | Symbol, untyped]) -> bot
 
-    # @rbs (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> nil
-    def emit: (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, **untyped) -> nil
+    # @rbs (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, ?on_recovery: Symbol | String?, ?on_status: Symbol | String?, ?recovery_timeout: Numeric?, **untyped) -> effect_handle
+    def emit: (Symbol | String, ?on_success: Symbol | String?, ?on_failure: Symbol | String?, ?on_recovery: Symbol | String?, ?on_status: Symbol | String?, ?recovery_timeout: Numeric?, **untyped) -> effect_handle
+
+    # @rbs (effect_handle) -> nil
+    def request_effect_recovery: (effect_handle) -> nil
 
     # @rbs () -> OperationDispatcher
     def transmit: () -> OperationDispatcher
@@ -216,6 +242,9 @@ module SolidObjects
     # @rbs () -> Array[EffectIntent]
     def drain_effect_intents: () -> Array[EffectIntent]
 
+    # @rbs () -> Array[EffectRecoveryIntent]
+    def drain_effect_recovery_intents: () -> Array[EffectRecoveryIntent]
+
     # @rbs () -> Array[CommitActionIntent]
     def drain_commit_action_intents: () -> Array[CommitActionIntent]
 
@@ -231,6 +260,8 @@ module SolidObjects
     private
 
     attr_reader effect_intents: untyped
+
+    attr_reader effect_recovery_intents: untyped
 
     attr_reader commit_action_intents: untyped
 

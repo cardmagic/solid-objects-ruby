@@ -3,6 +3,21 @@
 module SolidObjects
   module EffectPayload
     class << self
+      # @rbs [Arguments] (effect_id: String, arguments: Arguments) -> effect_retired_payload[Arguments]
+      def retired(effect_id:, arguments:)
+        { "effect_id" => effect_id, "arguments" => arguments, "outcome" => EffectRecoveryOutcome::RETIRED }
+      end
+
+      # @rbs [Arguments, Result] (effect_id: String, arguments: Arguments, result: Result) -> effect_completed_recovery_payload[Arguments, Result]
+      def recovery_completed(effect_id:, arguments:, result:)
+        { "effect_id" => effect_id, "arguments" => arguments, "outcome" => EffectRecoveryOutcome::COMPLETED, "result" => result }
+      end
+
+      # @rbs (effect_id: String, outcome: effect_observation_outcome) -> effect_observation_payload
+      def recovery_observation(effect_id:, outcome:)
+        { "effect_id" => effect_id, "outcome" => outcome }
+      end
+
       # @rbs [Arguments, Result] (effect_id: String, arguments: Arguments, result: Result) -> effect_success_payload[Arguments, Result]
       def success(effect_id:, arguments:, result:)
         { "effect_id" => effect_id, "arguments" => arguments, "result" => result }

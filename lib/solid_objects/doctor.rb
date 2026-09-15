@@ -78,6 +78,7 @@ module SolidObjects
       ],
       reminders: %w[id instance_id operation next_run_at status],
       effects: %w[id message_id instance_id effect_id status available_at],
+      effect_recoveries: %w[effect_id instance_id recovery_operation status_operation recovery_timeout retired_at],
       broadcasts: %w[id message_id instance_id broadcast_id status available_at],
       dead_letters: %w[id message_id instance_id actor_type actor_id attempts]
     }.freeze

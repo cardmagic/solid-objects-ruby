@@ -55,7 +55,8 @@ class SeparateDatabaseTest < ActiveSupport::TestCase
     [
       CreateSolidObjectsTables,
       AddStateRevisionToSolidObjectsInstances,
-      RenameMessageDispatchColumns
+      RenameMessageDispatchColumns,
+      AddSolidObjectsEffectRecoveries
     ].each do |migration_class|
       migration = migration_class.new
       migration.define_singleton_method(:connection) { SolidObjects::Record.connection }

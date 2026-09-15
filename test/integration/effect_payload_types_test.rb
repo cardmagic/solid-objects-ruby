@@ -36,10 +36,20 @@ class EffectPayloadTypesTest < ActiveSupport::TestCase
       assert status.success?, output
       File.write(configuration_path, configuration)
 
+      signature_path = File.join(project, "sig/consumer.rbs")
+      signatures = File.read(signature_path)
+      File.write(signature_path, signatures.sub("effect_completed_recovery_payload[report_arguments, String]", "effect_recovery_payload[report_arguments, String]"))
+      output, status = typecheck(project)
+      refute status.success?, "Steep narrowing changed; update the documented record-union limitation"
+      assert_includes output, "Ruby::ReturnTypeMismatch"
+      File.write(signature_path, signatures)
+
       [
         [ '"effect_id" => "effect-1"', '"effect_identifier" => "effect-1"' ],
         [ '"message" => "failed"', '"message" => 42' ],
-        [ 'arguments["generation"]', 'arguments["generation"].to_s' ]
+        [ 'arguments["generation"]', 'arguments["generation"].to_s' ],
+        [ "EffectRecoveryOutcome::RETIRED", "EffectRecoveryOutcome::PENDING" ],
+        [ 'payload["arguments"]["revision"]', 'payload["arguments"]["revision"].to_s' ]
       ].each do |original, invalid|
         File.write(consumer_path, consumer.sub(original, invalid))
         output, status = typecheck(project)
@@ -53,7 +63,9 @@ class EffectPayloadTypesTest < ActiveSupport::TestCase
       [
         [ '"result" => result', '"outcome" => result' ],
         [ '"error" => error', '"failure" => error' ],
-        [ '"backtrace" => Array(exception.backtrace).first(50)', '"backtrace" => [42]' ]
+        [ '"backtrace" => Array(exception.backtrace).first(50)', '"backtrace" => [42]' ],
+        [ '"outcome" => EffectRecoveryOutcome::RETIRED', '"outcome" => "recovered"' ],
+        [ '"outcome" => EffectRecoveryOutcome::COMPLETED, "result" => result', '"outcome" => EffectRecoveryOutcome::COMPLETED' ]
       ].each do |original, invalid|
         File.write(constructor_path, constructors.sub(original, invalid))
         output, status = typecheck(project)

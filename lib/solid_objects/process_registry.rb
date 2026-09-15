@@ -10,6 +10,7 @@ module SolidObjects
     class << self
       # @rbs (?now: Time) -> Integer
       def cleanup_dead(now: SolidObjects.database_adapter.database_now)
+        EffectRecoveryCoordinator.new.recover_available
         stale_at = now - SolidObjects.configuration.process_alive_threshold
         dead_processes = Process
           .where.not(shutdown_state: "stopped")
@@ -32,12 +33,14 @@ module SolidObjects
             process_id: nil,
             activation_token: nil
           )
-          Effect.where(claimed_by: process_record.id).update_all(
-            status: "pending",
-            claimed_by: nil,
-            claimed_at: nil,
-            available_at: now
-          )
+          Effect.where(claimed_by: process_record.id)
+            .where.not(effect_id: EffectRecovery.where.not(recovery_operation: nil).select(:effect_id))
+            .update_all(
+              status: "pending",
+              claimed_by: nil,
+              claimed_at: nil,
+              available_at: now
+            )
           Reminder.where(claimed_by: process_record.id).update_all(
             claimed_by: nil,
             claimed_at: nil

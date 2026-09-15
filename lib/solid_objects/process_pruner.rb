@@ -43,7 +43,7 @@ module SolidObjects
       Process.where(
         shutdown_state: "stopped",
         stopped_at: ...(now - SolidObjects.configuration.process_retention)
-      )
+      ).where.not(id: Effect.where.not(claimed_by: nil).select(:claimed_by))
     end
   end
 end

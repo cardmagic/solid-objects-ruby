@@ -3,6 +3,9 @@
 
 inherit_gem: { rubocop-rails-omakase: rubocop.yml }
 
+Layout/LeadingCommentSpace:
+  AllowRBSInlineAnnotation: true
+
 AllCops:
   TargetRubyVersion: 3.3
   Exclude:
