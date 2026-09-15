@@ -25,6 +25,8 @@ module SolidObjects
           break if wait_for_interval
 
           Record.connection_pool.with_connection { process_registry.heartbeat }
+        rescue => error
+          report_failure(error)
         end
       end
     end
@@ -41,6 +43,15 @@ module SolidObjects
     private
 
     attr_reader :process_registry, :mutex, :condition
+
+    # @rbs (Exception) -> void
+    def report_failure(error)
+      payload = { process_id: process_registry.process_record&.id, error_class: error.class.name }
+      SolidObjects.configuration.logger.warn({ event: "solid_objects.process.heartbeat_failed", **payload })
+      SolidObjects.instrument(:"process.heartbeat_failed", **payload)
+    rescue
+      nil
+    end
 
     # @rbs () -> bool
     def wait_for_interval

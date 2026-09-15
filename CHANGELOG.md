@@ -4,6 +4,8 @@
 
 - Maintain effect-owner heartbeats during long-running handlers, completion, and
   failure handling, so healthy external I/O cannot trigger abandoned recovery.
+  Report failed heartbeat updates and retry on the next configured interval
+  without consuming effect attempts.
 - Return a stable effect handle from every `emit`. Wrappers must return it;
   operations relying on an implicit `nil` result should return `nil` explicitly.
 - Add abandoned effect recovery with `on_recovery`, optional `on_status`, staged

@@ -29,6 +29,9 @@ module SolidObjects
 
     attr_reader condition: untyped
 
+    # @rbs (Exception) -> void
+    def report_failure: (Exception) -> void
+
     # @rbs () -> bool
     def wait_for_interval: () -> bool
   end

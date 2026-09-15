@@ -124,6 +124,11 @@ handler therefore remains protected beyond the recovery timeout. This requires
 an available database connection for the heartbeat, as well as runtime threads
 that can continue running.
 
+Failed updates emit `solid_objects.process.heartbeat_failed` and retry at the
+configured heartbeat interval without consuming effect attempts. If an outage
+lasts beyond the freshness window, recovery can still be permitted; retries do
+not cancel external work or extend the configured window.
+
 ## Compatibility and installation
 
 Upgrade all effect workers and process cleanup roles before emitting effects

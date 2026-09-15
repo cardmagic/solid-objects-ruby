@@ -132,6 +132,36 @@ class EffectRecoveryTest < ActiveSupport::TestCase
     worker&.stop
   end
 
+  test "heartbeat maintenance resumes after a database error" do
+    SolidObjects.configuration.process_heartbeat_interval = 0.01
+    registry = SolidObjects::ProcessRegistry.new
+    registry.register(kind: "effect")
+    resumed = Queue.new
+    attempts = 0
+    registry.define_singleton_method(:heartbeat) do
+      attempts += 1
+      if attempts == 1
+        SolidObjects::Record.connection.select_value("SELECT absent_heartbeat_column FROM #{SolidObjects.table_name(:processes)}")
+      end
+      updated = super()
+      resumed << true if updated
+      updated
+    end
+    events = []
+    subscriber = ActiveSupport::Notifications.subscribe("solid_objects.process.heartbeat_failed") { |event| events << event.payload }
+    heartbeat = SolidObjects::ProcessHeartbeat.new(process_registry: registry)
+    heartbeat.start
+    Timeout.timeout(2) { resumed.pop }
+    heartbeat.stop
+    assert_operator attempts, :>=, 2
+    assert_equal 1, events.length
+    assert_equal registry.process_record.id, events.first.fetch(:process_id)
+  ensure
+    heartbeat&.stop
+    ActiveSupport::Notifications.unsubscribe(subscriber) if subscriber
+    registry&.stop
+  end
+
   test "a longer recovery timeout survives ordinary process cleanup" do
     ExportActor.ref("long-grace").async.start_with_timeout(timeout: 120)
     worker = SolidObjects::Worker.new
