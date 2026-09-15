@@ -103,6 +103,26 @@ bundle exec rake rbs
 
 This follows the inline convention used by `cardmagic/classifier`.
 
+### Public effect payload signatures
+
+The packaged `sig/public` directory owns the reusable effect payload aliases and
+survives `rake rbs` regeneration. A host application's Steep target can load the
+installed gem's complete signature tree alongside its own signatures:
+
+```ruby
+target :app do
+  library "solid_objects"
+  signature "sig"
+  check "app/actors"
+  configure_code_diagnostics(Diagnostic::Ruby.strict)
+end
+```
+
+This requires no internal runtime imports. See the
+[typed callback example](architecture.md#typing-your-on_failure-handler).
+The gem's strict payload target checks the actual constructors; its packaged
+consumer test also verifies that missing keys and incorrect field types fail.
+
 ## Formatting and security
 
 ```bash

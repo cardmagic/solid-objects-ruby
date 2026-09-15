@@ -41,6 +41,86 @@ class EffectsTest < ActiveSupport::TestCase
     SolidObjects.configuration.retry_delay = ->(_attempt) { 0 }
   end
 
+  class CallbackActor < SolidObjects::Actor
+    actor_type "callback-payloads"
+    attribute :received, default: {}
+
+    def start_delivery(arguments: {}, callback: "receive_success")
+      emit :delivery, on_success: callback, on_failure: :receive_failure, **arguments.symbolize_keys
+    end
+
+    def receive_success(effect_id:, arguments:, result:)
+      self.received = { "effect_id" => effect_id, "arguments" => arguments, "result" => result }
+    end
+
+    message :receive_block do |effect_id:, arguments:, result:|
+      self.received = { "effect_id" => effect_id, "arguments" => arguments, "result" => result }
+    end
+
+    def receive_failure(effect_id:, arguments:, error:)
+      self.received = { "effect_id" => effect_id, "arguments" => arguments, "error" => error }
+    end
+  end
+
+  test "persists and delivers complete success envelopes to method and block callbacks" do
+    worker = SolidObjects::Worker.new
+    effect_executor = SolidObjects::EffectExecutor.new
+    arguments = { "generation" => 2, "nested" => { "keep" => true } }
+
+    [ "receive_success", "receive_block" ].each do |callback|
+      [ nil, false, 42, "reply", [ "reply" ], { "reply" => "done" } ].each_with_index do |result, index|
+        SolidObjects.register_effect(:delivery) { result }
+        reference = CallbackActor.ref("#{callback}-#{index}")
+        original_arguments = index.zero? ? {} : arguments
+        reference.async.start_delivery(arguments: original_arguments, callback:)
+        worker.run_until_idle
+        assert effect_executor.run_once
+
+        effect = SolidObjects::Effect.order(:id).last
+        expected = { "effect_id" => effect.effect_id, "arguments" => original_arguments, "result" => result }
+        message = SolidObjects::Message.find_by!(idempotency_key: "effect:#{effect.effect_id}:success")
+        assert_equal expected, message.arguments
+        worker.run_until_idle
+        assert_equal expected, effect.instance.reload.state.fetch("received")
+      end
+    end
+  ensure
+    effect_executor&.stop
+    worker&.stop
+  end
+
+  test "delivers one complete failure envelope only after exhaustion" do
+    SolidObjects.configuration.max_attempts = 2
+    error = RuntimeError.new("provider unavailable")
+    error.set_backtrace([ "provider.rb:12" ])
+    SolidObjects.register_effect(:delivery) { raise error }
+    CallbackActor.ref("failure").async.start_delivery
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    effect_executor = SolidObjects::EffectExecutor.new
+    effect = SolidObjects::Effect.first
+
+    refute effect_executor.run_once
+    assert_equal "pending", effect.reload.status
+    assert_nil SolidObjects::Message.find_by(idempotency_key: "effect:#{effect.effect_id}:failure")
+    refute effect_executor.run_once
+    assert_equal "dead", effect.reload.status
+    expected = {
+      "effect_id" => effect.effect_id, "arguments" => {},
+      "error" => { "class" => "RuntimeError", "message" => "provider unavailable", "backtrace" => [ "provider.rb:12" ] }
+    }
+    messages = SolidObjects::Message.where(idempotency_key: "effect:#{effect.effect_id}:failure")
+    assert_equal [ expected ], messages.map(&:arguments)
+    assert_equal expected.fetch("error"), effect.error
+    worker.run_until_idle
+    assert_equal expected, effect.instance.reload.state.fetch("received")
+    refute effect_executor.run_once
+    assert_equal 1, messages.count
+  ensure
+    effect_executor&.stop
+    worker&.stop
+  end
+
   test "commits state, message completion, and effect together" do
     message_reference = CheckoutActor.ref("order-1").async.checkout(payment_id: "payment-1")
     worker = SolidObjects::Worker.new

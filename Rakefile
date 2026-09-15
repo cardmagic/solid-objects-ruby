@@ -14,7 +14,7 @@ task :rbs do
   FileUtils.rm_rf(File.expand_path("sig/generated", __dir__))
   sh "bundle exec rbs-inline --base lib --base app --output sig/generated lib app"
   FileUtils.rm_f(File.expand_path("sig/generated/lib/generators/solid_objects/templates/solid_objects.rbs", __dir__))
-  sh "bundle exec rbs -I sig/generated -I sig/support validate"
+  sh "bundle exec rbs -I sig/generated -I sig/support -I sig/public validate"
 end
 
 desc "Run Standard Ruby"

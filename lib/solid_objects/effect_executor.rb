@@ -184,11 +184,11 @@ module SolidObjects
           effect: locked_effect,
           operation: locked_effect.success_operation,
           outcome: "success",
-          arguments: {
-            "effect_id" => locked_effect.effect_id,
-            "arguments" => locked_effect.arguments,
-            "result" => serialized_result
-          }
+          arguments: EffectPayload.success(
+            effect_id: locked_effect.effect_id,
+            arguments: locked_effect.arguments,
+            result: serialized_result
+          )
         )
         locked_effect.update!(
           status: "completed",
@@ -216,21 +216,17 @@ module SolidObjects
         locked_effect = Effect.lock.find(effect.id)
         verify_claim!(locked_effect)
         dead = locked_effect.attempt_count >= locked_effect.max_attempts
-        error_details = {
-          "class" => error.class.name,
-          "message" => error.message.to_s.byteslice(0, 8_192),
-          "backtrace" => Array(error.backtrace).first(50)
-        }
+        error_details = EffectPayload.error(error)
         if dead
           result_message = enqueue_result_message(
             effect: locked_effect,
             operation: locked_effect.failure_operation,
             outcome: "failure",
-            arguments: {
-              "effect_id" => locked_effect.effect_id,
-              "arguments" => locked_effect.arguments,
-              "error" => error_details
-            }
+            arguments: EffectPayload.failure(
+              effect_id: locked_effect.effect_id,
+              arguments: locked_effect.arguments,
+              error: error_details
+            )
           )
         end
         locked_effect.update!(

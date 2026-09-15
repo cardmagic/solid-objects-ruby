@@ -39,6 +39,10 @@ raises, and nothing is logged except a `solid_objects.reminder.replaced` event.
 
 ## An alarm per item, with `key:`
 
+For watchdogs paired with an effect's give-up callback, see
+[typing your `on_failure` handler](architecture.md#typing-your-on_failure-handler)
+to retain the original argument types without repeating the error hash contract.
+
 Pass `key:` when an actor is waiting on several things at once. The key is your
 own identifier for the item, and it names that item's alarm, so each item gets
 one:

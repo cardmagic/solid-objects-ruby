@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Publish RBS contracts for effect callback envelopes and Ruby error summaries.
+  Check the runtime constructors and packaged consumer signatures strictly,
+  preserving ordinary hashes, keyword callbacks, serialization, and retries.
+
 ## 0.14.6 - 2026-09-12
 
 - Preserve committed turns when an Active Record after-commit callback raises.
