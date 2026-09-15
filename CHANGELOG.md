@@ -1,11 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.14.7 - 2026-09-14
 
 - Publish RBS contracts for effect callback envelopes and Ruby error summaries.
   Check the runtime constructors and packaged consumer signatures strictly,
   preserving ordinary hashes, keyword callbacks, serialization, and retries.
-
 - Add optional actor-specific RBS generation for staged schedule/transmit calls
   and effect callback names. Reuse application-declared operation argument types
   without changing Ruby dispatch, runtime validation, or global effect registries.
