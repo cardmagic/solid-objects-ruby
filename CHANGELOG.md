@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.15.1 - 2026-09-16
 
 - Use the existing cleanup index when finding expired actor instances. Preserve
   creation-time fallback for never-used instances and the strict retention cutoff.
