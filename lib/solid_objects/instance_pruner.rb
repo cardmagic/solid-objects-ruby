@@ -33,9 +33,10 @@ module SolidObjects
     # @rbs () -> Array[ActiveRecord::Relation[Instance]]
     def policy_relations
       SolidObjects.configuration.instance_retention_by_actor_type.map do |actor_type, retention|
+        cutoff = now - retention
         prunable
           .where(actor_type: actor_type.to_s)
-          .where("COALESCE(last_used_at, created_at) < ?", now - retention)
+          .where("last_used_at < ? OR (last_used_at IS NULL AND created_at < ?)", cutoff, cutoff)
       end
     end
 
