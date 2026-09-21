@@ -1,0 +1,3 @@
+module SolidObjects
+  type reminder_handle = { "reminder_name" => String }
+end

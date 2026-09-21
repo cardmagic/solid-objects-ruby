@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Add reminder cancellation. `unschedule` removes one reminder by operation and
+  optional key, or by the handle `schedule` now returns. `unschedule_all`
+  removes every key of one operation. Both stage an intent, so a cancel commits
+  with the state change that decided it, and a turn that raises cancels nothing.
+- Add reminder reading. `reminder` returns a `ReminderStatus` or `nil`, and
+  `reminders` lists every key of one operation. A read applies the intents
+  staged in the current turn, so it agrees with what the commit will write.
+- `schedule` now returns a reminder handle instead of `nil`. An operation that
+  ends with `schedule` and relies on an implicit `nil` result should return
+  `nil` explicitly, as `emit` required in 0.15.0.
+
 ## 0.15.2 - 2026-09-21
 
 - Find the actor instance before the insert when an enqueue starts, and lock
