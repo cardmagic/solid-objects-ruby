@@ -99,6 +99,11 @@ module SolidObjects
       nil
     end
 
+    # @rbs () -> String?
+    def shared_lock
+      nil
+    end
+
     # @rbs () -> String
     def current_time_expression
       "CURRENT_TIMESTAMP"
@@ -161,6 +166,11 @@ module SolidObjects
     # @rbs (ActiveRecord::Relation[untyped]) -> ActiveRecord::Relation[untyped]
     def lock_candidates(relation)
       claim_lock ? relation.lock(claim_lock) : relation
+    end
+
+    # @rbs (ActiveRecord::Relation[untyped]) -> ActiveRecord::Relation[untyped]
+    def share_locked(relation)
+      shared_lock ? relation.lock(shared_lock) : relation
     end
 
     private

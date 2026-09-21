@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.2 - 2026-09-21
+
+- Find the actor instance before the insert when an enqueue starts, and lock
+  that row by its primary key. A steady-state enqueue now writes no instance
+  row and issues 10 statements instead of 12.
+- Stop the deadlock between concurrent enqueues that create the same actor
+  inside a transaction that already wrote. MySQL keeps the shared lock of a
+  failed insert across a savepoint rollback, so the mailbox reads the winning
+  row in shared mode and never asks to upgrade that lock.
+
 ## 0.15.1 - 2026-09-16
 
 - Use the existing cleanup index when finding expired actor instances. Preserve

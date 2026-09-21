@@ -15,6 +15,11 @@ module SolidObjects
         "FOR UPDATE SKIP LOCKED"
       end
 
+      # @rbs () -> String
+      def shared_lock
+        "FOR SHARE"
+      end
+
       # A non-transactional engine would silently break fenced commits, so the
       # storage engine is verified rather than assumed.
       # @rbs () -> Array[String]
