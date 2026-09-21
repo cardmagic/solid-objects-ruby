@@ -28,6 +28,18 @@ module SolidObjects
     # @rbs (Reference, Class) -> Instance
     def find_or_create_instance: (Reference, Class) -> Instance
 
+    # @rbs (Reference) -> Integer?
+    def instance_identifier: (Reference) -> Integer?
+
+    # @rbs (Reference, Class) -> Instance
+    def create_locked_instance: (Reference, Class) -> Instance
+
+    # @rbs (Reference) -> Integer?
+    def committed_instance_identifier: (Reference) -> Integer?
+
+    # @rbs (Integer?) -> Instance
+    def lock_instance!: (Integer?) -> Instance
+
     # @rbs (Instance, String?) -> Message?
     def find_idempotent_message: (Instance, String?) -> Message?
 

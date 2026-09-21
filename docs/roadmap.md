@@ -6,7 +6,12 @@
 - Explicit actor registry, references, JSON state, and state migrations
 - Fluent direct synchronous RPC, configured `sync`, and durable `async`
 - Durable message history plus ready/claimed membership tables
-- Concurrent sequence allocation and actor creation
+- Concurrent sequence allocation and actor creation. An enqueue finds the
+  instance row with an unlocked read, then locks that row by its primary key.
+  A steady-state enqueue writes no instance row, and issues 10 statements
+  instead of 12. Concurrent creation causes no deadlock on SQLite, PostgreSQL,
+  or MySQL. MySQL needs a shared read after a duplicate key, because it uses
+  repeatable read. The tests count statements, and do not measure latency.
 - Activation leases, renewal, unique activation tokens, generations, and
   fenced commits
 - Bounded activation passes, idle cache, hot-actor yield, and process records

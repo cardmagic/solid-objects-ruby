@@ -58,6 +58,81 @@ class EnqueueTest < ActiveSupport::TestCase
 
     assert_empty errors.size.times.map { errors.pop }
     assert_equal (1..8).to_a, results.size.times.map { results.pop }.sort
+    assert_equal 1, SolidObjects::Instance.where(actor_type: "enqueue-carts", actor_id: "alice").count
+  end
+
+  test "allocates unique sequences under concurrent enqueue to an existing actor" do
+    reference = CartActor.ref("alice")
+    reference.async.add(product_id: "first")
+    start = Queue.new
+    results = Queue.new
+    errors = Queue.new
+
+    threads = 8.times.map do |index|
+      Thread.new do
+        SolidObjects::Record.connection_pool.with_connection do
+          start.pop
+          results << reference.async.add(product_id: "product-#{index}").sequence
+        rescue => error
+          errors << error
+        end
+      end
+    end
+
+    threads.length.times { start << true }
+    threads.each(&:join)
+
+    assert_empty errors.size.times.map { errors.pop }
+    assert_equal (2..9).to_a, results.size.times.map { results.pop }.sort
+    assert_equal 1, SolidObjects::Instance.where(actor_type: "enqueue-carts", actor_id: "alice").count
+  end
+
+  test "creates the instance once when concurrent callers already hold a dirty transaction" do
+    CartActor.ensure_registered!
+    reference = SolidObjects::Reference.new(actor_type: "enqueue-carts", actor_id: "alice")
+    mailbox = SolidObjects::Mailbox.new
+    start = Queue.new
+    sequences = Queue.new
+    errors = Queue.new
+
+    threads = 8.times.map do |index|
+      Thread.new do
+        SolidObjects::Record.connection_pool.with_connection do
+          start.pop
+          SolidObjects.database_adapter.transaction do
+            SolidObjectsTestDomainRecord.create!(name: "dirty-#{index}")
+            sequences << mailbox.enqueue_in_transaction(
+              reference:,
+              operation: :add,
+              arguments: { product_id: "product-#{index}" },
+              delivery_mode: "async",
+              idempotency_key: nil
+            ).sequence
+          end
+        rescue => error
+          errors << error
+        end
+      end
+    end
+
+    threads.length.times { start << true }
+    threads.each { |thread| thread.join(30) }
+
+    assert_empty errors.size.times.map { errors.pop }
+    assert_equal (1..8).to_a, sequences.size.times.map { sequences.pop }.sort
+    assert_equal 1, SolidObjects::Instance.where(actor_type: "enqueue-carts", actor_id: "alice").count
+  end
+
+  test "gives up when the instance keeps disappearing between the lookup and the insert" do
+    SolidObjects::Instance.singleton_class.define_method(:create!) do |*, **|
+      raise ActiveRecord::RecordNotUnique, "simulated create race"
+    end
+
+    assert_raises(SolidObjects::ActorDestroyed) do
+      CartActor.ref("ghost").async.add(product_id: "shirt")
+    end
+  ensure
+    SolidObjects::Instance.singleton_class.send(:remove_method, :create!)
   end
 
   test "deduplicates the same idempotent enqueue" do

@@ -52,7 +52,6 @@ module SolidObjects
         max_bytes: SolidObjects.configuration.max_payload_bytes
       )
       instance = find_or_create_instance(reference, actor_class)
-      instance.lock!
 
       existing = find_idempotent_message(instance, idempotency_key)
       if existing
@@ -108,13 +107,46 @@ module SolidObjects
 
     # @rbs (Reference, Class) -> Instance
     def find_or_create_instance(reference, actor_class)
-      Instance.create_or_find_by!(
-        actor_type: reference.actor_type,
-        actor_id: reference.actor_id
-      ) do |instance|
-        instance.state = {}
-        instance.state_version = actor_class.state_version
+      identifier = instance_identifier(reference)
+      return lock_instance!(identifier) if identifier
+
+      create_locked_instance(reference, actor_class)
+    end
+
+    # @rbs (Reference) -> Integer?
+    def instance_identifier(reference)
+      Instance
+        .where(actor_type: reference.actor_type, actor_id: reference.actor_id)
+        .pick(:id)
+    end
+
+    # @rbs (Reference, Class) -> Instance
+    def create_locked_instance(reference, actor_class)
+      Instance.transaction(requires_new: true) do
+        Instance.create!(
+          actor_type: reference.actor_type,
+          actor_id: reference.actor_id,
+          state: {},
+          state_version: actor_class.state_version
+        )
       end
+    rescue ActiveRecord::RecordNotUnique
+      lock_instance!(committed_instance_identifier(reference))
+    end
+
+    # @rbs (Reference) -> Integer?
+    def committed_instance_identifier(reference)
+      database_adapter.share_locked(
+        Instance.where(actor_type: reference.actor_type, actor_id: reference.actor_id)
+      ).pick(:id)
+    end
+
+    # @rbs (Integer?) -> Instance
+    def lock_instance!(identifier)
+      instance = identifier && Instance.lock.find_by(id: identifier)
+      return instance if instance
+
+      raise ActiveRecord::RecordNotFound, "actor instance disappeared while enqueueing"
     end
 
     # @rbs (Instance, String?) -> Message?
