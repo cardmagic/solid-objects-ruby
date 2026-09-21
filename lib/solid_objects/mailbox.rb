@@ -107,29 +107,15 @@ module SolidObjects
 
     # @rbs (Reference, Class) -> Instance
     def find_or_create_instance(reference, actor_class)
-      identifier = Instance
-        .where(actor_type: reference.actor_type, actor_id: reference.actor_id)
-        .pick(:id)
+      identity = { actor_type: reference.actor_type, actor_id: reference.actor_id }
+      identifier = Instance.where(identity).pick(:id)
       return lock_instance!(identifier) if identifier
 
-      create_locked_instance(reference, actor_class)
-    end
-
-    # @rbs (Reference, Class) -> Instance
-    def create_locked_instance(reference, actor_class)
       Instance.transaction(requires_new: true) do
-        Instance.create!(
-          actor_type: reference.actor_type,
-          actor_id: reference.actor_id,
-          state: {},
-          state_version: actor_class.state_version
-        )
+        Instance.create!(**identity, state: {}, state_version: actor_class.state_version)
       end
     rescue ActiveRecord::RecordNotUnique
-      identifier = database_adapter.share_locked(
-        Instance.where(actor_type: reference.actor_type, actor_id: reference.actor_id)
-      ).pick(:id)
-      lock_instance!(identifier)
+      lock_instance!(database_adapter.share_locked(Instance.where(identity)).pick(:id))
     end
 
     # @rbs (Integer?) -> Instance
