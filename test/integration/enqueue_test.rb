@@ -116,8 +116,10 @@ class EnqueueTest < ActiveSupport::TestCase
     end
 
     threads.length.times { start << true }
-    threads.each { |thread| thread.join(30) }
+    unfinished = threads.reject { |thread| thread.join(30) }
+    unfinished.each(&:kill).each(&:join)
 
+    assert_empty unfinished, "an enqueue was still running after its timeout"
     assert_empty errors.size.times.map { errors.pop }
     assert_equal (1..8).to_a, sequences.size.times.map { sequences.pop }.sort
     assert_equal 1, SolidObjects::Instance.where(actor_type: "enqueue-carts", actor_id: "alice").count
