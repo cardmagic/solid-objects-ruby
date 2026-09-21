@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.15.2 - 2026-09-21
 
 - Find the actor instance before the insert when an enqueue starts, and lock
   that row by its primary key. A steady-state enqueue now writes no instance
