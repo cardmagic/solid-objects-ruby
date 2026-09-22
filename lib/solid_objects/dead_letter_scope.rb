@@ -36,17 +36,18 @@ module SolidObjects
     # @rbs (String, ?authorization_context: untyped) -> untyped
     def retry(identifier_value, authorization_context: nil)
       authorize!(:retry, authorization_context:, resource_id: identifier_value)
-      row = model.find_by!(identifier => identifier_value)
-      AdministrationAudit.record(
-        action: "dead_letter.retry",
-        kind: kind,
-        subject_id: identifier_value,
-        actor: AdministrationAudit.identity(authorization_context)
-      )
-      return row unless row.status == DEAD
-
-      revive(row)
-      row
+      actor = AdministrationAudit.identity(authorization_context)
+      SolidObjects.database_adapter.transaction do
+        row = model.find_by!(identifier => identifier_value)
+        revive(row) if row.status == DEAD
+        AdministrationAudit.record(
+          action: "dead_letter.retry",
+          kind: kind,
+          subject_id: identifier_value,
+          actor:
+        )
+        row
+      end
     end
 
     # @rbs (?actor_type: String?, ?failed_after: untyped, ?limit: Integer?, ?authorization_context: untyped) -> RedriveTask

@@ -100,6 +100,32 @@ class AdministrationAuditTest < ActiveSupport::TestCase
     assert_equal "user:42", SolidObjects::AdministrationEvent.sole.actor
   end
 
+  test "writes no audit row when the retry itself fails" do
+    effect = dead_effect
+
+    with_failing_method(SolidObjects::DeadLetterScope, :revive) do
+      assert_raises(RuntimeError) do
+        SolidObjects.dead_letters.effects.retry(effect.effect_id, authorization_context: "operator")
+      end
+    end
+
+    assert_equal 0, SolidObjects::AdministrationEvent.count
+  end
+
+  test "writes no audit row when a message retry fails to enqueue" do
+    PoisonActor.ref("one").async.run
+    run_actors
+    dead_letter = SolidObjects::DeadLetter.sole
+
+    with_failing_method(SolidObjects::Mailbox, :enqueue) do
+      assert_raises(RuntimeError) do
+        SolidObjects.dead_letters.retry(dead_letter.id, authorization_context: "operator")
+      end
+    end
+
+    assert_equal 0, SolidObjects::AdministrationEvent.count
+  end
+
   test "writes no audit row when the caller is refused" do
     effect = dead_effect
     SolidObjects.configuration.authorize_administration = ->(**) { false }
@@ -120,6 +146,14 @@ class AdministrationAuditTest < ActiveSupport::TestCase
   end
 
   private
+
+  def with_failing_method(target, name)
+    original = target.instance_method(name)
+    target.define_method(name) { |*, **| raise "injected failure" }
+    yield
+  ensure
+    target.define_method(name, original)
+  end
 
   def dead_effect
     LedgerActor.ref("one").async.post
