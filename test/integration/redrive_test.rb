@@ -174,6 +174,17 @@ class RedriveTest < ActiveSupport::TestCase
     assert_equal 0, SolidObjects.redrives.find(task.id, authorization_context: "operator").moved
   end
 
+  test "reports what a running task has left to move" do
+    dead_effects(25)
+
+    task = SolidObjects.dead_letters.effects.redrive(limit: 15, authorization_context: "operator")
+    assert_equal 15, task.remaining
+
+    SolidObjects::RedriveRunner.new.run_once
+
+    assert_equal 5, SolidObjects.redrives.find(task.id, authorization_context: "operator").remaining
+  end
+
   test "reads tasks back by id and by status" do
     dead_effects(5)
     task = SolidObjects.dead_letters.effects.redrive(authorization_context: "operator")
