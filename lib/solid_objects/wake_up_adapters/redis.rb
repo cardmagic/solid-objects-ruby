@@ -12,6 +12,8 @@ module SolidObjects
     # polling interval remains the upper bound, so a missed or failed
     # notification costs latency rather than correctness.
     class Redis
+      include ReportsWakeUpCapability
+
       class Watch
         # @rbs @adapter: Redis
         # @rbs @generation: Integer
@@ -42,6 +44,16 @@ module SolidObjects
       # @rbs @signalled: Integer
 
       attr_reader :channel
+
+      # @rbs () -> WakeUpCapability
+      def default_capability
+        WakeUpCapability.new(
+          adapter: :redis,
+          crosses_processes: true,
+          measured_floor_ms: 5.7,
+          reason: "Redis carries the signal between processes"
+        )
+      end
 
       # @rbs (?channel: String, ?url: String?, ?client: untyped) -> void
       def initialize(channel: CHANNEL, url: nil, client: nil)

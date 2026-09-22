@@ -2,6 +2,8 @@
 
 module SolidObjects
   class WakeUp
+    include ReportsWakeUpCapability
+
     class Watch
       @wake_up: WakeUp
 
@@ -22,6 +24,9 @@ module SolidObjects
 
     # @rbs () -> void
     def initialize: () -> void
+
+    # @rbs () -> WakeUpCapability
+    def default_capability: () -> WakeUpCapability
 
     # @rbs () -> void
     def signal: () -> void

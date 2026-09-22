@@ -122,21 +122,20 @@
 
 - Wake-up strategy: in-process signaling, durable polling, injection, and
   cross-process adapters for PostgreSQL and Redis are implemented and tested.
-  What is not done is making any of them automatic. In-process signaling cannot
-  cross process boundaries, so by default a commit in a web process does not
-  wake a broadcast executor in a worker process and that delivery waits up to
-  the current adaptive polling interval, up to the one-second
-  `idle_polling_interval` default. The runtime warns once when it observes this
-  topology without an adapter. An adapter removes that floor, measured before
-  adaptive polling at 103.7 ms to 2.9 ms at p50 on PostgreSQL and 103.8 ms to
-  5.7 ms on Redis, but each stays opt-in for a reason: the PostgreSQL adapter
-  opens a connection per waiting thread outside the pool and `LISTEN` does not
-  survive a transaction-pooling proxy such as PgBouncer, and Redis is not a
-  dependency of this gem.
-  `WakeUpAdapters.for` selects notifications on PostgreSQL and the in-process
-  default elsewhere; it never selects Redis. An application that configures
-  nothing keeps polling, and MySQL applications keep polling unless they
-  configure Redis explicitly.
+  Selection is automatic. `config.wake_up_adapter` defaults to `:automatic` and
+  prefers a configured Redis URL, then PostgreSQL notifications, then polling,
+  so an application that configures nothing no longer polls on PostgreSQL. An
+  adapter removes the one-second floor, measured before adaptive polling at
+  103.7 ms to 2.9 ms at p50 on PostgreSQL and 103.8 ms to 5.7 ms on Redis. Each
+  carries a cost that selection now states rather than hides: the PostgreSQL
+  adapter opens a connection per waiting thread outside the pool and adds one
+  `NOTIFY` per enqueue, and Redis is not a dependency of this gem.
+  `LISTEN` does not survive a transaction-pooling proxy such as PgBouncer, so
+  the session is probed and a pooled one falls back to polling and warns once.
+  `SolidObjects.wake_up.capability` reports the adapter, whether it crosses
+  processes, its floor, and why, and the doctor shows the same record.
+  MySQL still polls. It has no notification channel, and no MySQL notifier has
+  been measured against polling on the same hardware, so none is shipped.
 - Realtime: scalar and dependency-driven keyed ERB component replacement or
   morphing, personalized refresh authorization, revision fencing, coalescing,
   reconnect convergence, batched refreshes, and personalized state payloads are

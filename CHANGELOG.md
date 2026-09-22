@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Select a wake-up adapter automatically. `config.wake_up_adapter` now takes a
+  name or an adapter, as `config.cache_store` and
+  `config.active_job.queue_adapter` do, and defaults to `:automatic`. Selection
+  prefers a configured Redis URL, then PostgreSQL notifications, then polling.
+  `:in_process` opts out, and an unknown name raises rather than quietly
+  polling.
+- PostgreSQL deployments that configure nothing now use notifications. They gain
+  cross-process wake-up, a connection per waiting thread outside the pool, and
+  one `NOTIFY` per enqueue after the commit. Set
+  `config.wake_up_adapter = :in_process` to keep polling.
+- Probe the PostgreSQL session before selecting notifications, because `LISTEN`
+  does not survive a transaction pooler such as PgBouncer. A session that does
+  not outlive a statement falls back to polling and warns once. A probe that
+  cannot run is not treated as a pooler.
+- Report the resolved choice. `SolidObjects.wake_up.capability` names the
+  adapter, whether it crosses processes, its measured floor, and why it was
+  chosen. The doctor reports it, and the polling-only warning now fires on what
+  was installed rather than on whether a setting was set.
 - Read the durable row rather than the query cache in `MessageReference#status`,
   `MessageReference#result`, and an actor snapshot. A caller that polls holds one
   query cache for the whole poll, and the worker that finishes the message is

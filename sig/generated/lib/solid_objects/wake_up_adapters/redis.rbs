@@ -10,6 +10,8 @@ module SolidObjects
     # polling interval remains the upper bound, so a missed or failed
     # notification costs latency rather than correctness.
     class Redis
+      include ReportsWakeUpCapability
+
       class Watch
         @adapter: Redis
 
@@ -45,6 +47,9 @@ module SolidObjects
       @channel: String
 
       attr_reader channel: untyped
+
+      # @rbs () -> WakeUpCapability
+      def default_capability: () -> WakeUpCapability
 
       # @rbs (?channel: String, ?url: String?, ?client: untyped) -> void
       def initialize: (?channel: String, ?url: String?, ?client: untyped) -> void

@@ -10,6 +10,8 @@ module SolidObjects
     # when one is available, so a missed or failed notification costs latency
     # rather than correctness.
     class Postgresql
+      include ReportsWakeUpCapability
+
       CHANNEL = "solid_objects_wake_up"
       FAILED_WAIT_INTERVAL = 0.05
 
@@ -18,6 +20,16 @@ module SolidObjects
       # @rbs @connections: Array[untyped]
 
       attr_reader :channel
+
+      # @rbs () -> WakeUpCapability
+      def default_capability
+        WakeUpCapability.new(
+          adapter: :postgresql_notify,
+          crosses_processes: true,
+          measured_floor_ms: 2.9,
+          reason: "PostgreSQL LISTEN carries the signal between processes"
+        )
+      end
 
       # @rbs (?channel: String) -> void
       def initialize(channel: CHANNEL)

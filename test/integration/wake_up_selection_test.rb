@@ -1,0 +1,143 @@
+# frozen_string_literal: true
+
+require "database_test_helper"
+require "solid_objects/doctor"
+
+class WakeUpSelectionTest < ActiveSupport::TestCase
+  setup do
+    SolidObjects.reset_wake_up!
+    @redis_url = ENV.delete("SOLID_OBJECTS_REDIS_URL")
+  end
+
+  teardown do
+    ENV.delete("SOLID_OBJECTS_REDIS_URL")
+    ENV["SOLID_OBJECTS_REDIS_URL"] = @redis_url if @redis_url
+    SolidObjects.reset_wake_up!
+  end
+
+  test "an explicitly configured adapter wins" do
+    explicit = SolidObjects::WakeUp.new
+    SolidObjects.configuration.wake_up_adapter = explicit
+
+    assert_same explicit, SolidObjects.wake_up
+    assert_equal :configured, SolidObjects.wake_up.capability.adapter
+  end
+
+  test "in_process opts out of selection" do
+    SolidObjects.configuration.wake_up_adapter = :in_process
+
+    capability = SolidObjects.wake_up.capability
+    assert_equal :in_process, capability.adapter
+    assert_not capability.crosses_processes
+  end
+
+  test "a name selects that adapter without probing" do
+    SolidObjects.configuration.wake_up_adapter = :redis
+
+    capability = SolidObjects.wake_up.capability
+    assert_equal :redis, capability.adapter
+    assert_match(/requested/i, capability.reason)
+  end
+
+  test "an unknown name is refused rather than silently polling" do
+    SolidObjects.configuration.wake_up_adapter = :carrier_pigeon
+
+    error = assert_raises(ArgumentError) { SolidObjects.wake_up }
+    assert_match(/carrier_pigeon/, error.message)
+    assert_match(/automatic/, error.message)
+  end
+
+  test "a redis url selects redis on any database" do
+    ENV["SOLID_OBJECTS_REDIS_URL"] = "redis://127.0.0.1:6379/15"
+
+    capability = SolidObjects.wake_up.capability
+    assert_equal :redis, capability.adapter
+    assert capability.crosses_processes
+    assert_match(/redis/i, capability.reason)
+  end
+
+  test "postgresql selects notifications when the session survives transactions" do
+    skip unless database_family == :postgresql
+
+    capability = SolidObjects.wake_up.capability
+    assert_equal :postgresql_notify, capability.adapter
+    assert capability.crosses_processes
+    assert_operator capability.measured_floor_ms, :<, 100
+  end
+
+  test "a database without a channel polls and reports its floor" do
+    skip if database_family == :postgresql
+
+    capability = SolidObjects.wake_up.capability
+    assert_equal :polling, capability.adapter
+    assert_not capability.crosses_processes
+    assert_equal SolidObjects.configuration.idle_polling_interval * 1_000,
+      capability.measured_floor_ms
+    assert_match(/no notification channel/i, capability.reason)
+  end
+
+  test "a pooled postgresql session falls back to polling and warns once" do
+    skip unless database_family == :postgresql
+    warnings = []
+    SolidObjects.configuration.logger = Logger.new(IO::NULL).tap do |logger|
+      logger.define_singleton_method(:warn) { |payload| warnings << payload }
+    end
+    with_pooled_session do
+      capability = SolidObjects.wake_up.capability
+
+      assert_equal :polling, capability.adapter
+      assert_match(/pool/i, capability.reason)
+    end
+
+    assert_equal 1, warnings.count { |payload| payload[:event].to_s.include?("wake_up") }
+  end
+
+  test "the capability names the adapter that is actually installed" do
+    expected = {
+      "SolidObjects::WakeUpAdapters::Postgresql" => :postgresql_notify,
+      "SolidObjects::WakeUpAdapters::Redis" => :redis,
+      "SolidObjects::WakeUp" => :polling
+    }
+
+    assert_equal expected.fetch(SolidObjects.wake_up.class.name),
+      SolidObjects.wake_up.capability.adapter
+  end
+
+  test "selection survives a database that cannot be reached" do
+    with_unreachable_database do
+      capability = SolidObjects.wake_up.capability
+
+      assert_equal :in_process, capability.adapter
+      assert_not capability.crosses_processes
+      assert_match(/could not be reached/i, capability.reason)
+    end
+  end
+
+  test "the doctor reports the selected adapter" do
+    SolidObjects.configuration.authorize_administration = ->(**) { true }
+    check = SolidObjects::Doctor.new.call.check(:wake_up)
+
+    assert check, "the doctor should report a wake_up check"
+    assert_equal SolidObjects.wake_up.capability.crosses_processes, check.status == :pass
+    assert_match(/#{SolidObjects.wake_up.capability.adapter}/, check.message)
+  end
+
+  private
+
+  def with_module_method(name, replacement)
+    adapters = SolidObjects::WakeUpAdapters
+    original = adapters.method(name)
+    adapters.define_singleton_method(name, replacement)
+    yield
+  ensure
+    adapters.define_singleton_method(name, original)
+  end
+
+  def with_pooled_session(&block)
+    with_module_method(:session_survives_transactions?, ->(_connection) { false }, &block)
+  end
+
+  def with_unreachable_database(&block)
+    with_module_method(:select, ->(*) { raise ActiveRecord::ConnectionNotEstablished }, &block)
+  end
+end

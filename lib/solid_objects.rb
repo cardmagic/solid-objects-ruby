@@ -49,6 +49,7 @@ require "solid_objects/actor_view"
 require "solid_objects/actor_channel"
 require "solid_objects/action_cable_broadcast_adapter"
 require "solid_objects/database_adapter"
+require "solid_objects/wake_up_capability"
 require "solid_objects/wake_up"
 require "solid_objects/wake_up_adapters/postgresql"
 require "solid_objects/wake_up_adapters/redis"
@@ -198,9 +199,36 @@ module SolidObjects
       @database_adapter ||= DatabaseAdapter.for(SolidObjects::Record.connection)
     end
 
-    # @rbs () -> WakeUp
+    # @rbs () -> untyped
     def wake_up
-      @wake_up ||= configuration.wake_up_adapter || WakeUp.new
+      @wake_up ||= resolve_wake_up
+    end
+
+    # @rbs () -> void
+    def reset_wake_up!
+      @wake_up = nil
+      WakeUpAdapters.reset_pooled_warning!
+    end
+
+    # @rbs () -> untyped
+    def resolve_wake_up
+      WakeUpAdapters.build(configuration.wake_up_adapter)
+    rescue ArgumentError
+      raise
+    rescue => error
+      unreachable_wake_up(error)
+    end
+
+    # @rbs (Exception) -> untyped
+    def unreachable_wake_up(error)
+      adapter = WakeUp.new
+      adapter.capability = WakeUpCapability.new(
+        adapter: :in_process,
+        crosses_processes: false,
+        measured_floor_ms: nil,
+        reason: "the database could not be reached to select an adapter: #{error.class}"
+      )
+      adapter
     end
   end
 end

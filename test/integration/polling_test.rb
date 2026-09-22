@@ -230,6 +230,8 @@ class PollingTest < ActiveSupport::TestCase
 
   test "warns once when another process shares the database without a wake-up adapter" do
     logger = RecordingLogger.new
+    SolidObjects.configuration.wake_up_adapter = :in_process
+    SolidObjects.reset_wake_up!
     SolidObjects.configuration.logger = logger
     SolidObjects.configuration.polling_interval = 0.025
     SolidObjects.configuration.idle_polling_interval = 1.0

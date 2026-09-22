@@ -10,6 +10,8 @@ module SolidObjects
     # when one is available, so a missed or failed notification costs latency
     # rather than correctness.
     class Postgresql
+      include ReportsWakeUpCapability
+
       CHANNEL: ::String
 
       FAILED_WAIT_INTERVAL: ::Float
@@ -21,6 +23,9 @@ module SolidObjects
       @channel: String
 
       attr_reader channel: untyped
+
+      # @rbs () -> WakeUpCapability
+      def default_capability: () -> WakeUpCapability
 
       # @rbs (?channel: String) -> void
       def initialize: (?channel: String) -> void

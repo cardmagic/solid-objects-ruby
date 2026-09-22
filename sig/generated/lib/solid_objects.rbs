@@ -57,6 +57,15 @@ module SolidObjects
   # @rbs () -> DatabaseAdapter
   def self.database_adapter: () -> DatabaseAdapter
 
-  # @rbs () -> WakeUp
-  def self.wake_up: () -> WakeUp
+  # @rbs () -> untyped
+  def self.wake_up: () -> untyped
+
+  # @rbs () -> void
+  def self.reset_wake_up!: () -> void
+
+  # @rbs () -> untyped
+  def self.resolve_wake_up: () -> untyped
+
+  # @rbs (Exception) -> untyped
+  def self.unreachable_wake_up: (Exception) -> untyped
 end

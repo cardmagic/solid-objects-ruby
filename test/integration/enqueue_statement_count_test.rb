@@ -15,7 +15,11 @@ class EnqueueStatementCountTest < ActiveSupport::TestCase
 
   STEADY_STATE_STATEMENT_COUNT = 10
 
-  setup { CartActor.ensure_registered! }
+  setup do
+    CartActor.ensure_registered!
+    SolidObjects.configuration.wake_up_adapter = :in_process
+    SolidObjects.reset_wake_up!
+  end
 
   test "a steady-state enqueue never inserts the instance row" do
     reference = CartActor.ref("alice")

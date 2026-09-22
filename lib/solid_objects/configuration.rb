@@ -141,7 +141,7 @@ module SolidObjects
       @connects_to = nil
       @stream_signing_secret = nil
       @broadcast_adapter = nil
-      @wake_up_adapter = nil
+      @wake_up_adapter = :automatic
       @component_path_resolver = nil
       @component_authorization_context = ->(controller:) { controller }
       @payload_authorization_context = ->(connection:) { connection }
