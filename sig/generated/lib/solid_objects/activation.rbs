@@ -10,6 +10,10 @@ module SolidObjects
 
     @actor_class: Class
 
+    @instance_id: Integer
+
+    @actor_id: String
+
     @lease: Lease
 
     attr_reader lease: untyped
@@ -58,6 +62,9 @@ module SolidObjects
 
     # @rbs (Instance) -> Actor
     def build_actor: (Instance) -> Actor
+
+    # @rbs (Hash[String, untyped]) -> Actor
+    def new_actor: (Hash[String, untyped]) -> Actor
 
     # @rbs () -> void
     def release_lease: () -> void

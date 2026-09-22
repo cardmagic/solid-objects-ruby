@@ -3,6 +3,8 @@
 module SolidObjects
   class Activation
     # @rbs @lease: Lease
+    # @rbs @actor_id: String
+    # @rbs @instance_id: Integer
     # @rbs @actor_class: Class
     # @rbs @actor: Actor
     # @rbs @last_used_at: Float
@@ -17,6 +19,8 @@ module SolidObjects
         Instance.find(lease.instance_id)
       end
       @actor_class = SolidObjects.registry.fetch(instance.actor_type)
+      @actor_id = instance.actor_id
+      @instance_id = instance.id
       @actor = build_actor(instance)
       @last_used_at = monotonic_now
       @pass_exhausted = false
@@ -86,10 +90,7 @@ module SolidObjects
 
     # @rbs (Hash[String, untyped]) -> void
     def restore_state(state_data)
-      @actor = actor_class.new(
-        actor_id: actor.actor_id,
-        state: State.new(actor_class.definition.state_definition, state_data)
-      )
+      @actor = new_actor(state_data)
     end
 
     # @rbs () -> void
@@ -156,10 +157,15 @@ module SolidObjects
       ) do
         actor_class.definition.migrate_state(instance.state_version, instance.state)
       end
+      new_actor(state_data)
+    end
+
+    # @rbs (Hash[String, untyped]) -> Actor
+    def new_actor(state_data)
       actor_class.new(
-        actor_id: instance.actor_id,
+        actor_id: @actor_id,
         state: State.new(actor_class.definition.state_definition, state_data),
-        instance_id: instance.id
+        instance_id: @instance_id
       )
     end
 

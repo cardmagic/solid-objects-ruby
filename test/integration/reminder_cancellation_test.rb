@@ -100,6 +100,14 @@ class ReminderCancellationTest < ActiveSupport::TestCase
       schedule(at: Time.utc(2030, 1, 1)).ping
     end
 
+    def fail_turn
+      raise "turn failed"
+    end
+
+    def record_seen
+      self.seen_on_activate = reminder(:ping)&.name
+    end
+
     def ping
     end
   end
@@ -325,6 +333,20 @@ class ReminderCancellationTest < ActiveSupport::TestCase
     snapshot = SolidObjects::ActorSnapshot.new(reference)
 
     assert_equal "ping", snapshot.observable_values.fetch("armed")
+  end
+
+  test "an actor restored after a failed turn still reads its schedule" do
+    SolidObjects.configuration.max_attempts = 1
+    reference = HookActor.ref("one")
+    reference.async.arm
+    drain
+    # Both messages run in one worker pass, so the activation that the failure
+    # rebuilt is the one that serves the read.
+    reference.async.fail_turn
+    reference.async.record_seen
+    drain
+
+    assert_equal "ping", state_of("cancel-hooks").fetch("seen_on_activate")
   end
 
   test "a cancel that lands on a claimed occurrence does not fail the scheduler" do
