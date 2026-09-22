@@ -83,6 +83,27 @@ class ReminderCancellationTest < ActiveSupport::TestCase
     end
   end
 
+  class HookActor < SolidObjects::Actor
+    actor_type "cancel-hooks"
+
+    attribute :seen_on_activate, default: nil
+
+    observable :armed do
+      reminder(:ping)&.name
+    end
+
+    on_activate do
+      self.seen_on_activate = reminder(:ping)&.name
+    end
+
+    def arm
+      schedule(at: Time.utc(2030, 1, 1)).ping
+    end
+
+    def ping
+    end
+  end
+
   class InspectorActor < SolidObjects::Actor
     actor_type "cancel-inspector"
 
@@ -283,6 +304,45 @@ class ReminderCancellationTest < ActiveSupport::TestCase
     drain
 
     assert_equal %w[audit], reminders_for("cancel-chase").pluck(:name)
+  end
+
+  test "an activation hook reads the schedule rather than reporting none" do
+    reference = HookActor.ref("one")
+    reference.async.arm
+    drain
+    SolidObjects::Instance.update_all(activation_owner_id: nil, activation_token: nil, activation_expires_at: nil)
+    reference.async.ping
+    drain
+
+    assert_equal "ping", state_of("cancel-hooks").fetch("seen_on_activate")
+  end
+
+  test "an observable reads the schedule rather than reporting none" do
+    reference = HookActor.ref("one")
+    reference.async.arm
+    drain
+
+    snapshot = SolidObjects::ActorSnapshot.new(reference)
+
+    assert_equal "ping", snapshot.observable_values.fetch("armed")
+  end
+
+  test "a cancel that lands on a claimed occurrence does not fail the scheduler" do
+    reference = TrialActor.ref("alice")
+    reference.async.start_recurring
+    drain
+    scheduler = SolidObjects::ReminderScheduler.new
+    claimed = scheduler.send(:claim_next, now: Time.current)
+
+    assert claimed, "the recurring reminder should be claimable"
+
+    reference.async.convert
+    drain
+
+    assert_nil scheduler.send(:enqueue, claimed, now: Time.current)
+    assert_equal 0, state_of("cancel-trial").fetch("expirations")
+  ensure
+    scheduler&.stop
   end
 
   test "inspection reports the next run time and interval" do

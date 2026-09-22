@@ -61,7 +61,7 @@ module SolidObjects
 
     # @rbs (MessageContext) -> untyped
     def invoke_actor(message_context)
-      Context.with(actor:, message: message_context, instance_id: activation.lease.instance_id) do
+      Context.with(actor:, message: message_context) do
         actor.invoke(message.operation, message.arguments)
       end
     end

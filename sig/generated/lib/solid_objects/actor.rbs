@@ -223,8 +223,8 @@ module SolidObjects
 
     attr_reader state: untyped
 
-    # @rbs (actor_id: String, state: State) -> void
-    def initialize: (actor_id: String, state: State) -> void
+    # @rbs (actor_id: String, state: State, ?instance_id: Integer?) -> void
+    def initialize: (actor_id: String, state: State, ?instance_id: Integer?) -> void
 
     # @rbs () -> MessageContext?
     def current_message: () -> MessageContext?
@@ -263,6 +263,8 @@ module SolidObjects
 
     # @rbs (Symbol | String) -> Array[ReminderStatus]
     def reminders: (Symbol | String) -> Array[ReminderStatus]
+
+    attr_reader instance_id: untyped
 
     # @rbs (String) -> nil
     def unschedule_name: (String) -> nil

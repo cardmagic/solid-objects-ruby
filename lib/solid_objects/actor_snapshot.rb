@@ -60,7 +60,8 @@ module SolidObjects
       end
       actor_class.new(
         actor_id: reference.actor_id,
-        state: State.new(actor_class.definition.state_definition, state_data)
+        state: State.new(actor_class.definition.state_definition, state_data),
+        instance_id: @instance&.id
       )
     end
   end

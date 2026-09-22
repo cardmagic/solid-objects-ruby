@@ -158,10 +158,11 @@ module SolidObjects
 
     attr_reader :actor_id, :state
 
-    # @rbs (actor_id: String, state: State) -> void
-    def initialize(actor_id:, state:)
+    # @rbs (actor_id: String, state: State, ?instance_id: Integer?) -> void
+    def initialize(actor_id:, state:, instance_id: nil)
       @actor_id = actor_id
       @state = state
+      @instance_id = instance_id
       @effect_intents = []
       @effect_recovery_intents = []
       @commit_action_intents = []
@@ -300,6 +301,8 @@ module SolidObjects
       reminder_view.each_value.select { |status| status.operation == wanted }
     end
 
+    attr_reader :instance_id
+
     # @rbs (String) -> nil
     def unschedule_name(name)
       reminder_intents << UnscheduleIntent.new(name:)
@@ -329,7 +332,6 @@ module SolidObjects
 
     # @rbs () -> Hash[String, ReminderStatus]
     def committed_reminders
-      instance_id = Context.current_instance_id
       return {} unless instance_id
 
       Reminder.where(instance_id:).each_with_object({}) do |row, view|
