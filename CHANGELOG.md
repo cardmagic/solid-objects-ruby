@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Refuse an unknown operation in `unschedule` and `unschedule_all`. `schedule`
+  already raised `UnknownMessage` for one, so a typo cancelled nothing quietly
+  and left a recurring reminder running.
 - Add reminder cancellation. `unschedule` removes one reminder by operation and
   optional key, or by the handle `schedule` now returns. `unschedule_all`
   removes every key of one operation. Both stage an intent, so a cancel commits

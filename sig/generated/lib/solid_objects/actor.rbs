@@ -266,6 +266,9 @@ module SolidObjects
 
     attr_reader instance_id: untyped
 
+    # @rbs (Symbol | String) -> String
+    def validated_reminder_operation: (Symbol | String) -> String
+
     # @rbs (String) -> nil
     def unschedule_name: (String) -> nil
 

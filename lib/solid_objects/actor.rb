@@ -279,12 +279,13 @@ module SolidObjects
     def unschedule(operation_or_handle, key: nil)
       return unschedule_name(handle_name(operation_or_handle, key:)) if operation_or_handle.is_a?(Hash)
 
+      validated_reminder_operation(operation_or_handle)
       unschedule_name(reminder_name(operation: operation_or_handle, key: validated_reminder_key(key)))
     end
 
     # @rbs (Symbol | String) -> nil
     def unschedule_all(operation)
-      reminder_intents << UnscheduleAllIntent.new(operation: operation.to_s)
+      reminder_intents << UnscheduleAllIntent.new(operation: validated_reminder_operation(operation))
       nil
     end
 
@@ -302,6 +303,14 @@ module SolidObjects
     end
 
     attr_reader :instance_id
+
+    # @rbs (Symbol | String) -> String
+    def validated_reminder_operation(operation)
+      name = operation.to_s
+      return name if self.class.definition.messages.key?(name.to_sym)
+
+      raise UnknownMessage, "unknown message #{name.inspect} for #{self.class.actor_type}"
+    end
 
     # @rbs (String) -> nil
     def unschedule_name(name)

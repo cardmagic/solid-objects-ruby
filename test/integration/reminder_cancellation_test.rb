@@ -38,6 +38,14 @@ class ReminderCancellationTest < ActiveSupport::TestCase
       raise "turn failed"
     end
 
+    def cancel_unknown
+      unschedule(:no_such_operation)
+    end
+
+    def cancel_all_unknown
+      unschedule_all(:no_such_operation)
+    end
+
     def convert_with_bad_handle
       unschedule({ "not_a_reminder" => "x" })
     end
@@ -273,6 +281,21 @@ class ReminderCancellationTest < ActiveSupport::TestCase
     drain
 
     assert_empty reminders_for("cancel-trial")
+  end
+
+  test "an unknown operation is refused rather than cancelling nothing" do
+    SolidObjects.configuration.max_attempts = 1
+    reference = TrialActor.ref("alice")
+    reference.async.start_trial
+    drain
+    reference.async.cancel_unknown
+    reference.async.cancel_all_unknown
+    drain
+
+    assert_equal 2, SolidObjects::DeadLetter.where(actor_type: "cancel-trial").count
+    assert_equal [ "SolidObjects::UnknownMessage" ],
+      SolidObjects::DeadLetter.where(actor_type: "cancel-trial").distinct.pluck(:exception_class)
+    assert_equal 1, reminders_for("cancel-trial").count
   end
 
   test "a malformed handle is rejected" do
