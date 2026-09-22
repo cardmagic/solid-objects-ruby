@@ -25,6 +25,14 @@ The interface supports:
 
 MySQL uses polling or optional Redis. SQLite uses polling plus the in-process signal; multi-host SQLite is outside its supported operating model.
 
+Selection is automatic. `wake_up_adapter` takes a name or an adapter and
+defaults to `:automatic`, which prefers a configured Redis URL, then PostgreSQL
+notifications, then polling. PostgreSQL is chosen only after a probe
+notification arrives, because `LISTEN` does not survive a transaction pooler. A
+requested adapter that the environment cannot provide polls and records why,
+rather than claim a wake-up it cannot deliver. `SolidObjects.wake_up.capability`
+reports the choice, and the doctor reports the same record.
+
 The synchronous caller first attempts to claim and execute the actor locally,
 so the normal path has no worker polling leg. When another process owns the
 activation, coordination overhead from completion commit until the caller's
@@ -45,5 +53,7 @@ Timeout does not cancel durable work.
 - Redis loss only increases latency and never loses durable work.
 - Every adapter retains periodic polling to close startup, reconnect, and missed-message races.
 - A process that returns `false` from a timed wait participates in backoff; an older custom adapter that returns `nil` keeps the fast cadence.
-- A multi-process deployment without an adapter trades idle database load for up to the current idle polling interval of notification latency and logs that topology once.
+- A multi-process deployment whose installed adapter cannot cross processes trades idle database load for up to the current idle polling interval of notification latency and logs that topology once.
+- A PostgreSQL deployment that configures nothing now pays one `NOTIFY` per enqueue after the commit and one listening connection per waiting thread, outside the pool.
+- Selection runs once per process, under a lock, because the probe opens connections and waits.
 - Notification payloads never contain actor arguments or results.
