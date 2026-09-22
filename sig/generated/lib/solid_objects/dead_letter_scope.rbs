@@ -1,0 +1,44 @@
+# Generated from lib/solid_objects/dead_letter_scope.rb with RBS::Inline
+
+module SolidObjects
+  class DeadLetterScope
+    DEAD: ::String
+
+    PENDING: ::String
+
+    @model: untyped
+
+    @resource: String
+
+    @identifier: Symbol
+
+    attr_reader resource: untyped
+
+    # @rbs (model: untyped, resource: String, identifier: Symbol) -> void
+    def initialize: (model: untyped, resource: String, identifier: Symbol) -> void
+
+    # @rbs (?authorization_context: untyped) -> ActiveRecord::Relation[untyped]
+    def all: (?authorization_context: untyped) -> ActiveRecord::Relation[untyped]
+
+    # @rbs (String, ?authorization_context: untyped) -> untyped
+    def retry: (String, ?authorization_context: untyped) -> untyped
+
+    # @rbs () -> ActiveRecord::Relation[untyped]
+    def dead: () -> ActiveRecord::Relation[untyped]
+
+    # @rbs (untyped) -> Integer
+    def revive: (untyped) -> Integer
+
+    # @rbs (Symbol, authorization_context: untyped, ?resource_id: String?) -> void
+    def authorize!: (Symbol, authorization_context: untyped, ?resource_id: String?) -> void
+
+    private
+
+    attr_reader model: untyped
+
+    attr_reader identifier: untyped
+
+    # @rbs () -> Hash[Symbol, untyped]
+    def revival_attributes: () -> Hash[Symbol, untyped]
+  end
+end

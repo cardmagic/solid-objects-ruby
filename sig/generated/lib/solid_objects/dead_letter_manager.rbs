@@ -8,6 +8,12 @@ module SolidObjects
     # @rbs (Integer, ?authorization_context: untyped) -> MessageReference
     def retry: (Integer, ?authorization_context: untyped) -> MessageReference
 
+    # @rbs () -> DeadLetterScope
+    def effects: () -> DeadLetterScope
+
+    # @rbs () -> DeadLetterScope
+    def broadcasts: () -> DeadLetterScope
+
     private
 
     # @rbs (Symbol, authorization_context: untyped, ?dead_letter_id: Integer?) -> void

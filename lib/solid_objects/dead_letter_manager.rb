@@ -29,6 +29,24 @@ module SolidObjects
       message_reference
     end
 
+    # @rbs () -> DeadLetterScope
+    def effects
+      @effects ||= DeadLetterScope.new(
+        model: Effect,
+        resource: "effect_dead_letters",
+        identifier: :effect_id
+      )
+    end
+
+    # @rbs () -> DeadLetterScope
+    def broadcasts
+      @broadcasts ||= DeadLetterScope.new(
+        model: Broadcast,
+        resource: "broadcast_dead_letters",
+        identifier: :broadcast_id
+      )
+    end
+
     private
 
     # @rbs (Symbol, authorization_context: untyped, ?dead_letter_id: Integer?) -> void
