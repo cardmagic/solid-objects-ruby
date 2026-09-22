@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Leave a one-shot reminder that already fired out of `reminder` and
+  `reminders`. Its row stays as `completed`, so a next-run lookup reported an
+  old time rather than nothing, and an existence check refused to re-arm an
+  alarm that could never fire again.
 - Refuse an unknown operation in `reminder`, `reminders`, `unschedule`, and
   `unschedule_all`. `schedule`
   already raised `UnknownMessage` for one, so a typo cancelled nothing quietly

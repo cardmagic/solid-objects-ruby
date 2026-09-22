@@ -344,7 +344,7 @@ module SolidObjects
     def committed_reminders
       return {} unless instance_id
 
-      Reminder.where(instance_id:).each_with_object({}) do |row, view|
+      Reminder.where(instance_id:).where.not(status: "completed").each_with_object({}) do |row, view|
         view[row.name] = reminder_status(
           name: row.name,
           operation: row.operation,

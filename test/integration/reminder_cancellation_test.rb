@@ -137,6 +137,14 @@ class ReminderCancellationTest < ActiveSupport::TestCase
       schedule(at: Time.utc(2030, 1, 1), every: 90).ping
     end
 
+    def arm_due
+      schedule(at: 1.second.ago).ping
+    end
+
+    def read_name
+      self.seen = { "name" => reminder(:ping)&.name }
+    end
+
     def read_next_run
       found = reminder(:ping)
       self.seen = found && {
@@ -408,6 +416,26 @@ class ReminderCancellationTest < ActiveSupport::TestCase
 
     assert_nil scheduler.send(:enqueue, claimed, now: Time.current)
     assert_equal 0, state_of("cancel-trial").fetch("expirations")
+  ensure
+    scheduler&.stop
+  end
+
+  test "inspection does not report a one-shot that already fired" do
+    reference = InspectorActor.ref("one")
+    reference.async.arm_due
+    drain
+    reference.async.read_name
+    drain
+
+    assert_equal "ping", state_of("cancel-inspector").fetch("seen").fetch("name")
+
+    scheduler = SolidObjects::ReminderScheduler.new
+    scheduler.run_once
+    drain
+    reference.async.read_name
+    drain
+
+    assert_nil state_of("cancel-inspector").fetch("seen").fetch("name")
   ensure
     scheduler&.stop
   end
