@@ -16,10 +16,12 @@ module SolidObjects
     def initialize(reference)
       @reference = reference
       @actor_class = SolidObjects.registry.fetch(reference.actor_type)
-      @instance = Instance.find_by(
-        actor_type: reference.actor_type,
-        actor_id: reference.actor_id
-      )
+      @instance = Instance.uncached do
+        Instance.find_by(
+          actor_type: reference.actor_type,
+          actor_id: reference.actor_id
+        )
+      end
       @instance_id = @instance&.id || 0
       @revision = @instance&.state_revision || 0
       @actor = build_actor

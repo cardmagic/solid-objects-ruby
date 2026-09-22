@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Read the durable row rather than the query cache in `MessageReference#status`,
+  `MessageReference#result`, and an actor snapshot. A caller that polls holds one
+  query cache for the whole poll, and the worker that finishes the message is
+  another process, so its write cannot clear that cache. A poll inside a request,
+  a job, or `rails runner` reported the first answer forever. The synchronous
+  wait already read uncached.
+
 ## 0.15.2 - 2026-09-21
 
 - Find the actor instance before the insert when an enqueue starts, and lock
