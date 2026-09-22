@@ -14,8 +14,8 @@ module SolidObjects
 
     attr_reader resource: untyped
 
-    # @rbs (model: untyped, resource: String, identifier: Symbol) -> void
-    def initialize: (model: untyped, resource: String, identifier: Symbol) -> void
+    # @rbs (model: untyped, resource: String, identifier: Symbol, kind: String) -> void
+    def initialize: (model: untyped, resource: String, identifier: Symbol, kind: String) -> void
 
     # @rbs (?authorization_context: untyped) -> ActiveRecord::Relation[untyped]
     def all: (?authorization_context: untyped) -> ActiveRecord::Relation[untyped]
@@ -37,6 +37,8 @@ module SolidObjects
     attr_reader model: untyped
 
     attr_reader identifier: untyped
+
+    attr_reader kind: untyped
 
     # @rbs () -> Hash[Symbol, untyped]
     def revival_attributes: () -> Hash[Symbol, untyped]

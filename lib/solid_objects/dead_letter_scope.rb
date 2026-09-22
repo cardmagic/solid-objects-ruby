@@ -11,11 +11,12 @@ module SolidObjects
 
     attr_reader :resource
 
-    # @rbs (model: untyped, resource: String, identifier: Symbol) -> void
-    def initialize(model:, resource:, identifier:)
+    # @rbs (model: untyped, resource: String, identifier: Symbol, kind: String) -> void
+    def initialize(model:, resource:, identifier:, kind:)
       @model = model
       @resource = resource
       @identifier = identifier
+      @kind = kind
     end
 
     # @rbs (?authorization_context: untyped) -> ActiveRecord::Relation[untyped]
@@ -28,6 +29,12 @@ module SolidObjects
     def retry(identifier_value, authorization_context: nil)
       authorize!(:retry, authorization_context:, resource_id: identifier_value)
       row = model.find_by!(identifier => identifier_value)
+      AdministrationAudit.record(
+        action: "dead_letter.retry",
+        kind: kind,
+        subject_id: identifier_value,
+        authorization_context:
+      )
       return row unless row.status == DEAD
 
       revive(row)
@@ -61,7 +68,7 @@ module SolidObjects
 
     private
 
-    attr_reader :model, :identifier
+    attr_reader :model, :identifier, :kind
 
     # @rbs () -> Hash[Symbol, untyped]
     def revival_attributes

@@ -49,6 +49,7 @@ module SolidObjects
     # @rbs @authorize_subscription: Proc
     # @rbs @authorize_administration: Proc
     # @rbs @authorize_transmission: Proc
+    # @rbs @administration_identity: Proc
     # @rbs @transmission_actor_type_resolver: Proc
 
     attr_accessor :table_name_prefix,
@@ -98,6 +99,7 @@ module SolidObjects
       :authorize_subscription,
       :authorize_administration,
       :authorize_transmission,
+      :administration_identity,
       :transmission_actor_type_resolver
 
     # @rbs @additional_components: Array[untyped]
@@ -156,6 +158,7 @@ module SolidObjects
       @authorize_subscription = ->(**) { false }
       @authorize_administration = ->(**) { false }
       @authorize_transmission = ->(**) { false }
+      @administration_identity = ->(authorization_context) { authorization_context.to_s }
       @transmission_actor_type_resolver = ->(actor_type) { actor_type }
       @additional_components = []
     end
@@ -246,6 +249,9 @@ module SolidObjects
       end
       unless payload_authorization_context.respond_to?(:call)
         raise ArgumentError, "payload_authorization_context must respond to call"
+      end
+      unless administration_identity.respond_to?(:call)
+        raise ArgumentError, "administration_identity must respond to call"
       end
 
       self

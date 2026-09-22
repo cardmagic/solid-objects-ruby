@@ -1,0 +1,11 @@
+# Generated from lib/solid_objects/administration_audit.rb with RBS::Inline
+
+module SolidObjects
+  module AdministrationAudit
+    # @rbs (action: String, kind: String, ?subject_id: untyped, ?filters: Hash[Symbol | String, untyped]?, authorization_context: untyped) -> void
+    def self?.record: (action: String, kind: String, authorization_context: untyped, ?subject_id: untyped, ?filters: Hash[Symbol | String, untyped]?) -> void
+
+    # @rbs (untyped) -> String?
+    def self?.identity: (untyped) -> String?
+  end
+end

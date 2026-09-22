@@ -31,6 +31,7 @@ module SolidObjects
       # @rbs () -> Array[Class]
       def actor_owned_models
         [
+          AdministrationEvent,
           DeadLetter,
           ClaimedMessage,
           ReadyMessage,

@@ -2,7 +2,7 @@
 
 module SolidObjects
   class Configuration
-    @process_heartbeat_interval: Float
+    @table_name_prefix: String
 
     @process_alive_threshold: Float
 
@@ -60,9 +60,9 @@ module SolidObjects
 
     @authorize_transmission: Proc
 
-    @transmission_actor_type_resolver: Proc
+    @administration_identity: Proc
 
-    @table_name_prefix: String
+    @transmission_actor_type_resolver: Proc
 
     @polling_interval: Float
 
@@ -97,6 +97,8 @@ module SolidObjects
     @retry_delay: Proc
 
     @lock_retry_attempts: Integer
+
+    @process_heartbeat_interval: Float
 
     attr_accessor table_name_prefix: untyped
 
@@ -191,6 +193,8 @@ module SolidObjects
     attr_accessor authorize_administration: untyped
 
     attr_accessor authorize_transmission: untyped
+
+    attr_accessor administration_identity: untyped
 
     attr_accessor transmission_actor_type_resolver: untyped
 

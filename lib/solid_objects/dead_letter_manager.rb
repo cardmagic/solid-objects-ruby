@@ -12,6 +12,12 @@ module SolidObjects
     def retry(dead_letter_id, authorization_context: nil)
       authorize!(:retry, authorization_context:, dead_letter_id:)
       dead_letter = DeadLetter.find(dead_letter_id)
+      AdministrationAudit.record(
+        action: "dead_letter.retry",
+        kind: "message",
+        subject_id: dead_letter.id,
+        authorization_context:
+      )
       return MessageReference.from_message(Message.find(dead_letter.retried_message_id)) if dead_letter.retried_message_id
 
       original_message = dead_letter.message
@@ -34,7 +40,8 @@ module SolidObjects
       @effects ||= DeadLetterScope.new(
         model: Effect,
         resource: "effect_dead_letters",
-        identifier: :effect_id
+        identifier: :effect_id,
+        kind: "effect"
       )
     end
 
@@ -43,7 +50,8 @@ module SolidObjects
       @broadcasts ||= DeadLetterScope.new(
         model: Broadcast,
         resource: "broadcast_dead_letters",
-        identifier: :broadcast_id
+        identifier: :broadcast_id,
+        kind: "broadcast"
       )
     end
 
