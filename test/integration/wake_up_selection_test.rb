@@ -178,6 +178,21 @@ class WakeUpSelectionTest < ActiveSupport::TestCase
     end
   end
 
+  test "a listener wakes from a notification sent on another connection" do
+    skip unless database_family == :postgresql
+    channel = "solid_objects_probe_parity"
+    adapter = SolidObjects::WakeUpAdapters::Postgresql.new(channel:)
+
+    assert adapter.listen
+    SolidObjects::Record.connection_pool.with_connection do |connection|
+      connection.execute("NOTIFY #{connection.quote_table_name(channel)}")
+    end
+
+    assert adapter.wait(timeout: 2.0)
+  ensure
+    adapter&.stop
+  end
+
   test "a database without a channel polls and reports its floor" do
     skip if database_family == :postgresql
 
