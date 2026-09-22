@@ -183,11 +183,11 @@ module SolidObjects
     # @rbs () -> void
     def reset!
       ProcessRegistry.reset_polling_warning! if defined?(ProcessRegistry)
+      reset_wake_up!
       @configuration = Configuration.new
       @registry = ActorRegistry.new
       @client = nil
       @database_adapter = nil
-      @wake_up = nil
       @caller_process = nil
       @effect_registry = EffectRegistry.new
       @commit_action_registry = CommitActionRegistry.new
