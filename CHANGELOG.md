@@ -14,7 +14,8 @@
   processes that start the same redrive share one task. The supervisor advances
   one bounded batch per pass, so a redrive never holds a transaction longer than
   one batch. `SolidObjects.redrives` reads tasks back, and `task.cancel` stops
-  one and leaves the rows it already moved.
+  one and leaves the rows it already moved. A redrive moves what was dead when
+  it started, so a still-broken handler cannot make it run forever.
 - Record who pressed what. Every retry and every redrive transition writes one
   row to `solid_objects_administration_events`. The identity comes from the
   authorization context through a new `administration_identity` hook.
