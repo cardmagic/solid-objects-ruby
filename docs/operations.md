@@ -357,7 +357,15 @@ their own resource name: `dead_letters`, `effect_dead_letters`,
 writes one row to `solid_objects_administration_events`, holding the action, the
 kind, the subject, the identity, and when it happened. The identity comes from
 `administration_identity`, which receives the authorization context the caller
-passed and defaults to its `to_s`. A refused caller writes nothing.
+passed and defaults to its `to_s`.
+
+An event records an authorized press, not a state transition. Pressing retry
+twice writes two rows, because an operator did two things and a log that shows
+one cannot answer who pressed what. The row the event names carries the outcome.
+A refused caller writes nothing, and a retry that raises after the lookup writes
+nothing, because the event shares the transaction with the work. The redrive
+transitions are different: `redrive.start`, `redrive.finish`, and
+`redrive.cancel` are written only when the task actually changes.
 
 Automatic redrive on a schedule is deliberately absent. A dead row means a
 person decided something, and these APIs give that person an alternative to an
