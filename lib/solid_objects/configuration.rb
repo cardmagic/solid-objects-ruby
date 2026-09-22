@@ -266,7 +266,7 @@ module SolidObjects
 
     # @rbs () -> void
     def validate_wake_up_object!
-      %i[signal wait watch].each do |method_name|
+      %i[signal wait].each do |method_name|
         next if wake_up_adapter.respond_to?(method_name)
 
         raise ArgumentError, "wake_up_adapter must respond to #{method_name}"

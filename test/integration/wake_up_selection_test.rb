@@ -131,6 +131,25 @@ class WakeUpSelectionTest < ActiveSupport::TestCase
       warnings.map { |payload| payload[:event].to_s }
   end
 
+  test "an adapter without watch is still accepted" do
+    legacy = Class.new do
+      def signal = true
+
+      def wait(timeout:) = false
+    end.new
+    SolidObjects.configuration.wake_up_adapter = legacy
+
+    assert_same SolidObjects.configuration, SolidObjects.configuration.validate!
+    assert_same legacy, SolidObjects.wake_up
+  end
+
+  test "an adapter that cannot signal is refused" do
+    SolidObjects.configuration.wake_up_adapter = Object.new
+
+    error = assert_raises(ArgumentError) { SolidObjects.configuration.validate! }
+    assert_match(/signal/, error.message)
+  end
+
   test "an unknown name is refused when the configuration is validated" do
     SolidObjects.configuration.wake_up_adapter = :carrier_pigeon
 
