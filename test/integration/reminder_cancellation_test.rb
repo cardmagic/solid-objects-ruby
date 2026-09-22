@@ -38,6 +38,14 @@ class ReminderCancellationTest < ActiveSupport::TestCase
       raise "turn failed"
     end
 
+    def read_unknown
+      reminder(:no_such_operation)
+    end
+
+    def list_unknown
+      reminders(:no_such_operation)
+    end
+
     def cancel_unknown
       unschedule(:no_such_operation)
     end
@@ -281,6 +289,20 @@ class ReminderCancellationTest < ActiveSupport::TestCase
     drain
 
     assert_empty reminders_for("cancel-trial")
+  end
+
+  test "an unknown operation is refused when reading rather than reported absent" do
+    SolidObjects.configuration.max_attempts = 1
+    reference = TrialActor.ref("alice")
+    reference.async.start_trial
+    drain
+    reference.async.read_unknown
+    reference.async.list_unknown
+    drain
+
+    assert_equal 2, SolidObjects::DeadLetter.where(actor_type: "cancel-trial").count
+    assert_equal [ "SolidObjects::UnknownMessage" ],
+      SolidObjects::DeadLetter.where(actor_type: "cancel-trial").distinct.pluck(:exception_class)
   end
 
   test "an unknown operation is refused rather than cancelling nothing" do

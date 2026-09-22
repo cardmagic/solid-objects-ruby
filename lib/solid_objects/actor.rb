@@ -293,12 +293,13 @@ module SolidObjects
     def reminder(operation_or_handle, key: nil)
       return reminder_view[handle_name(operation_or_handle, key:)] if operation_or_handle.is_a?(Hash)
 
+      validated_reminder_operation(operation_or_handle)
       reminder_view[reminder_name(operation: operation_or_handle, key: validated_reminder_key(key))]
     end
 
     # @rbs (Symbol | String) -> Array[ReminderStatus]
     def reminders(operation)
-      wanted = operation.to_s
+      wanted = validated_reminder_operation(operation)
       reminder_view.each_value.select { |status| status.operation == wanted }
     end
 
