@@ -6,6 +6,7 @@ module SolidObjects
     REDIS_FLOOR_MS = 5.7
     REDIS_URL_VARIABLE = "SOLID_OBJECTS_REDIS_URL"
     PROBE_TIMEOUT_SECONDS = 2.0
+    PROBE_CHANNEL = "solid_objects_wake_up_probe"
 
     @pooled_warning_mutex = Thread::Mutex.new
     @pooled_warning_emitted = false
@@ -68,22 +69,23 @@ module SolidObjects
       polling_selection(family)
     end
 
-    # @rbs (untyped) -> bool
-    def notifications_deliver?(adapter)
-      return false unless adapter.listen
-      return false unless notify_probe_channel(adapter.channel)
+    # @rbs () -> bool
+    def notifications_deliver?
+      probe = Postgresql.new(channel: PROBE_CHANNEL)
+      return false unless probe.listen
+      return false unless notify_probe_channel
 
-      adapter.wait(timeout: PROBE_TIMEOUT_SECONDS)
+      probe.wait(timeout: PROBE_TIMEOUT_SECONDS)
     rescue
       false
     ensure
-      adapter.stop
+      probe&.stop
     end
 
-    # @rbs (String) -> bool
-    def notify_probe_channel(channel)
+    # @rbs () -> bool
+    def notify_probe_channel
       connection = Record.connection_pool.send(:new_connection)
-      connection.execute("NOTIFY #{connection.quote_table_name(channel)}")
+      connection.execute("NOTIFY #{connection.quote_table_name(PROBE_CHANNEL)}")
       true
     ensure
       disconnect_probe(connection)
@@ -117,11 +119,10 @@ module SolidObjects
 
     # @rbs () -> untyped
     def postgresql_selection
-      adapter = Postgresql.new
-      return pooled_selection unless notifications_deliver?(adapter)
+      return pooled_selection unless notifications_deliver?
 
       labelled(
-        adapter, :postgresql_notify, true, POSTGRESQL_FLOOR_MS,
+        Postgresql.new, :postgresql_notify, true, POSTGRESQL_FLOOR_MS,
         "a probe notification arrived, so PostgreSQL LISTEN carries the signal between processes"
       )
     end

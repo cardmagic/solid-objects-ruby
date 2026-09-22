@@ -60,6 +60,30 @@ class WakeUpSelectionTest < ActiveSupport::TestCase
     assert capability.crosses_processes
   end
 
+  test "threads that race for the adapter select it once" do
+    selections = Queue.new
+    start = Queue.new
+    resolved = Queue.new
+
+    with_module_method(:build, ->(_setting) {
+      selections << true
+      sleep 0.05
+      SolidObjects::WakeUp.new
+    }) do
+      threads = 8.times.map do
+        Thread.new do
+          start.pop
+          resolved << SolidObjects.wake_up
+        end
+      end
+      threads.length.times { start << true }
+      threads.each(&:join)
+    end
+
+    assert_equal 1, selections.size
+    assert_equal 1, resolved.size.times.map { resolved.pop.object_id }.uniq.size
+  end
+
   test "in_process opts out of selection" do
     SolidObjects.configuration.wake_up_adapter = :in_process
 

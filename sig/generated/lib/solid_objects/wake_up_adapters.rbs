@@ -10,6 +10,8 @@ module SolidObjects
 
     PROBE_TIMEOUT_SECONDS: ::Float
 
+    PROBE_CHANNEL: ::String
+
     NAMES: untyped
 
     # @rbs (?untyped) -> untyped
@@ -30,11 +32,11 @@ module SolidObjects
     # @rbs (?untyped) -> untyped
     def self?.select: (?untyped) -> untyped
 
-    # @rbs (untyped) -> bool
-    def self?.notifications_deliver?: (untyped) -> bool
+    # @rbs () -> bool
+    def self?.notifications_deliver?: () -> bool
 
-    # @rbs (String) -> bool
-    def self?.notify_probe_channel: (String) -> bool
+    # @rbs () -> bool
+    def self?.notify_probe_channel: () -> bool
 
     # @rbs (untyped) -> void
     def self?.disconnect_probe: (untyped) -> void

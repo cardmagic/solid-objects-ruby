@@ -59,11 +59,11 @@ class WakeUpAdaptersTest < ActiveSupport::TestCase
   private
 
   def with_delivered_notifications(&block)
-    with_probe(->(_adapter) { true }, &block)
+    with_probe(-> { true }, &block)
   end
 
   def with_undelivered_notifications(&block)
-    with_probe(->(_adapter) { false }, &block)
+    with_probe(-> { false }, &block)
   end
 
   def with_probe(replacement)

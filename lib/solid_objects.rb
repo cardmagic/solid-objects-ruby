@@ -79,6 +79,8 @@ require "solid_objects/engine" if defined?(Rails::Engine)
 module SolidObjects
   extend Instrumentation
 
+  @wake_up_mutex = Thread::Mutex.new
+
   class << self
     # @rbs () -> Configuration
     def configuration
@@ -201,12 +203,12 @@ module SolidObjects
 
     # @rbs () -> untyped
     def wake_up
-      @wake_up ||= resolve_wake_up
+      @wake_up || @wake_up_mutex.synchronize { @wake_up ||= resolve_wake_up }
     end
 
     # @rbs () -> void
     def reset_wake_up!
-      @wake_up = nil
+      @wake_up_mutex.synchronize { @wake_up = nil }
       WakeUpAdapters.reset_pooled_warning!
     end
 
