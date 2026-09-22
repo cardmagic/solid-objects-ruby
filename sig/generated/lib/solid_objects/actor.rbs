@@ -58,6 +58,8 @@ module SolidObjects
 
     REMINDER_KEY_SEPARATOR: ::String
 
+    REMINDER_HANDLE_KEY: ::String
+
     class ReminderIntent < Data
       attr_reader name(): untyped
 
@@ -77,6 +79,55 @@ module SolidObjects
       def self.members: () -> [ :name, :operation, :at, :arguments, :interval_seconds, :missed_policy ]
 
       def members: () -> [ :name, :operation, :at, :arguments, :interval_seconds, :missed_policy ]
+    end
+
+    class UnscheduleIntent < Data
+      attr_reader name(): untyped
+
+      def self.new: (untyped name) -> instance
+                  | (name: untyped) -> instance
+
+      def self.members: () -> [ :name ]
+
+      def members: () -> [ :name ]
+    end
+
+    class UnscheduleAllIntent < Data
+      attr_reader operation(): untyped
+
+      def self.new: (untyped operation) -> instance
+                  | (operation: untyped) -> instance
+
+      def self.members: () -> [ :operation ]
+
+      def members: () -> [ :operation ]
+    end
+
+    class ReminderStatus < Data
+      attr_reader name(): untyped
+
+      attr_reader operation(): untyped
+
+      attr_reader key(): untyped
+
+      attr_reader next_run_at(): untyped
+
+      attr_reader interval_seconds(): untyped
+
+      attr_reader missed_policy(): untyped
+
+      attr_reader occurrence(): untyped
+
+      attr_reader status(): untyped
+
+      attr_reader handle(): untyped
+
+      def self.new: (untyped name, untyped operation, untyped key, untyped next_run_at, untyped interval_seconds, untyped missed_policy, untyped occurrence, untyped status, untyped handle) -> instance
+                  | (name: untyped, operation: untyped, key: untyped, next_run_at: untyped, interval_seconds: untyped, missed_policy: untyped, occurrence: untyped, status: untyped, handle: untyped) -> instance
+
+      def self.members: () -> [ :name, :operation, :key, :next_run_at, :interval_seconds, :missed_policy, :occurrence, :status, :handle ]
+
+      def members: () -> [ :name, :operation, :key, :next_run_at, :interval_seconds, :missed_policy, :occurrence, :status, :handle ]
     end
 
     class OutboundMessageIntent < Data
@@ -172,8 +223,8 @@ module SolidObjects
 
     attr_reader state: untyped
 
-    # @rbs (actor_id: String, state: State) -> void
-    def initialize: (actor_id: String, state: State) -> void
+    # @rbs (actor_id: String, state: State, ?instance_id: Integer?) -> void
+    def initialize: (actor_id: String, state: State, ?instance_id: Integer?) -> void
 
     # @rbs () -> MessageContext?
     def current_message: () -> MessageContext?
@@ -200,6 +251,46 @@ module SolidObjects
     # item, and scheduling the same key again moves that item's alarm.
     # @rbs (at: Time, ?every: Numeric?, ?missed: Symbol | String, ?key: (String | Symbol | Integer)?) -> OperationDispatcher
     def schedule: (at: Time, ?every: Numeric?, ?missed: Symbol | String, ?key: (String | Symbol | Integer)?) -> OperationDispatcher
+
+    # @rbs (Symbol | String | reminder_handle, ?key: (String | Symbol | Integer)?) -> nil
+    def unschedule: (Symbol | String | reminder_handle, ?key: (String | Symbol | Integer)?) -> nil
+
+    # @rbs (Symbol | String) -> nil
+    def unschedule_all: (Symbol | String) -> nil
+
+    # @rbs (Symbol | String | reminder_handle, ?key: (String | Symbol | Integer)?) -> ReminderStatus?
+    def reminder: (Symbol | String | reminder_handle, ?key: (String | Symbol | Integer)?) -> ReminderStatus?
+
+    # @rbs (Symbol | String) -> Array[ReminderStatus]
+    def reminders: (Symbol | String) -> Array[ReminderStatus]
+
+    attr_reader instance_id: untyped
+
+    # @rbs (Symbol | String) -> String
+    def validated_reminder_operation: (Symbol | String) -> String
+
+    # @rbs (String) -> nil
+    def unschedule_name: (String) -> nil
+
+    # @rbs (reminder_handle, key: untyped) -> String
+    def handle_name: (reminder_handle, key: untyped) -> String
+
+    # The view is the committed schedule with this turn's staged intents applied
+    # in order, so a read agrees with what the commit will leave behind.
+    # @rbs () -> Hash[String, ReminderStatus]
+    def reminder_view: () -> Hash[String, ReminderStatus]
+
+    # @rbs () -> Hash[String, ReminderStatus]
+    def committed_reminders: () -> Hash[String, ReminderStatus]
+
+    # @rbs (Hash[String, ReminderStatus], untyped) -> void
+    def apply_reminder_intent: (Hash[String, ReminderStatus], untyped) -> void
+
+    # @rbs (name: String, operation: String, next_run_at: Time?, interval_seconds: untyped, missed_policy: String, occurrence: Integer, status: String) -> ReminderStatus
+    def reminder_status: (name: String, operation: String, next_run_at: Time?, interval_seconds: untyped, missed_policy: String, occurrence: Integer, status: String) -> ReminderStatus
+
+    # @rbs (name: String, operation: String) -> String?
+    def reminder_key_of: (name: String, operation: String) -> String?
 
     # @rbs ((String | Symbol | Integer)?) -> String?
     def validated_reminder_key: ((String | Symbol | Integer)?) -> String?

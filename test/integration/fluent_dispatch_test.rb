@@ -233,12 +233,14 @@ class FluentDispatchTest < ActiveSupport::TestCase
   test "fluent schedule persists its message arguments and recurrence options" do
     scheduled_at = 1.hour.from_now.change(usec: 0)
 
-    assert_nil SourceActor.ref("scheduler").configure_reminder(
+    handle = SourceActor.ref("scheduler").configure_reminder(
       at: scheduled_at.to_f,
       every: 3600,
       missed: :all,
       account_id: "account-1"
     )
+
+    assert_equal({ "reminder_name" => "evaluate" }, handle)
     reminder = SolidObjects::Reminder.find_by!(actor_id: "scheduler")
 
     assert_equal "evaluate", reminder.name

@@ -36,6 +36,14 @@
   listed here while broken in that worker: the scheduler reached a constant the
   caller path happened to load, so reminders never fired in production and
   every in-process test still passed
+- Reminder cancellation and reading. `schedule` returns a durable handle,
+  `unschedule` and `unschedule_all` cancel by name, key, or handle, and
+  `reminder` and `reminders` read the schedule. A cancel is an intent, so it
+  commits with the state change that decided it. A read applies the intents
+  staged so far, so it agrees with what the commit will leave behind. A cancel
+  cannot recall an occurrence the scheduler already turned into a message. It
+  does pre-empt one the scheduler claimed but has not yet enqueued, and the
+  scheduler treats that as ordinary work rather than a failure
 - Durable invalidation-only observable broadcasts by default, explicit
   `broadcast: :value` scalar Turbo replacement, keyed ERB components, signed
   component locals, and authorized replace or morph refresh. Default

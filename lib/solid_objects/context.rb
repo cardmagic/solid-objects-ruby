@@ -5,7 +5,7 @@ module SolidObjects
 
   module Context
     STORAGE_KEY = :solid_objects_context
-    Frame = Data.define(:actor, :message, :authorization_context)
+    Frame = Data.define(:actor, :message, :authorization_context, :instance_id)
 
     class << self
       # @rbs () -> Frame?
@@ -28,10 +28,16 @@ module SolidObjects
         current&.authorization_context
       end
 
-      # @rbs (actor: Actor?, message: MessageContext?, authorization_context: untyped) { () -> untyped } -> untyped
-      def with(actor:, message:, authorization_context: nil)
+      # @rbs () -> Integer?
+      def current_instance_id
+        current&.instance_id
+      end
+
+      # @rbs (actor: Actor?, message: MessageContext?, ?authorization_context: untyped, ?instance_id: Integer?) { () -> untyped } -> untyped
+      def with(actor:, message:, authorization_context: nil, instance_id: nil)
         previous = current
-        ActiveSupport::IsolatedExecutionState[STORAGE_KEY] = Frame.new(actor:, message:, authorization_context:)
+        ActiveSupport::IsolatedExecutionState[STORAGE_KEY] =
+          Frame.new(actor:, message:, authorization_context:, instance_id:)
         yield
       ensure
         ActiveSupport::IsolatedExecutionState[STORAGE_KEY] = previous

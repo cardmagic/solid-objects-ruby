@@ -65,6 +65,12 @@ module SolidObjects
     # @rbs (Instance, Array[Actor::ReminderIntent]) -> Array[Hash[Symbol, untyped]]
     def schedule_reminders: (Instance, Array[Actor::ReminderIntent]) -> Array[Hash[Symbol, untyped]]
 
+    # A cancel reports nothing, because a reminder that no longer exists did not
+    # move. Deleting the row rather than marking it keeps a later schedule of the
+    # same name free of a tombstone.
+    # @rbs (Instance, Actor::UnscheduleIntent | Actor::UnscheduleAllIntent) -> nil
+    def cancel_reminder: (Instance, Actor::UnscheduleIntent | Actor::UnscheduleAllIntent) -> nil
+
     # Arguments are omitted deliberately: a reminder carries application data
     # and this event exists to be logged.
     # @rbs (Reminder, Time?) -> Hash[Symbol, untyped]?

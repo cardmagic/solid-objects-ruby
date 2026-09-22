@@ -280,6 +280,8 @@ module SolidObjects
     # @rbs (Instance, Array[Actor::ReminderIntent]) -> Array[Hash[Symbol, untyped]]
     def schedule_reminders(instance, intents)
       intents.filter_map do |intent|
+        next cancel_reminder(instance, intent) unless intent.is_a?(Actor::ReminderIntent)
+
         reminder = Reminder.find_or_initialize_by(instance:, name: intent.name)
         previous_run_at = reminder.next_run_at
         reminder.assign_attributes(
@@ -298,6 +300,21 @@ module SolidObjects
         reminder.save!
         moved
       end
+    end
+
+    # A cancel reports nothing, because a reminder that no longer exists did not
+    # move. Deleting the row rather than marking it keeps a later schedule of the
+    # same name free of a tombstone.
+    # @rbs (Instance, Actor::UnscheduleIntent | Actor::UnscheduleAllIntent) -> nil
+    def cancel_reminder(instance, intent)
+      scope = Reminder.where(instance:)
+      scope = if intent.is_a?(Actor::UnscheduleAllIntent)
+        scope.where(operation: intent.operation)
+      else
+        scope.where(name: intent.name)
+      end
+      scope.delete_all
+      nil
     end
 
     # Arguments are omitted deliberately: a reminder carries application data

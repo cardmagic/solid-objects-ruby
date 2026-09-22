@@ -30,12 +30,14 @@ module SolidObjects
 
       attr_reader authorization_context(): untyped
 
-      def self.new: (untyped actor, untyped message, untyped authorization_context) -> instance
-                  | (actor: untyped, message: untyped, authorization_context: untyped) -> instance
+      attr_reader instance_id(): untyped
 
-      def self.members: () -> [ :actor, :message, :authorization_context ]
+      def self.new: (untyped actor, untyped message, untyped authorization_context, untyped instance_id) -> instance
+                  | (actor: untyped, message: untyped, authorization_context: untyped, instance_id: untyped) -> instance
 
-      def members: () -> [ :actor, :message, :authorization_context ]
+      def self.members: () -> [ :actor, :message, :authorization_context, :instance_id ]
+
+      def members: () -> [ :actor, :message, :authorization_context, :instance_id ]
     end
 
     # @rbs () -> Frame?
@@ -50,7 +52,10 @@ module SolidObjects
     # @rbs () -> untyped
     def self.authorization_context: () -> untyped
 
-    # @rbs (actor: Actor?, message: MessageContext?, authorization_context: untyped) { () -> untyped } -> untyped
-    def self.with: (actor: Actor?, message: MessageContext?, authorization_context: untyped) { () -> untyped } -> untyped
+    # @rbs () -> Integer?
+    def self.current_instance_id: () -> Integer?
+
+    # @rbs (actor: Actor?, message: MessageContext?, ?authorization_context: untyped, ?instance_id: Integer?) { () -> untyped } -> untyped
+    def self.with: (actor: Actor?, message: MessageContext?, ?authorization_context: untyped, ?instance_id: Integer?) { () -> untyped } -> untyped
   end
 end

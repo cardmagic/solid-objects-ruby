@@ -10,7 +10,13 @@ module SolidObjects
     REMINDER_NAME_LIMIT = 191
     REMINDER_KEY_SEPARATOR = ":"
 
+    REMINDER_HANDLE_KEY = "reminder_name"
+
     ReminderIntent = Data.define(:name, :operation, :at, :arguments, :interval_seconds, :missed_policy)
+    UnscheduleIntent = Data.define(:name)
+    UnscheduleAllIntent = Data.define(:operation)
+    ReminderStatus = Data.define(:name, :operation, :key, :next_run_at, :interval_seconds,
+      :missed_policy, :occurrence, :status, :handle)
     OutboundMessageIntent = Data.define(:actor_type, :actor_id, :operation, :arguments, :available_at, :idempotency_key)
 
     class << self
@@ -152,10 +158,11 @@ module SolidObjects
 
     attr_reader :actor_id, :state
 
-    # @rbs (actor_id: String, state: State) -> void
-    def initialize(actor_id:, state:)
+    # @rbs (actor_id: String, state: State, ?instance_id: Integer?) -> void
+    def initialize(actor_id:, state:, instance_id: nil)
       @actor_id = actor_id
       @state = state
+      @instance_id = instance_id
       @effect_intents = []
       @effect_recovery_intents = []
       @commit_action_intents = []
@@ -255,18 +262,137 @@ module SolidObjects
         actor_type: self.class.actor_type,
         handlers: self.class.definition.messages
       ) do |operation, arguments|
-        ReminderIntent.new(
-          name: reminder_name(operation:, key: reminder_key),
+        name = reminder_name(operation:, key: reminder_key)
+        reminder_intents << ReminderIntent.new(
+          name:,
           operation: operation.to_s,
           at:,
           arguments: Serialization.dump(arguments),
           interval_seconds:,
           missed_policy:
-        ).tap do |intent|
-          reminder_intents << intent
-        end
-        nil
+        )
+        { REMINDER_HANDLE_KEY => name }
       end
+    end
+
+    # @rbs (Symbol | String | reminder_handle, ?key: (String | Symbol | Integer)?) -> nil
+    def unschedule(operation_or_handle, key: nil)
+      return unschedule_name(handle_name(operation_or_handle, key:)) if operation_or_handle.is_a?(Hash)
+
+      validated_reminder_operation(operation_or_handle)
+      unschedule_name(reminder_name(operation: operation_or_handle, key: validated_reminder_key(key)))
+    end
+
+    # @rbs (Symbol | String) -> nil
+    def unschedule_all(operation)
+      reminder_intents << UnscheduleAllIntent.new(operation: validated_reminder_operation(operation))
+      nil
+    end
+
+    # @rbs (Symbol | String | reminder_handle, ?key: (String | Symbol | Integer)?) -> ReminderStatus?
+    def reminder(operation_or_handle, key: nil)
+      return reminder_view[handle_name(operation_or_handle, key:)] if operation_or_handle.is_a?(Hash)
+
+      validated_reminder_operation(operation_or_handle)
+      reminder_view[reminder_name(operation: operation_or_handle, key: validated_reminder_key(key))]
+    end
+
+    # @rbs (Symbol | String) -> Array[ReminderStatus]
+    def reminders(operation)
+      wanted = validated_reminder_operation(operation)
+      reminder_view.each_value.select { |status| status.operation == wanted }
+    end
+
+    attr_reader :instance_id
+
+    # @rbs (Symbol | String) -> String
+    def validated_reminder_operation(operation)
+      name = operation.to_s
+      return name if self.class.definition.messages.key?(name.to_sym)
+
+      raise UnknownMessage, "unknown message #{name.inspect} for #{self.class.actor_type}"
+    end
+
+    # @rbs (String) -> nil
+    def unschedule_name(name)
+      reminder_intents << UnscheduleIntent.new(name:)
+      nil
+    end
+
+    # @rbs (reminder_handle, key: untyped) -> String
+    def handle_name(handle, key:)
+      raise ArgumentError, "a reminder handle already names its key" unless key.nil?
+
+      name = handle[REMINDER_HANDLE_KEY]
+      unless name.is_a?(String) && !name.empty?
+        raise InvalidPayload, "expected a reminder handle returned by schedule"
+      end
+
+      name
+    end
+
+    # The view is the committed schedule with this turn's staged intents applied
+    # in order, so a read agrees with what the commit will leave behind.
+    # @rbs () -> Hash[String, ReminderStatus]
+    def reminder_view
+      reminder_intents.each_with_object(committed_reminders) do |intent, view|
+        apply_reminder_intent(view, intent)
+      end
+    end
+
+    # @rbs () -> Hash[String, ReminderStatus]
+    def committed_reminders
+      return {} unless instance_id
+
+      Reminder.where(instance_id:).where.not(status: "completed").each_with_object({}) do |row, view|
+        view[row.name] = reminder_status(
+          name: row.name,
+          operation: row.operation,
+          next_run_at: row.next_run_at,
+          interval_seconds: row.interval_seconds,
+          missed_policy: row.missed_policy,
+          occurrence: row.occurrence,
+          status: row.status
+        )
+      end
+    end
+
+    # @rbs (Hash[String, ReminderStatus], untyped) -> void
+    def apply_reminder_intent(view, intent)
+      return view.delete_if { |_name, status| status.operation == intent.operation } if intent.is_a?(UnscheduleAllIntent)
+      return view.delete(intent.name) if intent.is_a?(UnscheduleIntent)
+
+      view[intent.name] = reminder_status(
+        name: intent.name,
+        operation: intent.operation,
+        next_run_at: intent.at,
+        interval_seconds: intent.interval_seconds,
+        missed_policy: intent.missed_policy,
+        occurrence: view[intent.name]&.occurrence || 0,
+        status: "scheduled"
+      )
+    end
+
+    # @rbs (name: String, operation: String, next_run_at: Time?, interval_seconds: untyped, missed_policy: String, occurrence: Integer, status: String) -> ReminderStatus
+    def reminder_status(name:, operation:, next_run_at:, interval_seconds:, missed_policy:, occurrence:, status:)
+      ReminderStatus.new(
+        name:,
+        operation:,
+        key: reminder_key_of(name:, operation:),
+        next_run_at:,
+        interval_seconds: interval_seconds&.to_f,
+        missed_policy:,
+        occurrence:,
+        status:,
+        handle: { REMINDER_HANDLE_KEY => name }
+      )
+    end
+
+    # @rbs (name: String, operation: String) -> String?
+    def reminder_key_of(name:, operation:)
+      return nil if name == operation
+
+      name.delete_prefix("#{operation}#{REMINDER_KEY_SEPARATOR}")
     end
 
     # @rbs ((String | Symbol | Integer)?) -> String?
