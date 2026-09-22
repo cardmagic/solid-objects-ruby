@@ -2,14 +2,12 @@
 
 ## Unreleased
 
-- Leave a one-shot reminder that already fired out of `reminder` and
-  `reminders`. Its row stays as `completed`, so a next-run lookup reported an
-  old time rather than nothing, and an existence check refused to re-arm an
-  alarm that could never fire again.
-- Refuse an unknown operation in `reminder`, `reminders`, `unschedule`, and
-  `unschedule_all`. `schedule`
-  already raised `UnknownMessage` for one, so a typo cancelled nothing quietly
-  and left a recurring reminder running.
+- Read the durable row rather than the query cache in `MessageReference#status`,
+  `MessageReference#result`, and an actor snapshot. A caller that polls holds one
+  query cache for the whole poll, and the worker that finishes the message is
+  another process, so its write cannot clear that cache. A poll inside a request,
+  a job, or `rails runner` reported the first answer forever. The synchronous
+  wait already read uncached.
 - Add reminder cancellation. `unschedule` removes one reminder by operation and
   optional key, or by the handle `schedule` now returns. `unschedule_all`
   removes every key of one operation. Both stage an intent, so a cancel commits
@@ -20,6 +18,13 @@
   actor reads its own schedule from every path, including activation hooks and
   observables, because it carries its instance rather than reading an ambient
   context that only message dispatch establishes.
+- Leave a one-shot reminder that already fired out of `reminder` and
+  `reminders`. Its row stays as `completed`, so a next-run lookup reported an
+  old time rather than nothing, and an existence check refused to re-arm an
+  alarm that could never fire again.
+- Refuse an unknown operation in `reminder`, `reminders`, `unschedule`, and
+  `unschedule_all`. `schedule` already raised `UnknownMessage` for one, so a
+  typo cancelled nothing quietly and left a recurring reminder running.
 - A cancel cannot recall an occurrence the scheduler already turned into a
   message. It does pre-empt one the scheduler claimed but has not yet enqueued.
 - `schedule` now returns a reminder handle instead of `nil`. An operation that

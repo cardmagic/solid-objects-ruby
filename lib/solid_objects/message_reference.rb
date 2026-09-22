@@ -35,19 +35,21 @@ module SolidObjects
 
     # @rbs () -> String
     def status
-      message = Message.find(id)
-      return "rejected" if message.rejected?
-      return "completed" if message.completed?
-      return "dead" if message.dead?
-      return "claimed" if message.claimed?
-      return "ready" if message.ready?
+      Message.uncached do
+        message = Message.find(id)
+        return "rejected" if message.rejected?
+        return "completed" if message.completed?
+        return "dead" if message.dead?
+        return "claimed" if message.claimed?
+        return "ready" if message.ready?
 
-      "unknown"
+        "unknown"
+      end
     end
 
     # @rbs () -> untyped
     def result
-      Message.find(id).result
+      Message.uncached { Message.find(id).result }
     end
 
     # @rbs (?timeout: Numeric, ?authorization_context: untyped) -> untyped
