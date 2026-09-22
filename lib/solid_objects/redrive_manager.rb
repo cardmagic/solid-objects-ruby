@@ -11,7 +11,7 @@ module SolidObjects
     # @rbs (scope: DeadLetterScope, filters: Hash[String, untyped], authorization_context: untyped) -> RedriveTask
     def start(scope:, filters:, authorization_context:)
       scope.authorize!(:redrive, authorization_context:)
-      active_scope = active_scope_for(kind: scope.kind, filters:)
+      active_scope = "#{scope.kind}:#{Digest::SHA256.hexdigest(filters.to_json)}"
       running = Redrive.find_by(active_scope:)
       return task_for(running) if running
 
@@ -112,11 +112,6 @@ module SolidObjects
       return matching unless limit
 
       [ matching, limit - record.moved ].min
-    end
-
-    # @rbs (kind: String, filters: Hash[String, untyped]) -> String
-    def active_scope_for(kind:, filters:)
-      "#{kind}:#{Digest::SHA256.hexdigest(filters.to_json)}"
     end
 
     # @rbs (Symbol, authorization_context: untyped, ?resource_id: String?) -> void

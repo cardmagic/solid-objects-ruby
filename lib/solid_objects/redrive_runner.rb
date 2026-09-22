@@ -32,7 +32,9 @@ module SolidObjects
     # @rbs (Redrive) -> Integer
     def move_batch(record)
       scope = DeadLetterScope.for_kind(record.kind)
-      size = batch_size(record)
+      configured = SolidObjects.configuration.redrive_batch_size
+      limit = record.move_limit
+      size = limit ? [ configured, limit - record.moved ].min : configured
       return 0 unless size.positive?
 
       identifiers = scope
@@ -45,15 +47,6 @@ module SolidObjects
       revived = scope.revive_all(identifiers)
       record.update!(moved: record.moved + revived)
       revived
-    end
-
-    # @rbs (Redrive) -> Integer
-    def batch_size(record)
-      configured = SolidObjects.configuration.redrive_batch_size
-      limit = record.move_limit
-      return configured unless limit
-
-      [ configured, limit - record.moved ].min
     end
 
     # @rbs (Redrive) -> void

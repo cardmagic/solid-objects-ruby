@@ -37,9 +37,6 @@ module SolidObjects
     # @rbs (Redrive) -> Integer
     def remaining_for: (Redrive) -> Integer
 
-    # @rbs (kind: String, filters: Hash[String, untyped]) -> String
-    def active_scope_for: (kind: String, filters: Hash[String, untyped]) -> String
-
     # @rbs (Symbol, authorization_context: untyped, ?resource_id: String?) -> void
     def authorize!: (Symbol, authorization_context: untyped, ?resource_id: String?) -> void
   end

@@ -16,9 +16,6 @@ module SolidObjects
     # @rbs (Redrive) -> Integer
     def move_batch: (Redrive) -> Integer
 
-    # @rbs (Redrive) -> Integer
-    def batch_size: (Redrive) -> Integer
-
     # @rbs (Redrive) -> void
     def finish: (Redrive) -> void
   end
