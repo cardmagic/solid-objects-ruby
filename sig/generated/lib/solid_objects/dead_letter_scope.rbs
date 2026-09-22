@@ -6,16 +6,21 @@ module SolidObjects
 
     PENDING: ::String
 
-    @model: untyped
+    @identifier: Symbol
 
     @resource: String
 
-    @identifier: Symbol
+    @model: untyped
 
     attr_reader resource: untyped
 
+    attr_reader kind: untyped
+
     # @rbs (model: untyped, resource: String, identifier: Symbol, kind: String) -> void
     def initialize: (model: untyped, resource: String, identifier: Symbol, kind: String) -> void
+
+    # @rbs (String) -> DeadLetterScope
+    def self.for_kind: (String) -> DeadLetterScope
 
     # @rbs (?authorization_context: untyped) -> ActiveRecord::Relation[untyped]
     def all: (?authorization_context: untyped) -> ActiveRecord::Relation[untyped]
@@ -23,8 +28,17 @@ module SolidObjects
     # @rbs (String, ?authorization_context: untyped) -> untyped
     def retry: (String, ?authorization_context: untyped) -> untyped
 
+    # @rbs (?actor_type: String?, ?failed_after: untyped, ?limit: Integer?, ?authorization_context: untyped) -> RedriveTask
+    def redrive: (?actor_type: String?, ?failed_after: untyped, ?limit: Integer?, ?authorization_context: untyped) -> RedriveTask
+
     # @rbs () -> ActiveRecord::Relation[untyped]
     def dead: () -> ActiveRecord::Relation[untyped]
+
+    # @rbs (Hash[String, untyped]) -> ActiveRecord::Relation[untyped]
+    def matching: (Hash[String, untyped]) -> ActiveRecord::Relation[untyped]
+
+    # @rbs (Array[untyped]) -> Integer
+    def revive_all: (Array[untyped]) -> Integer
 
     # @rbs (untyped) -> Integer
     def revive: (untyped) -> Integer
@@ -37,8 +51,6 @@ module SolidObjects
     attr_reader model: untyped
 
     attr_reader identifier: untyped
-
-    attr_reader kind: untyped
 
     # @rbs () -> Hash[Symbol, untyped]
     def revival_attributes: () -> Hash[Symbol, untyped]

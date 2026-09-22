@@ -31,6 +31,7 @@ module SolidObjects
       @started = false
       @cleaned_up_at = nil
       @retention = nil
+      @redrive = nil
       @lifecycle = Thread::Mutex.new
     end
 
@@ -50,6 +51,7 @@ module SolidObjects
       @threads = components.map { |component| supervise(component) }
       @monitor = Thread.new { monitor_loop }
       @retention = Thread.new { retention_loop }
+      @redrive = Thread.new { redrive_loop }
       SolidObjects.instrument(:"supervisor.started", component_count: components.length)
     end
 
@@ -64,6 +66,7 @@ module SolidObjects
         @lifecycle.synchronize { @started = false }
         stop_monitor
         stop_retention
+        stop_redrive
         components.each(&:request_shutdown)
         join_until_timeout
         components.reject(&:stopped?).each(&:stop)
@@ -202,6 +205,50 @@ module SolidObjects
       backoff = SolidObjects.configuration.supervisor_monitor_interval *
         (2**[ failures - 1, MAXIMUM_RETENTION_BACKOFF_DOUBLINGS ].min)
       [ backoff, interval ].min
+    end
+
+    # An operator starts a redrive and expects it to move, so the supervisor
+    # advances it rather than ask the application to schedule a job. Each pass
+    # takes one bounded batch, and the loop pauses between batches so a large
+    # redrive shares the database with delivery.
+    # @rbs () -> void
+    def redrive_loop
+      while @started
+        advance_redrive ? pause_between_batches : wait_for_next_redrive
+      end
+    end
+
+    # @rbs () -> bool
+    def advance_redrive
+      RedriveRunner.new.run_once
+    rescue => error
+      SolidObjects.instrument(
+        :"supervisor.redrive_failed",
+        error_class: error.class.name,
+        error_message: error.message
+      )
+      false
+    end
+
+    # @rbs () -> void
+    def pause_between_batches
+      pause = SolidObjects.configuration.redrive_batch_pause
+      sleep pause if pause.positive?
+    end
+
+    # @rbs () -> void
+    def wait_for_next_redrive
+      sleep SolidObjects.configuration.supervisor_monitor_interval
+    end
+
+    # @rbs () -> void
+    def stop_redrive
+      redrive = @redrive
+      @redrive = nil
+      return unless redrive
+
+      redrive.join(SolidObjects.configuration.shutdown_timeout)
+      redrive.kill if redrive.alive?
     end
 
     # @rbs () -> void

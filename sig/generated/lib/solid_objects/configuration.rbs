@@ -4,8 +4,6 @@ module SolidObjects
   class Configuration
     @table_name_prefix: String
 
-    @process_alive_threshold: Float
-
     @shutdown_timeout: Float
 
     @supervisor_monitor_interval: Float
@@ -23,6 +21,10 @@ module SolidObjects
     @process_retention: Numeric
 
     @prune_batch_size: Integer
+
+    @redrive_batch_size: Integer
+
+    @redrive_batch_pause: Float
 
     @worker_count: Integer
 
@@ -100,6 +102,8 @@ module SolidObjects
 
     @process_heartbeat_interval: Float
 
+    @process_alive_threshold: Float
+
     attr_accessor table_name_prefix: untyped
 
     attr_accessor polling_interval: untyped
@@ -157,6 +161,10 @@ module SolidObjects
     attr_accessor process_retention: untyped
 
     attr_accessor prune_batch_size: untyped
+
+    attr_accessor redrive_batch_size: untyped
+
+    attr_accessor redrive_batch_pause: untyped
 
     attr_accessor worker_count: untyped
 

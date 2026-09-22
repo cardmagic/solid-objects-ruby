@@ -1,0 +1,48 @@
+# Generated from lib/solid_objects/redrive_manager.rb with RBS::Inline
+
+module SolidObjects
+  class RedriveManager
+    RUNNING: ::String
+
+    COMPLETED: ::String
+
+    CANCELLED: ::String
+
+    # @rbs (scope: DeadLetterScope, filters: Hash[String, untyped], authorization_context: untyped) -> RedriveTask
+    def start: (scope: DeadLetterScope, filters: Hash[String, untyped], authorization_context: untyped) -> RedriveTask
+
+    # @rbs (String, ?authorization_context: untyped) -> RedriveTask
+    def find: (String, ?authorization_context: untyped) -> RedriveTask
+
+    # @rbs (?status: Symbol | String | nil, ?authorization_context: untyped) -> Array[RedriveTask]
+    def all: (?status: Symbol | String | nil, ?authorization_context: untyped) -> Array[RedriveTask]
+
+    # @rbs (String, ?authorization_context: untyped) -> RedriveTask
+    def cancel: (String, ?authorization_context: untyped) -> RedriveTask
+
+    # @rbs (Redrive, status: String) -> void
+    def close: (Redrive, status: String) -> void
+
+    # @rbs (Redrive, action: String) -> void
+    def audit: (Redrive, action: String) -> void
+
+    # @rbs (Redrive) -> RedriveTask
+    def task_for: (Redrive) -> RedriveTask
+
+    private
+
+    # @rbs (scope: DeadLetterScope, filters: Hash[String, untyped], active_scope: String, authorization_context: untyped) -> Redrive
+    def open_task: (scope: DeadLetterScope, filters: Hash[String, untyped], active_scope: String, authorization_context: untyped) -> Redrive
+
+    # A running task reports what is left to move rather than a stored
+    # estimate, because rows die and are retried while it runs.
+    # @rbs (Redrive) -> Integer
+    def remaining_for: (Redrive) -> Integer
+
+    # @rbs (kind: String, filters: Hash[String, untyped]) -> String
+    def active_scope_for: (kind: String, filters: Hash[String, untyped]) -> String
+
+    # @rbs (Symbol, authorization_context: untyped, ?resource_id: String?) -> void
+    def authorize!: (Symbol, authorization_context: untyped, ?resource_id: String?) -> void
+  end
+end

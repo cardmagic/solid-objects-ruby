@@ -16,7 +16,7 @@ module SolidObjects
         action: "dead_letter.retry",
         kind: "message",
         subject_id: dead_letter.id,
-        authorization_context:
+        actor: AdministrationAudit.identity(authorization_context)
       )
       return MessageReference.from_message(Message.find(dead_letter.retried_message_id)) if dead_letter.retried_message_id
 

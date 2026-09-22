@@ -81,7 +81,8 @@ module SolidObjects
       effect_recoveries: %w[effect_id instance_id recovery_operation status_operation recovery_timeout retired_at],
       broadcasts: %w[id message_id instance_id broadcast_id status available_at],
       dead_letters: %w[id message_id instance_id actor_type actor_id attempts],
-      administration_events: %w[id action kind subject_id actor occurred_at]
+      administration_events: %w[id action kind subject_id actor occurred_at],
+      redrives: %w[id kind filters status active_scope moved move_limit started_at finished_at]
     }.freeze
 
     class ProbeActor < Actor

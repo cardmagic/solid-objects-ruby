@@ -32,6 +32,7 @@ module SolidObjects
       def actor_owned_models
         [
           AdministrationEvent,
+          Redrive,
           DeadLetter,
           ClaimedMessage,
           ReadyMessage,

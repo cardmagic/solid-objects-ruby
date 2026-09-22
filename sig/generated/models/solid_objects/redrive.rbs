@@ -1,0 +1,6 @@
+# Generated from app/models/solid_objects/redrive.rb with RBS::Inline
+
+module SolidObjects
+  class Redrive < Record
+  end
+end

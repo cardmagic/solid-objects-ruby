@@ -39,6 +39,9 @@ module SolidObjects
   # @rbs () -> DeadLetterManager
   def self.dead_letters: () -> DeadLetterManager
 
+  # @rbs () -> RedriveManager
+  def self.redrives: () -> RedriveManager
+
   # @rbs () -> Administration
   def self.administration: () -> Administration
 
