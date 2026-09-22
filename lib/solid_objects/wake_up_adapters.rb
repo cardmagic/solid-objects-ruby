@@ -32,11 +32,60 @@ module SolidObjects
     def named(name)
       case name
       when :in_process then labelled(WakeUp.new, :in_process, false, nil, "in-process signalling was requested")
-      when :postgresql then labelled(Postgresql.new, :postgresql_notify, true, POSTGRESQL_FLOOR_MS, "PostgreSQL LISTEN was requested")
-      when :redis then labelled(Redis.new(url: redis_url), :redis, true, REDIS_FLOOR_MS, "Redis was requested")
+      when :postgresql then requested_postgresql
+      when :redis then requested_redis
       else
         raise ArgumentError, "unknown wake_up_adapter #{name.inspect}, expected one of #{NAMES.join(", ")} or an adapter"
       end
+    end
+
+    # @rbs () -> untyped
+    def requested_postgresql
+      family = DatabaseAdapter.family(Record.connection)
+      unless family == :postgresql
+        return unavailable_selection(
+          "wake_up_adapter :postgresql needs a database with a notification " \
+          "channel, and #{family || "this database"} provides none"
+        )
+      end
+
+      labelled(Postgresql.new, :postgresql_notify, true, POSTGRESQL_FLOOR_MS, "PostgreSQL LISTEN was requested")
+    end
+
+    # @rbs () -> untyped
+    def requested_redis
+      url = redis_url
+      unless url
+        return unavailable_selection(
+          "wake_up_adapter :redis needs #{REDIS_URL_VARIABLE}, which is not set"
+        )
+      end
+
+      redis_adapter(url, "Redis was requested")
+    end
+
+    # @rbs (String, String) -> untyped
+    def redis_adapter(url, reason)
+      return unavailable_selection("#{REDIS_URL_VARIABLE} is set, and the redis gem is not installed") unless redis_installed?
+
+      labelled(Redis.new(url:), :redis, true, REDIS_FLOOR_MS, reason)
+    end
+
+    # @rbs () -> bool
+    def redis_installed?
+      require "redis"
+      true
+    rescue LoadError
+      false
+    end
+
+    # @rbs (String) -> untyped
+    def unavailable_selection(reason)
+      SolidObjects.configuration.logger.warn(
+        event: "solid_objects.wake_up.unavailable",
+        reason:
+      )
+      polling_adapter(reason)
     end
 
     # @rbs (untyped) -> untyped
@@ -111,8 +160,8 @@ module SolidObjects
 
     # @rbs (String) -> untyped
     def redis_selection(url)
-      labelled(
-        Redis.new(url:), :redis, true, REDIS_FLOOR_MS,
+      redis_adapter(
+        url,
         "#{REDIS_URL_VARIABLE} is set, so Redis carries the signal between processes"
       )
     end

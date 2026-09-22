@@ -93,11 +93,50 @@ class WakeUpSelectionTest < ActiveSupport::TestCase
   end
 
   test "a name selects that adapter without probing" do
+    ENV["SOLID_OBJECTS_REDIS_URL"] = "redis://127.0.0.1:6379/15"
     SolidObjects.configuration.wake_up_adapter = :redis
 
     capability = SolidObjects.wake_up.capability
     assert_equal :redis, capability.adapter
     assert_match(/requested/i, capability.reason)
+  end
+
+  test "a requested postgresql adapter polls when the database has no channel" do
+    skip if database_family == :postgresql
+    warnings = []
+    SolidObjects.configuration.logger = Logger.new(IO::NULL).tap do |logger|
+      logger.define_singleton_method(:warn) { |payload| warnings << payload }
+    end
+    SolidObjects.configuration.wake_up_adapter = :postgresql
+
+    capability = SolidObjects.wake_up.capability
+    assert_equal :polling, capability.adapter
+    assert_not capability.crosses_processes
+    assert_match(/notification channel/i, capability.reason)
+    assert_equal [ "solid_objects.wake_up.unavailable" ],
+      warnings.map { |payload| payload[:event].to_s }
+  end
+
+  test "a requested redis adapter polls when no url is set" do
+    warnings = []
+    SolidObjects.configuration.logger = Logger.new(IO::NULL).tap do |logger|
+      logger.define_singleton_method(:warn) { |payload| warnings << payload }
+    end
+    SolidObjects.configuration.wake_up_adapter = :redis
+
+    capability = SolidObjects.wake_up.capability
+    assert_equal :polling, capability.adapter
+    assert_match(/SOLID_OBJECTS_REDIS_URL/, capability.reason)
+    assert_equal [ "solid_objects.wake_up.unavailable" ],
+      warnings.map { |payload| payload[:event].to_s }
+  end
+
+  test "an unknown name is refused when the configuration is validated" do
+    SolidObjects.configuration.wake_up_adapter = :carrier_pigeon
+
+    error = assert_raises(ArgumentError) { SolidObjects.configuration.validate! }
+    assert_match(/carrier_pigeon/, error.message)
+    assert_match(/automatic/, error.message)
   end
 
   test "an unknown name is refused rather than silently polling" do

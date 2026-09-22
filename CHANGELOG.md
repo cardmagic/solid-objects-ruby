@@ -23,6 +23,14 @@
 - Keep the capability that a configured adapter reports about itself. A
   configured `SolidObjects::WakeUp` now reports `:in_process` and warns, rather
   than claim that it crosses processes.
+- Poll rather than pretend when a requested adapter cannot be built.
+  `wake_up_adapter = :postgresql` on a database with no notification channel,
+  `:redis` without `SOLID_OBJECTS_REDIS_URL`, and a Redis URL without the redis
+  gem each log `solid_objects.wake_up.unavailable` once and record the reason in
+  the capability, so the doctor warns rather than claim a cross-process wake-up
+  that cannot happen.
+- Validate `wake_up_adapter` in `configure`. An unknown name raised at the first
+  wake-up, which is after a commit, rather than at boot.
 - Report the resolved choice. `SolidObjects.wake_up.capability` names the
   adapter, whether it crosses processes, its measured floor, and why it was
   chosen. The doctor reports it, and the polling-only warning now fires on what

@@ -23,6 +23,21 @@ module SolidObjects
     # @rbs (Symbol) -> untyped
     def self?.named: (Symbol) -> untyped
 
+    # @rbs () -> untyped
+    def self?.requested_postgresql: () -> untyped
+
+    # @rbs () -> untyped
+    def self?.requested_redis: () -> untyped
+
+    # @rbs (String, String) -> untyped
+    def self?.redis_adapter: (String, String) -> untyped
+
+    # @rbs () -> bool
+    def self?.redis_installed?: () -> bool
+
+    # @rbs (String) -> untyped
+    def self?.unavailable_selection: (String) -> untyped
+
     # @rbs (untyped) -> untyped
     def self?.configured: (untyped) -> untyped
 
