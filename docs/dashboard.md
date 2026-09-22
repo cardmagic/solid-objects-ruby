@@ -149,6 +149,16 @@ actor class that no longer exists, a full mailbox, a payload over the cap. The
 dashboard renders the dead letter again with the reason and a 422 status,
 rather than failing the request.
 
+Dead effects and broadcasts have the same API, which the dashboard does not yet
+surface. `SolidObjects.dead_letters.effects` and
+`SolidObjects.dead_letters.broadcasts` read and retry their own kind, and
+`redrive` moves a whole scope as a durable task. See
+[Operations](operations.md) for both.
+
+Every retry and every redrive transition writes one row to
+`solid_objects_administration_events`, holding the action, the kind, the
+subject, and the identity that asked for it.
+
 **Pause an instance** sets `paused_at`, and the activation manager stops
 claiming that identity. Two consequences matter:
 
