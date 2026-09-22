@@ -14,7 +14,11 @@ module SolidObjects
       actor = AdministrationAudit.identity(authorization_context)
       SolidObjects.database_adapter.transaction do
         dead_letter = DeadLetter.find(dead_letter_id)
-        reference = retried_reference(dead_letter)
+        reference = if dead_letter.retried_message_id
+          MessageReference.from_message(Message.find(dead_letter.retried_message_id))
+        else
+          enqueue_retry(dead_letter)
+        end
         AdministrationAudit.record(
           action: "dead_letter.retry",
           kind: "message",
@@ -48,11 +52,7 @@ module SolidObjects
     private
 
     # @rbs (DeadLetter) -> MessageReference
-    def retried_reference(dead_letter)
-      if dead_letter.retried_message_id
-        return MessageReference.from_message(Message.find(dead_letter.retried_message_id))
-      end
-
+    def enqueue_retry(dead_letter)
       message_reference = Mailbox.new.enqueue(
         reference: Reference.new(
           actor_type: dead_letter.actor_type,
