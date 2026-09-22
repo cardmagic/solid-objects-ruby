@@ -131,7 +131,9 @@
   adapter opens a connection per waiting thread outside the pool and adds one
   `NOTIFY` per enqueue, and Redis is not a dependency of this gem.
   `LISTEN` does not survive a transaction-pooling proxy such as PgBouncer, so
-  the session is probed and a pooled one falls back to polling and warns once.
+  selection listens, sends one `NOTIFY` from a second connection, and waits for
+  it to arrive. A probe that does not deliver falls back to polling and warns
+  once.
   `SolidObjects.wake_up.capability` reports the adapter, whether it crosses
   processes, its floor, and why, and the doctor shows the same record.
   MySQL still polls. It has no notification channel, and no MySQL notifier has

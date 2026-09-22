@@ -8,6 +8,8 @@ module SolidObjects
 
     REDIS_URL_VARIABLE: ::String
 
+    PROBE_TIMEOUT_SECONDS: ::Float
+
     NAMES: untyped
 
     # @rbs (?untyped) -> untyped
@@ -28,8 +30,14 @@ module SolidObjects
     # @rbs (?untyped) -> untyped
     def self?.select: (?untyped) -> untyped
 
-    # @rbs (untyped) -> bool?
-    def self?.session_survives_transactions?: (untyped) -> bool?
+    # @rbs (untyped) -> bool
+    def self?.notifications_deliver?: (untyped) -> bool
+
+    # @rbs (String) -> bool
+    def self?.notify_probe_channel: (String) -> bool
+
+    # @rbs (untyped) -> void
+    def self?.disconnect_probe: (untyped) -> void
 
     # @rbs () -> void
     def self?.reset_pooled_warning!: () -> void
@@ -40,8 +48,8 @@ module SolidObjects
     # @rbs (String) -> untyped
     def self?.redis_selection: (String) -> untyped
 
-    # @rbs (untyped) -> untyped
-    def self?.postgresql_selection: (untyped) -> untyped
+    # @rbs () -> untyped
+    def self?.postgresql_selection: () -> untyped
 
     # @rbs () -> untyped
     def self?.pooled_selection: () -> untyped
@@ -54,8 +62,5 @@ module SolidObjects
 
     # @rbs () -> void
     def self?.warn_pooled_session_once: () -> void
-
-    # @rbs (untyped, untyped) -> void
-    def self?.restore_application_name: (untyped, untyped) -> void
   end
 end

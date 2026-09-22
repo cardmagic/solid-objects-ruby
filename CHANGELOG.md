@@ -12,10 +12,14 @@
   cross-process wake-up, a connection per waiting thread outside the pool, and
   one `NOTIFY` per enqueue after the commit. Set
   `config.wake_up_adapter = :in_process` to keep polling.
-- Probe the PostgreSQL session before selecting notifications, because `LISTEN`
-  does not survive a transaction pooler such as PgBouncer. A session that does
-  not outlive a statement falls back to polling and warns once. A probe that
-  cannot run is not treated as a pooler.
+- Prove the PostgreSQL notification path before selecting it, because `LISTEN`
+  does not survive a transaction pooler such as PgBouncer. Selection listens,
+  sends one `NOTIFY` from a second connection, and waits up to two seconds for
+  it to arrive. A probe that does not deliver falls back to polling and warns
+  once.
+- Keep the capability that a configured adapter reports about itself. A
+  configured `SolidObjects::WakeUp` now reports `:in_process` and warns, rather
+  than claim that it crosses processes.
 - Report the resolved choice. `SolidObjects.wake_up.capability` names the
   adapter, whether it crosses processes, its measured floor, and why it was
   chosen. The doctor reports it, and the polling-only warning now fires on what

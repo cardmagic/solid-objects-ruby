@@ -4,14 +4,26 @@ require "database_test_helper"
 require "solid_objects/doctor"
 
 class WakeUpSelectionTest < ActiveSupport::TestCase
+  class CustomAdapter
+    attr_accessor :capability
+
+    def signal = true
+
+    def watch = self
+
+    def wait(timeout:) = false
+  end
+
   setup do
     SolidObjects.reset_wake_up!
     @redis_url = ENV.delete("SOLID_OBJECTS_REDIS_URL")
+    @configured_adapter = SolidObjects.configuration.wake_up_adapter
   end
 
   teardown do
     ENV.delete("SOLID_OBJECTS_REDIS_URL")
     ENV["SOLID_OBJECTS_REDIS_URL"] = @redis_url if @redis_url
+    SolidObjects.configuration.wake_up_adapter = @configured_adapter
     SolidObjects.reset_wake_up!
   end
 
@@ -20,7 +32,32 @@ class WakeUpSelectionTest < ActiveSupport::TestCase
     SolidObjects.configuration.wake_up_adapter = explicit
 
     assert_same explicit, SolidObjects.wake_up
-    assert_equal :configured, SolidObjects.wake_up.capability.adapter
+  end
+
+  test "a configured adapter keeps the capability it reports about itself" do
+    SolidObjects.configuration.wake_up_adapter = SolidObjects::WakeUp.new
+
+    capability = SolidObjects.wake_up.capability
+    assert_equal :in_process, capability.adapter
+    assert_not capability.crosses_processes
+    assert_match(/another process/i, capability.reason)
+  end
+
+  test "the doctor warns about a configured in-process adapter" do
+    SolidObjects.configuration.authorize_administration = ->(**) { true }
+    SolidObjects.configuration.wake_up_adapter = SolidObjects::WakeUp.new
+
+    check = SolidObjects::Doctor.new.call.check(:wake_up)
+    assert_equal :warn, check.status
+    assert_match(/cannot wake another/i, check.message)
+  end
+
+  test "a configured adapter that reports no capability is recorded as configured" do
+    SolidObjects.configuration.wake_up_adapter = CustomAdapter.new
+
+    capability = SolidObjects.wake_up.capability
+    assert_equal :configured, capability.adapter
+    assert capability.crosses_processes
   end
 
   test "in_process opts out of selection" do
@@ -56,13 +93,26 @@ class WakeUpSelectionTest < ActiveSupport::TestCase
     assert_match(/redis/i, capability.reason)
   end
 
-  test "postgresql selects notifications when the session survives transactions" do
+  test "postgresql selects notifications when a probe notification arrives" do
     skip unless database_family == :postgresql
 
     capability = SolidObjects.wake_up.capability
     assert_equal :postgresql_notify, capability.adapter
     assert capability.crosses_processes
     assert_operator capability.measured_floor_ms, :<, 100
+    assert_match(/probe notification arrived/i, capability.reason)
+  end
+
+  test "postgresql polls when a probe notification does not arrive" do
+    skip unless database_family == :postgresql
+
+    with_undelivered_notifications do
+      capability = SolidObjects.wake_up.capability
+
+      assert_equal :polling, capability.adapter
+      assert_not capability.crosses_processes
+      assert_match(/pooler/i, capability.reason)
+    end
   end
 
   test "a database without a channel polls and reports its floor" do
@@ -134,7 +184,16 @@ class WakeUpSelectionTest < ActiveSupport::TestCase
   end
 
   def with_pooled_session(&block)
-    with_module_method(:session_survives_transactions?, ->(_connection) { false }, &block)
+    with_undelivered_notifications(&block)
+  end
+
+  def with_undelivered_notifications
+    adapter_class = SolidObjects::WakeUpAdapters::Postgresql
+    original = adapter_class.instance_method(:wait)
+    adapter_class.define_method(:wait) { |timeout:| false }
+    yield
+  ensure
+    adapter_class.define_method(:wait, original)
   end
 
   def with_unreachable_database(&block)

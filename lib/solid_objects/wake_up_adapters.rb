@@ -5,6 +5,7 @@ module SolidObjects
     POSTGRESQL_FLOOR_MS = 2.9
     REDIS_FLOOR_MS = 5.7
     REDIS_URL_VARIABLE = "SOLID_OBJECTS_REDIS_URL"
+    PROBE_TIMEOUT_SECONDS = 2.0
 
     @pooled_warning_mutex = Thread::Mutex.new
     @pooled_warning_emitted = false
@@ -40,6 +41,7 @@ module SolidObjects
     # @rbs (untyped) -> untyped
     def configured(adapter)
       return adapter unless adapter.respond_to?(:capability=)
+      return adapter if adapter.respond_to?(:default_capability)
 
       labelled(adapter, :configured, true, nil, "an adapter was configured, so selection did not run")
     end
@@ -61,21 +63,37 @@ module SolidObjects
       return redis_selection(url) if url
 
       family = DatabaseAdapter.family(connection)
-      return postgresql_selection(connection) if family == :postgresql
+      return postgresql_selection if family == :postgresql
 
       polling_selection(family)
     end
 
-    # @rbs (untyped) -> bool?
-    def session_survives_transactions?(connection)
-      previous = connection.select_value("SELECT current_setting('application_name')")
-      token = SecureRandom.hex(8)
-      connection.execute("SET application_name = #{connection.quote(token)}")
-      connection.select_value("SELECT current_setting('application_name')") == token
+    # @rbs (untyped) -> bool
+    def notifications_deliver?(adapter)
+      return false unless adapter.listen
+      return false unless notify_probe_channel(adapter.channel)
+
+      adapter.wait(timeout: PROBE_TIMEOUT_SECONDS)
+    rescue
+      false
+    ensure
+      adapter.stop
+    end
+
+    # @rbs (String) -> bool
+    def notify_probe_channel(channel)
+      connection = Record.connection_pool.send(:new_connection)
+      connection.execute("NOTIFY #{connection.quote_table_name(channel)}")
+      true
+    ensure
+      disconnect_probe(connection)
+    end
+
+    # @rbs (untyped) -> void
+    def disconnect_probe(connection)
+      connection&.disconnect!
     rescue
       nil
-    ensure
-      restore_application_name(connection, previous)
     end
 
     # @rbs () -> void
@@ -97,15 +115,14 @@ module SolidObjects
       )
     end
 
-    # @rbs (untyped) -> untyped
-    def postgresql_selection(connection)
-      survives = session_survives_transactions?(connection)
-      return pooled_selection if survives == false
+    # @rbs () -> untyped
+    def postgresql_selection
+      adapter = Postgresql.new
+      return pooled_selection unless notifications_deliver?(adapter)
 
       labelled(
-        Postgresql.new, :postgresql_notify, true, POSTGRESQL_FLOOR_MS,
-        survives ? "PostgreSQL LISTEN is available and the session outlives a transaction"
-                 : "PostgreSQL LISTEN was selected without a session probe"
+        adapter, :postgresql_notify, true, POSTGRESQL_FLOOR_MS,
+        "a probe notification arrived, so PostgreSQL LISTEN carries the signal between processes"
       )
     end
 
@@ -113,8 +130,8 @@ module SolidObjects
     def pooled_selection
       warn_pooled_session_once
       polling_adapter(
-        "the PostgreSQL session does not outlive a transaction, which a transaction " \
-        "pooler such as PgBouncer causes, so LISTEN would never fire"
+        "a probe notification did not arrive, so LISTEN cannot carry the signal " \
+        "between processes; a transaction pooler such as PgBouncer is the usual cause"
       )
     end
 
@@ -141,20 +158,11 @@ module SolidObjects
 
         SolidObjects.configuration.logger.warn(
           event: "solid_objects.wake_up.pooled_session",
-          reason: "PostgreSQL notifications were not selected because the session " \
-            "does not outlive a transaction"
+          reason: "PostgreSQL notifications were not selected because a probe " \
+            "notification did not arrive"
         )
         @pooled_warning_emitted = true
       end
-    end
-
-    # @rbs (untyped, untyped) -> void
-    def restore_application_name(connection, previous)
-      return if previous.nil?
-
-      connection.execute("SET application_name = #{connection.quote(previous)}")
-    rescue
-      nil
     end
   end
 end
