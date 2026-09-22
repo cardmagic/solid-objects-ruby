@@ -103,7 +103,9 @@ class RedriveTest < ActiveSupport::TestCase
     dead_effects(5)
     first = SolidObjects.dead_letters.effects.redrive(authorization_context: "operator")
     drain
-    SolidObjects::Effect.update_all(status: "dead")
+    SolidObjects::Effect.where.not(status: "dead").update_all(
+      status: "dead", updated_at: SolidObjects.database_adapter.database_now
+    )
 
     second = SolidObjects.dead_letters.effects.redrive(authorization_context: "operator")
 
@@ -125,6 +127,22 @@ class RedriveTest < ActiveSupport::TestCase
     assert_equal 10, cancelled.moved
     assert_equal 10, SolidObjects::Effect.where(status: "pending").count
     assert_equal 15, SolidObjects::Effect.where(status: "dead").count
+  end
+
+  test "does not move a row that died after the task started" do
+    dead_effects(2)
+    task = SolidObjects.dead_letters.effects.redrive(authorization_context: "operator")
+    sleep 0.01
+    PaymentActor.ref("late").async.place(order: "late")
+    run_actors
+    SolidObjects::Effect.where.not(status: "dead").update_all(
+      status: "dead", updated_at: SolidObjects.database_adapter.database_now
+    )
+
+    drain
+
+    assert_equal 2, SolidObjects.redrives.find(task.id, authorization_context: "operator").moved
+    assert_equal 1, SolidObjects::Effect.where(status: "dead").count
   end
 
   test "filters by actor type" do
@@ -255,7 +273,9 @@ class RedriveTest < ActiveSupport::TestCase
     SolidObjects.register_effect(:settle) { raise "declined" }
     count.times { |index| PaymentActor.ref("order-#{index}").async.place(order: index) }
     run_actors
-    SolidObjects::Effect.update_all(status: "dead")
+    SolidObjects::Effect.where.not(status: "dead").update_all(
+      status: "dead", updated_at: SolidObjects.database_adapter.database_now
+    )
     assert_equal count, SolidObjects::Effect.where(status: "dead").count
   end
 
@@ -263,7 +283,9 @@ class RedriveTest < ActiveSupport::TestCase
     SolidObjects.configuration.broadcast_adapter = ->(_payload) { raise "transport down" }
     ShipmentActor.ref("one").async.touch
     run_actors
-    SolidObjects::Broadcast.update_all(status: "dead")
+    SolidObjects::Broadcast.where.not(status: "dead").update_all(
+      status: "dead", updated_at: SolidObjects.database_adapter.database_now
+    )
   end
 
   def drain

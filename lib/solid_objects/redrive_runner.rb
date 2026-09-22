@@ -37,7 +37,11 @@ module SolidObjects
       size = batch_size(record)
       return 0 unless size.positive?
 
-      identifiers = scope.matching(record.filters).order(:id).limit(size).pluck(:id)
+      identifiers = scope
+        .matching(record.filters, dead_before: record.started_at)
+        .order(:id)
+        .limit(size)
+        .pluck(:id)
       return 0 if identifiers.empty?
 
       revived = scope.revive_all(identifiers)

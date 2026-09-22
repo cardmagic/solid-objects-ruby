@@ -103,7 +103,10 @@ module SolidObjects
     def remaining_for(record)
       return 0 unless record.status == RUNNING
 
-      matching = DeadLetterScope.for_kind(record.kind).matching(record.filters).count
+      matching = DeadLetterScope
+        .for_kind(record.kind)
+        .matching(record.filters, dead_before: record.started_at)
+        .count
       limit = record.move_limit
       return matching unless limit
 

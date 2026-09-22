@@ -68,13 +68,17 @@ module SolidObjects
       model.where(status: DEAD)
     end
 
-    # @rbs (Hash[String, untyped]) -> ActiveRecord::Relation[untyped]
-    def matching(filters)
+    # A redrive moves what was already dead when it started. Without that bound
+    # a row that fails again lands back in the same scope, and a task whose
+    # handler is still broken would move it forever.
+    # @rbs (Hash[String, untyped], ?dead_before: untyped) -> ActiveRecord::Relation[untyped]
+    def matching(filters, dead_before: nil)
       relation = dead
       actor_type = filters["actor_type"]
       failed_after = filters["failed_after"]
       relation = relation.joins(:instance).where(Instance.table_name => { actor_type: }) if actor_type
       relation = relation.where(updated_at: Time.parse(failed_after)..) if failed_after
+      relation = relation.where(updated_at: ..dead_before) if dead_before
       relation
     end
 

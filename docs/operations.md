@@ -331,6 +331,10 @@ bounded batch per pass, so a redrive of thousands of rows never holds a
 transaction longer than one batch. `redrive_batch_size` defaults to 100 and
 `redrive_batch_pause` to 0.05 seconds.
 
+A redrive moves the rows that were already dead when it started. A row that
+fails again lands back in the same scope, and without that bound a task whose
+handler is still broken would move it forever.
+
 A redrive is idempotent over its scope and its filters. Starting the same one
 while it runs returns the running task rather than a second one, which a
 dashboard button an operator can press twice needs. A different scope or a
