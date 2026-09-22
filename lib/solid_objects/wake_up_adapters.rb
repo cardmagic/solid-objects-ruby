@@ -2,22 +2,217 @@
 
 module SolidObjects
   module WakeUpAdapters
+    POSTGRESQL_FLOOR_MS = 2.9
+    REDIS_FLOOR_MS = 5.7
+    REDIS_URL_VARIABLE = "SOLID_OBJECTS_REDIS_URL"
+    PROBE_TIMEOUT_SECONDS = 2.0
+    PROBE_CHANNEL = "solid_objects_wake_up_probe"
+
+    @pooled_warning_mutex = Thread::Mutex.new
+    @pooled_warning_emitted = false
+
     module_function
 
-    # Returns the best wake-up strategy for a connection: cross-process
-    # notifications where the database provides them, and the in-process
-    # default everywhere else.
-    #
-    # This is deliberately not the default. A notification adapter opens a
-    # connection per waiting thread outside the pool, and `LISTEN` does not
-    # survive a transaction-pooling proxy such as PgBouncer, so adopting it is
-    # a deployment decision rather than an upgrade side effect.
-    #
+    NAMES = %i[automatic in_process postgresql redis].freeze
+
     # @rbs (?untyped) -> untyped
     def for(connection = Record.connection)
-      return Postgresql.new if DatabaseAdapter.family(connection) == :postgresql
+      select(connection)
+    end
 
-      WakeUp.new
+    # @rbs (untyped) -> untyped
+    def build(setting)
+      return select if setting.nil? || setting == :automatic
+      return named(setting) if setting.is_a?(Symbol)
+
+      configured(setting)
+    end
+
+    # @rbs (Symbol) -> untyped
+    def named(name)
+      case name
+      when :in_process then labelled(WakeUp.new, :in_process, false, nil, "in-process signalling was requested")
+      when :postgresql then requested_postgresql
+      when :redis then requested_redis
+      else
+        raise ArgumentError, "unknown wake_up_adapter #{name.inspect}, expected one of #{NAMES.join(", ")} or an adapter"
+      end
+    end
+
+    # @rbs () -> untyped
+    def requested_postgresql
+      family = DatabaseAdapter.family(Record.connection)
+      unless family == :postgresql
+        return unavailable_selection(
+          "wake_up_adapter :postgresql needs a database with a notification " \
+          "channel, and #{family || "this database"} provides none"
+        )
+      end
+
+      labelled(Postgresql.new, :postgresql_notify, true, POSTGRESQL_FLOOR_MS, "PostgreSQL LISTEN was requested")
+    end
+
+    # @rbs () -> untyped
+    def requested_redis
+      url = redis_url
+      unless url
+        return unavailable_selection(
+          "wake_up_adapter :redis needs #{REDIS_URL_VARIABLE}, which is not set"
+        )
+      end
+
+      redis_adapter(url, "Redis was requested")
+    end
+
+    # @rbs (String, String) -> untyped
+    def redis_adapter(url, reason)
+      return unavailable_selection("#{REDIS_URL_VARIABLE} is set, and the redis gem is not installed") unless redis_installed?
+
+      labelled(Redis.new(url:), :redis, true, REDIS_FLOOR_MS, reason)
+    end
+
+    # @rbs () -> bool
+    def redis_installed?
+      require "redis"
+      true
+    rescue LoadError
+      false
+    end
+
+    # @rbs (String) -> untyped
+    def unavailable_selection(reason)
+      SolidObjects.configuration.logger.warn(
+        event: "solid_objects.wake_up.unavailable",
+        reason:
+      )
+      polling_adapter(reason)
+    end
+
+    # @rbs (untyped) -> untyped
+    def configured(adapter)
+      return adapter unless adapter.respond_to?(:capability=)
+      return adapter if adapter.respond_to?(:default_capability)
+
+      labelled(adapter, :configured, true, nil, "an adapter was configured, so selection did not run")
+    end
+
+    # @rbs (untyped, Symbol, bool, Numeric?, String) -> untyped
+    def labelled(adapter, name, crosses_processes, floor, reason)
+      adapter.capability = WakeUpCapability.new(
+        adapter: name,
+        crosses_processes:,
+        measured_floor_ms: floor,
+        reason:
+      )
+      adapter
+    end
+
+    # @rbs (?untyped) -> untyped
+    def select(connection = Record.connection)
+      url = redis_url
+      return redis_selection(url) if url
+
+      family = DatabaseAdapter.family(connection)
+      return postgresql_selection if family == :postgresql
+
+      polling_selection(family)
+    end
+
+    # @rbs () -> bool
+    def notifications_deliver?
+      probe = Postgresql.new(channel: PROBE_CHANNEL)
+      return false unless probe.listen
+      return false unless notify_probe_channel
+
+      probe.wait(timeout: PROBE_TIMEOUT_SECONDS)
+    rescue
+      false
+    ensure
+      probe&.stop
+    end
+
+    # @rbs () -> bool
+    def notify_probe_channel
+      connection = Record.connection_pool.send(:new_connection)
+      connection.execute("NOTIFY #{connection.quote_table_name(PROBE_CHANNEL)}")
+      true
+    ensure
+      disconnect_probe(connection)
+    end
+
+    # @rbs (untyped) -> void
+    def disconnect_probe(connection)
+      connection&.disconnect!
+    rescue
+      nil
+    end
+
+    # @rbs () -> void
+    def reset_pooled_warning!
+      @pooled_warning_mutex.synchronize { @pooled_warning_emitted = false }
+    end
+
+    # @rbs () -> String?
+    def redis_url
+      value = ENV[REDIS_URL_VARIABLE].to_s
+      value.empty? ? nil : value
+    end
+
+    # @rbs (String) -> untyped
+    def redis_selection(url)
+      redis_adapter(
+        url,
+        "#{REDIS_URL_VARIABLE} is set, so Redis carries the signal between processes"
+      )
+    end
+
+    # @rbs () -> untyped
+    def postgresql_selection
+      return pooled_selection unless notifications_deliver?
+
+      labelled(
+        Postgresql.new, :postgresql_notify, true, POSTGRESQL_FLOOR_MS,
+        "a probe notification arrived, so PostgreSQL LISTEN carries the signal between processes"
+      )
+    end
+
+    # @rbs () -> untyped
+    def pooled_selection
+      warn_pooled_session_once
+      polling_adapter(
+        "a probe notification did not arrive, so LISTEN cannot carry the signal " \
+        "between processes; a transaction pooler such as PgBouncer is the usual cause"
+      )
+    end
+
+    # @rbs (Symbol?) -> untyped
+    def polling_selection(family)
+      polling_adapter(
+        "#{family || "this database"} has no notification channel and " \
+        "#{REDIS_URL_VARIABLE} is not set"
+      )
+    end
+
+    # @rbs (String) -> untyped
+    def polling_adapter(reason)
+      labelled(
+        WakeUp.new, :polling, false,
+        SolidObjects.configuration.idle_polling_interval * 1_000, reason
+      )
+    end
+
+    # @rbs () -> void
+    def warn_pooled_session_once
+      @pooled_warning_mutex.synchronize do
+        return if @pooled_warning_emitted
+
+        SolidObjects.configuration.logger.warn(
+          event: "solid_objects.wake_up.pooled_session",
+          reason: "PostgreSQL notifications were not selected because a probe " \
+            "notification did not arrive"
+        )
+        @pooled_warning_emitted = true
+      end
     end
   end
 end

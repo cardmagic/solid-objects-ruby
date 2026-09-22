@@ -2,6 +2,8 @@
 
 module SolidObjects
   class WakeUp
+    include ReportsWakeUpCapability
+
     class Watch
       # @rbs @wake_up: WakeUp
       # @rbs @generation: Integer
@@ -27,6 +29,16 @@ module SolidObjects
       @mutex = Mutex.new
       @condition = Thread::ConditionVariable.new
       @generation = 0
+    end
+
+    # @rbs () -> WakeUpCapability
+    def default_capability
+      WakeUpCapability.new(
+        adapter: :in_process,
+        crosses_processes: false,
+        measured_floor_ms: nil,
+        reason: "in-process signalling, which a commit in another process cannot reach"
+      )
     end
 
     # @rbs () -> void

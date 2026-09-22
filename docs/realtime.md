@@ -140,46 +140,52 @@ explicitly serve the module. Turbo's normal morph rules still apply; use
 
 ## Cross-process wake-up
 
-Runtime roles poll for work and are woken early by an in-process signal. That
-signal cannot cross process boundaries, so a commit in a Puma process does not
-wake a broadcast executor in a worker process, and delivery waits out
+Runtime roles poll for work and are woken early by a signal. An in-process
+signal cannot cross process boundaries, so a commit in a Puma process would not
+wake a broadcast executor in a worker process, and delivery would wait out
 `polling_interval`, 100 ms by default.
 
-On PostgreSQL, install the notification adapter to remove that delay:
+Solid Objects selects the adapter for you. `wake_up_adapter` defaults to
+`:automatic`, which prefers a configured Redis URL, then PostgreSQL
+notifications, then polling:
 
 ```ruby
 # config/initializers/solid_objects.rb
-configuration.wake_up_adapter = SolidObjects::WakeUpAdapters.for
+configuration.wake_up_adapter = :automatic     # the default
+configuration.wake_up_adapter = :in_process    # opt out
+configuration.wake_up_adapter = :postgresql    # force one
+configuration.wake_up_adapter = MyAdapter.new  # your own
 ```
 
-`WakeUpAdapters.for` returns notifications on PostgreSQL and the in-process
-default on SQLite and MySQL, so the same line is safe across adapters. Name
-`SolidObjects::WakeUpAdapters::Postgresql.new` directly to require it.
+`SolidObjects.wake_up.capability` reports what was installed, whether it crosses
+processes, its measured floor, and why. `bin/rails solid_objects:doctor` reports
+the same record.
 
-MySQL has no notification primitive. MySQL applications either keep polling and
-tune `polling_interval`, or configure the Redis adapter:
-
-```ruby
-configuration.wake_up_adapter = SolidObjects::WakeUpAdapters::Redis.new(
-  url: ENV["REDIS_URL"]
-)
-```
-
-Measured latency for a cross-process wake-up drops from 103.8 ms to 5.7 ms at
-p50. The `redis` gem is not a dependency of this gem, so applications add it
-themselves. One background subscription per process fans out to every waiting
-role in memory, rather than one connection per thread, and `WakeUpAdapters.for`
-does not select it: Redis is infrastructure this gem otherwise does not require,
-so choosing it is explicit.
-
+On PostgreSQL, selection proves the path before it chooses it. It listens on a
+probe channel, sends one `NOTIFY` from a second connection, and waits for it to
+arrive, because `LISTEN` does not survive a transaction pooler such as
+PgBouncer. A probe that does not deliver falls back to polling and warns once.
 Measured latency for a cross-process wake-up drops from 103.7 ms to 2.9 ms at
 p50. The adapter keeps `polling_interval` as the upper bound: a missed or failed
 notification costs latency, never correctness, and signalling never raises into
 the caller that committed. `LISTEN` needs its own connection, so the adapter
 opens one outside the pool and releases it on `stop`.
 
-Applications on SQLite or MySQL, or that do not configure the adapter, keep the
-existing polling behaviour.
+MySQL has no notification primitive, so MySQL applications either keep polling
+and tune `polling_interval`, or set `SOLID_OBJECTS_REDIS_URL`, which selects
+Redis on any database:
+
+```bash
+SOLID_OBJECTS_REDIS_URL=redis://localhost:6379/0
+```
+
+Measured latency for a cross-process wake-up drops from 103.8 ms to 5.7 ms at
+p50. The `redis` gem is not a dependency of this gem, so applications add it
+themselves, and selection polls and says so when the gem is missing. One
+background subscription per process fans out to every waiting role in memory,
+rather than one connection per thread. Name
+`SolidObjects::WakeUpAdapters::Redis.new(url:)` directly for a URL that does not
+come from the environment.
 
 ## Batched component refreshes
 

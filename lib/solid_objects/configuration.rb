@@ -141,7 +141,7 @@ module SolidObjects
       @connects_to = nil
       @stream_signing_secret = nil
       @broadcast_adapter = nil
-      @wake_up_adapter = nil
+      @wake_up_adapter = :automatic
       @component_path_resolver = nil
       @component_authorization_context = ->(controller:) { controller }
       @payload_authorization_context = ->(connection:) { connection }
@@ -237,6 +237,7 @@ module SolidObjects
         raise ArgumentError, "actor type cannot be empty" if actor_type.to_s.empty?
         raise ArgumentError, "instance retention must be positive" unless retention.positive?
       end
+      validate_wake_up_adapter!
       unless component_path_resolver.nil? || component_path_resolver.respond_to?(:call)
         raise ArgumentError, "component_path_resolver must respond to call"
       end
@@ -251,6 +252,26 @@ module SolidObjects
     end
 
     private
+
+    # @rbs () -> void
+    def validate_wake_up_adapter!
+      return if wake_up_adapter.nil?
+      return validate_wake_up_object! unless wake_up_adapter.is_a?(Symbol)
+      return if WakeUpAdapters::NAMES.include?(wake_up_adapter)
+
+      raise ArgumentError,
+        "unknown wake_up_adapter #{wake_up_adapter.inspect}, " \
+        "expected one of #{WakeUpAdapters::NAMES.join(", ")} or an adapter"
+    end
+
+    # @rbs () -> void
+    def validate_wake_up_object!
+      %i[signal wait].each do |method_name|
+        next if wake_up_adapter.respond_to?(method_name)
+
+        raise ArgumentError, "wake_up_adapter must respond to #{method_name}"
+      end
+    end
 
     # @rbs () -> Hash[Symbol, Numeric]
     def positive_values

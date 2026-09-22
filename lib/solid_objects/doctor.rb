@@ -113,6 +113,7 @@ module SolidObjects
         schema_check,
         check_authorization,
         check_database_server,
+        check_wake_up,
         schema_check.failed? ? skipped_runtime : check_runtime,
         ready_for_round_trip?(configuration_check, schema_check) ?
           check_sync_round_trip :
@@ -206,6 +207,19 @@ module SolidObjects
       )
     rescue => error
       warn_check(:database_server, "#{error.class}: #{error.message}")
+    end
+
+    # @rbs () -> Check
+    def check_wake_up
+      capability = SolidObjects.wake_up.capability
+      floor = capability.measured_floor_ms
+      summary = "#{capability.adapter}: #{capability.reason}"
+      summary += ", floor #{floor} ms" if floor
+      return pass(:wake_up, summary) if capability.crosses_processes
+
+      warn_check(:wake_up, "#{summary}; a commit in one process cannot wake another")
+    rescue => error
+      warn_check(:wake_up, "#{error.class}: #{error.message}")
     end
 
     # @rbs () -> Check

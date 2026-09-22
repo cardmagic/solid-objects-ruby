@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+- Select a wake-up adapter automatically. `config.wake_up_adapter` now takes a
+  name or an adapter, as `config.cache_store` and
+  `config.active_job.queue_adapter` do, and defaults to `:automatic`. Selection
+  prefers a configured Redis URL, then PostgreSQL notifications, then polling.
+  `:in_process` opts out, and an unknown name raises rather than quietly
+  polling.
+- PostgreSQL deployments that configure nothing now use notifications. They gain
+  cross-process wake-up, a connection per waiting thread outside the pool, and
+  one `NOTIFY` per enqueue after the commit. Set
+  `config.wake_up_adapter = :in_process` to keep polling.
+- Prove the PostgreSQL notification path before selecting it, because `LISTEN`
+  does not survive a transaction pooler such as PgBouncer. Selection listens on
+  a probe channel, sends one `NOTIFY` from a second connection, and waits up to
+  two seconds for it to arrive. A probe that does not deliver falls back to
+  polling and warns once.
+- Select the wake-up adapter once per process. `SolidObjects.wake_up` memoised
+  without a lock, so threads that raced for the first use each ran a full
+  selection.
+- Keep the capability that a configured adapter reports about itself. A
+  configured `SolidObjects::WakeUp` now reports `:in_process` and warns, rather
+  than claim that it crosses processes.
+- Poll rather than pretend when a requested adapter cannot be built.
+  `wake_up_adapter = :postgresql` on a database with no notification channel,
+  `:redis` without `SOLID_OBJECTS_REDIS_URL`, and a Redis URL without the redis
+  gem each log `solid_objects.wake_up.unavailable` once and record the reason in
+  the capability, so the doctor warns rather than claim a cross-process wake-up
+  that cannot happen.
+- Validate `wake_up_adapter` in `configure`. An unknown name raised at the first
+  wake-up, which is after a commit, rather than at boot.
+- Report the resolved choice. `SolidObjects.wake_up.capability` names the
+  adapter, whether it crosses processes, its measured floor, and why it was
+  chosen. The doctor reports it, and the polling-only warning now fires on what
+  was installed rather than on whether a setting was set.
 - Read the durable row rather than the query cache in `MessageReference#status`,
   `MessageReference#result`, and an actor snapshot. A caller that polls holds one
   query cache for the whole poll, and the worker that finishes the message is

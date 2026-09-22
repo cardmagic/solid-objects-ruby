@@ -76,6 +76,9 @@ module SolidObjects
     def check_database_server: () -> Check
 
     # @rbs () -> Check
+    def check_wake_up: () -> Check
+
+    # @rbs () -> Check
     def check_runtime: () -> Check
 
     # @rbs () -> Check

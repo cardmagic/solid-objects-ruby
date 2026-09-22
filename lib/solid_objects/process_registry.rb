@@ -61,7 +61,9 @@ module SolidObjects
 
       # @rbs () -> void
       def warn_if_polling_is_only_cross_process_wake_up
-        return if SolidObjects.configuration.wake_up_adapter
+        wake_up = SolidObjects.wake_up
+        return unless wake_up.respond_to?(:capability)
+        return if wake_up.capability.crosses_processes
 
         polling_warning_mutex.synchronize do
           return if polling_warning_emitted?

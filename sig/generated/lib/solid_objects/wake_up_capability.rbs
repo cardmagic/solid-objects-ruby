@@ -1,0 +1,28 @@
+# Generated from lib/solid_objects/wake_up_capability.rb with RBS::Inline
+
+module SolidObjects
+  class WakeUpCapability < Data
+    attr_reader adapter(): untyped
+
+    attr_reader crosses_processes(): untyped
+
+    attr_reader measured_floor_ms(): untyped
+
+    attr_reader reason(): untyped
+
+    def self.new: (untyped adapter, untyped crosses_processes, untyped measured_floor_ms, untyped reason) -> instance
+                | (adapter: untyped, crosses_processes: untyped, measured_floor_ms: untyped, reason: untyped) -> instance
+
+    def self.members: () -> [ :adapter, :crosses_processes, :measured_floor_ms, :reason ]
+
+    def members: () -> [ :adapter, :crosses_processes, :measured_floor_ms, :reason ]
+  end
+
+  module ReportsWakeUpCapability
+    # @rbs (WakeUpCapability) -> void
+    attr_writer capability: untyped
+
+    # @rbs () -> WakeUpCapability
+    def capability: () -> WakeUpCapability
+  end
+end

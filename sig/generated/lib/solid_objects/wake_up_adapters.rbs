@@ -2,16 +2,82 @@
 
 module SolidObjects
   module WakeUpAdapters
-    # Returns the best wake-up strategy for a connection: cross-process
-    # notifications where the database provides them, and the in-process
-    # default everywhere else.
-    #
-    # This is deliberately not the default. A notification adapter opens a
-    # connection per waiting thread outside the pool, and `LISTEN` does not
-    # survive a transaction-pooling proxy such as PgBouncer, so adopting it is
-    # a deployment decision rather than an upgrade side effect.
-    #
+    POSTGRESQL_FLOOR_MS: ::Float
+
+    REDIS_FLOOR_MS: ::Float
+
+    REDIS_URL_VARIABLE: ::String
+
+    PROBE_TIMEOUT_SECONDS: ::Float
+
+    PROBE_CHANNEL: ::String
+
+    NAMES: untyped
+
     # @rbs (?untyped) -> untyped
     def self?.for: (?untyped) -> untyped
+
+    # @rbs (untyped) -> untyped
+    def self?.build: (untyped) -> untyped
+
+    # @rbs (Symbol) -> untyped
+    def self?.named: (Symbol) -> untyped
+
+    # @rbs () -> untyped
+    def self?.requested_postgresql: () -> untyped
+
+    # @rbs () -> untyped
+    def self?.requested_redis: () -> untyped
+
+    # @rbs (String, String) -> untyped
+    def self?.redis_adapter: (String, String) -> untyped
+
+    # @rbs () -> bool
+    def self?.redis_installed?: () -> bool
+
+    # @rbs (String) -> untyped
+    def self?.unavailable_selection: (String) -> untyped
+
+    # @rbs (untyped) -> untyped
+    def self?.configured: (untyped) -> untyped
+
+    # @rbs (untyped, Symbol, bool, Numeric?, String) -> untyped
+    def self?.labelled: (untyped, Symbol, bool, Numeric?, String) -> untyped
+
+    # @rbs (?untyped) -> untyped
+    def self?.select: (?untyped) -> untyped
+
+    # @rbs () -> bool
+    def self?.notifications_deliver?: () -> bool
+
+    # @rbs () -> bool
+    def self?.notify_probe_channel: () -> bool
+
+    # @rbs (untyped) -> void
+    def self?.disconnect_probe: (untyped) -> void
+
+    # @rbs () -> void
+    def self?.reset_pooled_warning!: () -> void
+
+    # @rbs () -> String?
+    def self?.redis_url: () -> String?
+
+    # @rbs (String) -> untyped
+    def self?.redis_selection: (String) -> untyped
+
+    # @rbs () -> untyped
+    def self?.postgresql_selection: () -> untyped
+
+    # @rbs () -> untyped
+    def self?.pooled_selection: () -> untyped
+
+    # @rbs (Symbol?) -> untyped
+    def self?.polling_selection: (Symbol?) -> untyped
+
+    # @rbs (String) -> untyped
+    def self?.polling_adapter: (String) -> untyped
+
+    # @rbs () -> void
+    def self?.warn_pooled_session_once: () -> void
   end
 end

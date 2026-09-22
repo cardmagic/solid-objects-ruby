@@ -245,13 +245,27 @@ to `idle_polling_interval`, which defaults to one second. Actor workers clamp
 the ceiling to `lease_renewal_interval` while they may hold cached activations.
 Set the fast and idle values equal for a fixed cadence.
 
-The default wake-up interrupts waits only in the current Ruby process. When a
-live process record shows that the database is shared across processes and no
-adapter is configured, the runtime logs
-`solid_objects.polling_only_cross_process_wake_up` once. Configure
-`WakeUpAdapters::Postgresql` or `WakeUpAdapters::Redis` when separate processes
-need prompt delivery. Without one, newly committed work can wait up to the
-current idle polling interval.
+Solid Objects selects a wake-up adapter on first use. `wake_up_adapter` defaults
+to `:automatic`, which prefers `SOLID_OBJECTS_REDIS_URL`, then PostgreSQL
+notifications, then polling. `SolidObjects.wake_up.capability` and the
+`wake_up` doctor check report what was installed, whether it crosses processes,
+its measured floor, and why.
+
+The in-process signal interrupts waits only in the current Ruby process. When a
+live process record shows that the database is shared across processes and the
+installed adapter does not cross them, the runtime logs
+`solid_objects.polling_only_cross_process_wake_up` once. Newly committed work
+can then wait up to the current idle polling interval.
+
+On PostgreSQL, selection proves the path first: it listens on a probe channel,
+notifies it from a second connection, and waits for the notification. A probe
+that does not arrive logs `solid_objects.wake_up.pooled_session` once and falls
+back to polling, because `LISTEN` does not survive a transaction pooler such as
+PgBouncer. A requested adapter that the environment cannot provide, such as
+`:postgresql` on MySQL or `:redis` without `SOLID_OBJECTS_REDIS_URL`, logs
+`solid_objects.wake_up.unavailable` once and polls rather than claim a
+cross-process wake-up that cannot happen. Only an unknown name is refused, and
+`configure` refuses it at boot.
 
 The warning excludes process rows with the current hostname and PID. It can
 therefore appear during a rolling deployment or restart overlap when an older

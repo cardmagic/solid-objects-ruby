@@ -2,6 +2,8 @@
 
 module SolidObjects
   class Configuration
+    @process_heartbeat_interval: Float
+
     @process_alive_threshold: Float
 
     @shutdown_timeout: Float
@@ -95,8 +97,6 @@ module SolidObjects
     @retry_delay: Proc
 
     @lock_retry_attempts: Integer
-
-    @process_heartbeat_interval: Float
 
     attr_accessor table_name_prefix: untyped
 
@@ -229,6 +229,12 @@ module SolidObjects
     def validate!: () -> self
 
     private
+
+    # @rbs () -> void
+    def validate_wake_up_adapter!: () -> void
+
+    # @rbs () -> void
+    def validate_wake_up_object!: () -> void
 
     # @rbs () -> Hash[Symbol, Numeric]
     def positive_values: () -> Hash[Symbol, Numeric]
