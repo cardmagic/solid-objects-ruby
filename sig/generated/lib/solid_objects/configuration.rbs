@@ -2,9 +2,7 @@
 
 module SolidObjects
   class Configuration
-    @process_heartbeat_interval: Float
-
-    @process_alive_threshold: Float
+    @table_name_prefix: String
 
     @shutdown_timeout: Float
 
@@ -23,6 +21,10 @@ module SolidObjects
     @process_retention: Numeric
 
     @prune_batch_size: Integer
+
+    @redrive_batch_size: Integer
+
+    @redrive_batch_pause: Float
 
     @worker_count: Integer
 
@@ -60,9 +62,9 @@ module SolidObjects
 
     @authorize_transmission: Proc
 
-    @transmission_actor_type_resolver: Proc
+    @administration_identity: Proc
 
-    @table_name_prefix: String
+    @transmission_actor_type_resolver: Proc
 
     @polling_interval: Float
 
@@ -97,6 +99,10 @@ module SolidObjects
     @retry_delay: Proc
 
     @lock_retry_attempts: Integer
+
+    @process_heartbeat_interval: Float
+
+    @process_alive_threshold: Float
 
     attr_accessor table_name_prefix: untyped
 
@@ -156,6 +162,10 @@ module SolidObjects
 
     attr_accessor prune_batch_size: untyped
 
+    attr_accessor redrive_batch_size: untyped
+
+    attr_accessor redrive_batch_pause: untyped
+
     attr_accessor worker_count: untyped
 
     attr_accessor effect_worker_count: untyped
@@ -191,6 +201,8 @@ module SolidObjects
     attr_accessor authorize_administration: untyped
 
     attr_accessor authorize_transmission: untyped
+
+    attr_accessor administration_identity: untyped
 
     attr_accessor transmission_actor_type_resolver: untyped
 

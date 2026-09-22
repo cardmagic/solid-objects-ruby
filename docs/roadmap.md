@@ -178,15 +178,18 @@
   or turn off. Every route declares its
   own administration policy and a route declared without one raises at load
   time, so the deny-by-default posture is enforced by construction rather than
-  by remembering to add a check. It changes only two things: an idempotent dead
-  letter retry and instance pause/resume. What does not exist is audit records
-  of who pressed what, and bulk-safe tools: retry is one dead letter at a time,
-  because `DeadLetterManager` exposes no bulk operation. Pause is an operator
-  brake and not a stop, since a pass already in flight finishes its turn and a
-  synchronous caller waiting on a paused instance times out. Retry also only
-  exists for message dead letters: a dead effect or broadcast has no retry
-  API, which matters for transmit effects because a dead one is a lost
-  replay until an operator returns its row to pending. The page cost was
+  by remembering to add a check. It changes only three things: an idempotent dead
+  letter retry, a redrive, and instance pause/resume. Retry covers all three
+  kinds. `SolidObjects.dead_letters` keeps its message meaning and answers
+  `effects` and `broadcasts`, so a dead effect or broadcast returns to pending
+  through an API rather than an operator's `UPDATE`, and a dead transmit effect
+  is no longer a lost replay. `redrive` moves a whole scope as a durable task
+  that is idempotent over its filters, cancellable, and advanced in bounded
+  batches by the supervisor. Every retry and task transition writes one row to
+  `solid_objects_administration_events`, so who pressed what is recorded. Pause
+  is an operator brake and not a stop, since a pass already in flight finishes
+  its turn and a synchronous caller waiting on a paused instance times out. The
+  dashboard does not yet surface the scopes or redrive; the API does. The page cost was
   reasoned about rather than measured: the summary bar issues a fixed set of
   indexed aggregate queries per page, which is why `HEAD /` exists for uptime
   monitors, but no dashboard latency has been benchmarked against a large

@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- Retry a dead effect or broadcast. `SolidObjects.dead_letters` keeps its
+  message meaning and answers `effects` and `broadcasts`, so the kind rides on
+  the receiver. `retry` returns a dead row to pending with a zero attempt count
+  and no claim, reuses the stable id so a deduplicating handler sees the same
+  key, and acts only on a dead row, so a second press cannot double-enqueue. A
+  dead transmit effect replays rather than stay lost.
+- Redrive a whole scope. `redrive` opens a durable task, returns at once, and is
+  idempotent over its scope and filters, which a dashboard button needs. A
+  unique index on the active scope enforces that in the database, so two
+  processes that start the same redrive share one task. The supervisor advances
+  one bounded batch per pass, so a redrive never holds a transaction longer than
+  one batch. `SolidObjects.redrives` reads tasks back, and `task.cancel` stops
+  one and leaves the rows it already moved. A redrive moves what was dead when
+  it started, so a still-broken handler cannot make it run forever.
+- Record who pressed what. Every retry and every redrive transition writes one
+  row to `solid_objects_administration_events`. The identity comes from the
+  authorization context through a new `administration_identity` hook.
+- Add `redrive_batch_size`, which defaults to 100, and `redrive_batch_pause`,
+  which defaults to 0.05 seconds.
+- Add two tables, `solid_objects_administration_events` and
+  `solid_objects_redrives`. Run `bin/rails solid_objects:install:migrations` and
+  migrate.
+
 - Select a wake-up adapter automatically. `config.wake_up_adapter` now takes a
   name or an adapter, as `config.cache_store` and
   `config.active_job.queue_adapter` do, and defaults to `:automatic`. Selection

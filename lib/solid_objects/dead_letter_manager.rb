@@ -11,10 +11,48 @@ module SolidObjects
     # @rbs (Integer, ?authorization_context: untyped) -> MessageReference
     def retry(dead_letter_id, authorization_context: nil)
       authorize!(:retry, authorization_context:, dead_letter_id:)
-      dead_letter = DeadLetter.find(dead_letter_id)
-      return MessageReference.from_message(Message.find(dead_letter.retried_message_id)) if dead_letter.retried_message_id
+      actor = AdministrationAudit.identity(authorization_context)
+      SolidObjects.database_adapter.transaction do
+        dead_letter = DeadLetter.find(dead_letter_id)
+        reference = if dead_letter.retried_message_id
+          MessageReference.from_message(Message.find(dead_letter.retried_message_id))
+        else
+          enqueue_retry(dead_letter)
+        end
+        AdministrationAudit.record(
+          action: "dead_letter.retry",
+          kind: "message",
+          subject_id: dead_letter.id,
+          actor:
+        )
+        reference
+      end
+    end
 
-      original_message = dead_letter.message
+    # @rbs () -> DeadLetterScope
+    def effects
+      @effects ||= DeadLetterScope.new(
+        model: Effect,
+        resource: "effect_dead_letters",
+        identifier: :effect_id,
+        kind: "effect"
+      )
+    end
+
+    # @rbs () -> DeadLetterScope
+    def broadcasts
+      @broadcasts ||= DeadLetterScope.new(
+        model: Broadcast,
+        resource: "broadcast_dead_letters",
+        identifier: :broadcast_id,
+        kind: "broadcast"
+      )
+    end
+
+    private
+
+    # @rbs (DeadLetter) -> MessageReference
+    def enqueue_retry(dead_letter)
       message_reference = Mailbox.new.enqueue(
         reference: Reference.new(
           actor_type: dead_letter.actor_type,
@@ -22,14 +60,12 @@ module SolidObjects
         ),
         operation: dead_letter.operation,
         arguments: dead_letter.arguments,
-        delivery_mode: original_message.delivery_mode,
+        delivery_mode: dead_letter.message.delivery_mode,
         idempotency_key: "dead-letter:#{dead_letter.id}"
       )
       dead_letter.update!(retried_message_id: message_reference.id)
       message_reference
     end
-
-    private
 
     # @rbs (Symbol, authorization_context: untyped, ?dead_letter_id: Integer?) -> void
     def authorize!(action, authorization_context:, dead_letter_id: nil)

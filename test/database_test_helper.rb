@@ -25,11 +25,15 @@ require_relative "../db/migrate/20260805000000_create_solid_objects_tables"
 require_relative "../db/migrate/20260806000000_add_state_revision_to_solid_objects_instances"
 require_relative "../db/migrate/20260813000000_rename_message_dispatch_columns"
 require_relative "../db/migrate/20260915000000_add_solid_objects_effect_recoveries"
+require_relative "../db/migrate/20260922000000_add_solid_objects_administration_events"
+require_relative "../db/migrate/20260922000001_add_solid_objects_redrives"
 
 CreateSolidObjectsTables.new.migrate(:up)
 AddStateRevisionToSolidObjectsInstances.new.migrate(:up)
 RenameMessageDispatchColumns.new.migrate(:up)
 AddSolidObjectsEffectRecoveries.new.migrate(:up)
+AddSolidObjectsAdministrationEvents.new.migrate(:up)
+AddSolidObjectsRedrives.new.migrate(:up)
 
 ActiveRecord::Base.connection.create_table(:solid_objects_test_domain_records) do |table|
   table.string :name, null: false
@@ -37,6 +41,8 @@ end
 
 require "solid_objects/database_adapter"
 require_relative "../app/models/solid_objects/record"
+require_relative "../app/models/solid_objects/administration_event"
+require_relative "../app/models/solid_objects/redrive"
 require_relative "../app/models/solid_objects/process"
 require_relative "../app/models/solid_objects/instance"
 require_relative "../app/models/solid_objects/message"
@@ -59,6 +65,8 @@ class ActiveSupport::TestCase
   teardown do
     SolidObjects::Instance.delete_all
     SolidObjects::Process.delete_all
+    SolidObjects::AdministrationEvent.delete_all
+    SolidObjects::Redrive.delete_all
     SolidObjectsTestDomainRecord.delete_all
   end
 

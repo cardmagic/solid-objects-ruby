@@ -31,6 +31,8 @@ module SolidObjects
     # @rbs @instance_retention_by_actor_type: Hash[String, Numeric]
     # @rbs @process_retention: Numeric
     # @rbs @prune_batch_size: Integer
+    # @rbs @redrive_batch_size: Integer
+    # @rbs @redrive_batch_pause: Float
     # @rbs @worker_count: Integer
     # @rbs @effect_worker_count: Integer
     # @rbs @broadcast_worker_count: Integer
@@ -49,6 +51,7 @@ module SolidObjects
     # @rbs @authorize_subscription: Proc
     # @rbs @authorize_administration: Proc
     # @rbs @authorize_transmission: Proc
+    # @rbs @administration_identity: Proc
     # @rbs @transmission_actor_type_resolver: Proc
 
     attr_accessor :table_name_prefix,
@@ -80,6 +83,8 @@ module SolidObjects
       :instance_retention_by_actor_type,
       :process_retention,
       :prune_batch_size,
+      :redrive_batch_size,
+      :redrive_batch_pause,
       :worker_count,
       :effect_worker_count,
       :broadcast_worker_count,
@@ -98,6 +103,7 @@ module SolidObjects
       :authorize_subscription,
       :authorize_administration,
       :authorize_transmission,
+      :administration_identity,
       :transmission_actor_type_resolver
 
     # @rbs @additional_components: Array[untyped]
@@ -134,6 +140,8 @@ module SolidObjects
       @instance_retention_by_actor_type = {}
       @process_retention = 7.days
       @prune_batch_size = 1_000
+      @redrive_batch_size = 100
+      @redrive_batch_pause = 0.05
       @worker_count = 1
       @effect_worker_count = 1
       @broadcast_worker_count = 1
@@ -156,6 +164,7 @@ module SolidObjects
       @authorize_subscription = ->(**) { false }
       @authorize_administration = ->(**) { false }
       @authorize_transmission = ->(**) { false }
+      @administration_identity = ->(authorization_context) { authorization_context.to_s }
       @transmission_actor_type_resolver = ->(actor_type) { actor_type }
       @additional_components = []
     end
@@ -226,6 +235,9 @@ module SolidObjects
       positive_values.each do |name, value|
         raise ArgumentError, "#{name} must be positive" unless value.positive?
       end
+      if redrive_batch_pause.negative?
+        raise ArgumentError, "redrive_batch_pause must not be negative"
+      end
       if warn_state_bytes > max_state_bytes
         raise ArgumentError, "warn_state_bytes must not exceed max_state_bytes"
       end
@@ -246,6 +258,9 @@ module SolidObjects
       end
       unless payload_authorization_context.respond_to?(:call)
         raise ArgumentError, "payload_authorization_context must respond to call"
+      end
+      unless administration_identity.respond_to?(:call)
+        raise ArgumentError, "administration_identity must respond to call"
       end
 
       self
@@ -295,7 +310,8 @@ module SolidObjects
         shutdown_timeout:,
         message_retention:,
         process_retention:,
-        prune_batch_size:
+        prune_batch_size:,
+        redrive_batch_size:
       }
     end
 

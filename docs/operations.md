@@ -282,6 +282,95 @@ interval, and current interval. The polling-only warning is also emitted as
 adapters should return `true` for a notification and `false` for a timeout; an
 older adapter that returns `nil` remains compatible and keeps the fast cadence.
 
+## Dead letters, retry, and redrive
+
+A message that exhausts its attempts becomes a dead letter. An effect or a
+broadcast that exhausts its attempts stays in its own table with
+`status = 'dead'`. All three are read and retried through one receiver, which
+carries the kind:
+
+```ruby
+SolidObjects.dead_letters.all(authorization_context: current_admin)
+SolidObjects.dead_letters.retry(dead_letter_id, authorization_context: current_admin)
+
+SolidObjects.dead_letters.effects.all(authorization_context: current_admin)
+SolidObjects.dead_letters.effects.retry(effect_id, authorization_context: current_admin)
+SolidObjects.dead_letters.broadcasts.retry(broadcast_id, authorization_context: current_admin)
+```
+
+An effect or broadcast retry returns the row to pending with a zero attempt
+count, no claim, and immediate availability. It keeps the stable id, so a
+handler that deduplicates on `effect_id` still sees the same key. An effect is
+at-least-once by contract, so a retried effect can run twice.
+
+Retry acts only on a dead row. A row that is pending, processing, or completed
+comes back unchanged, so pressing a button twice cannot double-enqueue and
+cannot take a row away from a worker that holds it.
+
+An incident produces dead rows in the hundreds, so a scope also answers
+`redrive`:
+
+```ruby
+task = SolidObjects.dead_letters.effects.redrive(
+  actor_type: "payments",
+  failed_after: 6.hours.ago,
+  limit: 5_000,
+  authorization_context: current_admin
+)
+
+task.id         # => "redrive_..."
+task.status     # => "running"
+task.moved      # => 412
+task.remaining  # => 4_588
+
+task.cancel(authorization_context: current_admin)
+```
+
+`redrive` returns at once. The task is durable, and the supervisor advances one
+bounded batch per pass, so a redrive of thousands of rows never holds a
+transaction longer than one batch. `redrive_batch_size` defaults to 100 and
+`redrive_batch_pause` to 0.05 seconds.
+
+A redrive moves the rows that were already dead when it started. A row that
+fails again lands back in the same scope, and without that bound a task whose
+handler is still broken would move it forever.
+
+A redrive is idempotent over its scope and its filters. Starting the same one
+while it runs returns the running task rather than a second one, which a
+dashboard button an operator can press twice needs. A different scope or a
+different filter starts its own task, and the same scope can be redriven again
+once the first task finishes.
+
+Read tasks back with `SolidObjects.redrives`:
+
+```ruby
+SolidObjects.redrives.find(task.id, authorization_context: current_admin)
+SolidObjects.redrives.all(status: :running, authorization_context: current_admin)
+```
+
+A running task reports what is left to move rather than a stored estimate,
+because rows die and are retried while it runs.
+
+Retry, redrive, and cancel each go through `authorize_administration` under
+their own resource name: `dead_letters`, `effect_dead_letters`,
+`broadcast_dead_letters`, and `redrives`. Every retry and every task transition
+writes one row to `solid_objects_administration_events`, holding the action, the
+kind, the subject, the identity, and when it happened. The identity comes from
+`administration_identity`, which receives the authorization context the caller
+passed and defaults to its `to_s`.
+
+An event records an authorized press, not a state transition. Pressing retry
+twice writes two rows, because an operator did two things and a log that shows
+one cannot answer who pressed what. The row the event names carries the outcome.
+A refused caller writes nothing, and a retry that raises after the lookup writes
+nothing, because the event shares the transaction with the work. The redrive
+transitions are different: `redrive.start`, `redrive.finish`, and
+`redrive.cancel` are written only when the task actually changes.
+
+Automatic redrive on a schedule is deliberately absent. A dead row means a
+person decided something, and these APIs give that person an alternative to an
+`UPDATE` against a runtime table.
+
 ## Graceful shutdown
 
 The supervisor requests shutdown, stops new claims, lets active loops return,

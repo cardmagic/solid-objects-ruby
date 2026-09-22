@@ -27,6 +27,11 @@ require "solid_objects/application_write_guard"
 require "solid_objects/actor"
 require "solid_objects/reference"
 require "solid_objects/message_reference"
+require "solid_objects/administration_audit"
+require "solid_objects/redrive_task"
+require "solid_objects/redrive_manager"
+require "solid_objects/redrive_runner"
+require "solid_objects/dead_letter_scope"
 require "solid_objects/dead_letter_manager"
 require "solid_objects/message_pruner"
 require "solid_objects/instance_pruner"
@@ -160,6 +165,11 @@ module SolidObjects
       @dead_letters ||= DeadLetterManager.new
     end
 
+    # @rbs () -> RedriveManager
+    def redrives
+      @redrives ||= RedriveManager.new
+    end
+
     # @rbs () -> Administration
     def administration
       @administration ||= Administration.new
@@ -192,6 +202,7 @@ module SolidObjects
       @effect_registry = EffectRegistry.new
       @commit_action_registry = CommitActionRegistry.new
       @dead_letters = nil
+      @redrives = nil
       @administration = nil
     end
 

@@ -1,0 +1,58 @@
+# Generated from lib/solid_objects/dead_letter_scope.rb with RBS::Inline
+
+module SolidObjects
+  class DeadLetterScope
+    DEAD: ::String
+
+    PENDING: ::String
+
+    @identifier: Symbol
+
+    @resource: String
+
+    @model: untyped
+
+    attr_reader resource: untyped
+
+    attr_reader kind: untyped
+
+    # @rbs (model: untyped, resource: String, identifier: Symbol, kind: String) -> void
+    def initialize: (model: untyped, resource: String, identifier: Symbol, kind: String) -> void
+
+    # @rbs (String) -> DeadLetterScope
+    def self.for_kind: (String) -> DeadLetterScope
+
+    # @rbs (?authorization_context: untyped) -> ActiveRecord::Relation[untyped]
+    def all: (?authorization_context: untyped) -> ActiveRecord::Relation[untyped]
+
+    # @rbs (String, ?authorization_context: untyped) -> untyped
+    def retry: (String, ?authorization_context: untyped) -> untyped
+
+    # @rbs (?actor_type: String?, ?failed_after: untyped, ?limit: Integer?, ?authorization_context: untyped) -> RedriveTask
+    def redrive: (?actor_type: String?, ?failed_after: untyped, ?limit: Integer?, ?authorization_context: untyped) -> RedriveTask
+
+    # @rbs () -> ActiveRecord::Relation[untyped]
+    def dead: () -> ActiveRecord::Relation[untyped]
+
+    # @rbs (Hash[String, untyped], ?dead_before: untyped) -> ActiveRecord::Relation[untyped]
+    def matching: (Hash[String, untyped], ?dead_before: untyped) -> ActiveRecord::Relation[untyped]
+
+    # @rbs (Array[untyped]) -> Integer
+    def revive_all: (Array[untyped]) -> Integer
+
+    # @rbs (untyped) -> Integer
+    def revive: (untyped) -> Integer
+
+    # @rbs (Symbol, authorization_context: untyped, ?resource_id: String?) -> void
+    def authorize!: (Symbol, authorization_context: untyped, ?resource_id: String?) -> void
+
+    private
+
+    attr_reader model: untyped
+
+    attr_reader identifier: untyped
+
+    # @rbs () -> Hash[Symbol, untyped]
+    def revival_attributes: () -> Hash[Symbol, untyped]
+  end
+end

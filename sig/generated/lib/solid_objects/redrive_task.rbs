@@ -1,0 +1,33 @@
+# Generated from lib/solid_objects/redrive_task.rb with RBS::Inline
+
+module SolidObjects
+  class RedriveTask < Data
+    attr_reader id(): untyped
+
+    attr_reader kind(): untyped
+
+    attr_reader filters(): untyped
+
+    attr_reader status(): untyped
+
+    attr_reader moved(): untyped
+
+    attr_reader remaining(): untyped
+
+    attr_reader started_at(): untyped
+
+    attr_reader finished_at(): untyped
+
+    def self.new: (untyped id, untyped kind, untyped filters, untyped status, untyped moved, untyped remaining, untyped started_at, untyped finished_at) -> instance
+                | (id: untyped, kind: untyped, filters: untyped, status: untyped, moved: untyped, remaining: untyped, started_at: untyped, finished_at: untyped) -> instance
+
+    def self.members: () -> [ :id, :kind, :filters, :status, :moved, :remaining, :started_at, :finished_at ]
+
+    def members: () -> [ :id, :kind, :filters, :status, :moved, :remaining, :started_at, :finished_at ]
+  end
+
+  class RedriveTask
+    # @rbs (?authorization_context: untyped) -> RedriveTask
+    def cancel: (?authorization_context: untyped) -> RedriveTask
+  end
+end

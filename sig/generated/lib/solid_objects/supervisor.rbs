@@ -84,6 +84,21 @@ module SolidObjects
     def retention_pause: (Integer) -> Float
 
     # @rbs () -> void
+    def redrive_loop: () -> void
+
+    # @rbs () -> bool
+    def advance_redrive: () -> bool
+
+    # @rbs () -> void
+    def pause_between_batches: () -> void
+
+    # @rbs () -> void
+    def wait_for_next_redrive: () -> void
+
+    # @rbs () -> void
+    def stop_redrive: () -> void
+
+    # @rbs () -> void
     def stop_retention: () -> void
 
     # @rbs () -> void

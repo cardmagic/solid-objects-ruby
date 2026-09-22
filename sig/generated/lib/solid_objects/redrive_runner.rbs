@@ -1,0 +1,22 @@
+# Generated from lib/solid_objects/redrive_runner.rb with RBS::Inline
+
+module SolidObjects
+  class RedriveRunner
+    # @rbs () -> bool
+    def run_once: () -> bool
+
+    private
+
+    # @rbs () -> Redrive?
+    def claim: () -> Redrive?
+
+    # @rbs (Redrive) -> bool
+    def advance: (Redrive) -> bool
+
+    # @rbs (Redrive) -> Integer
+    def move_batch: (Redrive) -> Integer
+
+    # @rbs (Redrive) -> void
+    def finish: (Redrive) -> void
+  end
+end
