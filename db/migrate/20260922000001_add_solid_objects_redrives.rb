@@ -5,7 +5,7 @@ class AddSolidObjectsRedrives < ActiveRecord::Migration[7.1]
   def change
     create_table SolidObjects.table_name(:redrives), id: :string, limit: 64 do |definition|
       definition.string :kind, null: false, limit: 32
-      json_column definition, :filters, null: false
+      definition.public_send(json_type, :filters, null: false)
       definition.string :status, null: false, default: "running", limit: 32
       definition.string :active_scope, limit: 191
       definition.integer :moved, null: false, default: 0
@@ -26,12 +26,7 @@ class AddSolidObjectsRedrives < ActiveRecord::Migration[7.1]
   private
 
   # @rbs () -> Symbol
-  def json_column_type
+  def json_type
     connection.adapter_name.match?(/postgres/i) ? :jsonb : :json
-  end
-
-  # @rbs (untyped, Symbol, ?null: bool) -> void
-  def json_column(definition, name, null: true)
-    definition.public_send(json_column_type, name, null:)
   end
 end

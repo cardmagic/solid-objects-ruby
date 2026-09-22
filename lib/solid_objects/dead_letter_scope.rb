@@ -67,9 +67,6 @@ module SolidObjects
       model.where(status: DEAD)
     end
 
-    # A redrive moves what was already dead when it started. Without that bound
-    # a row that fails again lands back in the same scope, and a task whose
-    # handler is still broken would move it forever.
     # @rbs (Hash[String, untyped], ?dead_before: untyped) -> ActiveRecord::Relation[untyped]
     def matching(filters, dead_before: nil)
       relation = dead

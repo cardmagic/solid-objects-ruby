@@ -1,9 +1,6 @@
 # Generated from lib/solid_objects/redrive_runner.rb with RBS::Inline
 
 module SolidObjects
-  # Moves dead rows back to pending for one redrive task at a time, in bounded
-  # batches. Each batch is its own short transaction, so a redrive of thousands
-  # of rows never holds a lock long enough to starve delivery.
   class RedriveRunner
     # @rbs () -> bool
     def run_once: () -> bool
@@ -24,8 +21,5 @@ module SolidObjects
 
     # @rbs (Redrive) -> void
     def finish: (Redrive) -> void
-
-    # @rbs () -> DatabaseAdapter
-    def database_adapter: () -> DatabaseAdapter
   end
 end

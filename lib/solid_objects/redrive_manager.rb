@@ -98,8 +98,6 @@ module SolidObjects
       record
     end
 
-    # A running task reports what is left to move rather than a stored
-    # estimate, because rows die and are retried while it runs.
     # @rbs (Redrive) -> Integer
     def remaining_for(record)
       return 0 unless record.status == RUNNING

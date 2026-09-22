@@ -7,7 +7,7 @@ class AddSolidObjectsAdministrationEvents < ActiveRecord::Migration[7.1]
       definition.string :action, null: false, limit: 64
       definition.string :kind, null: false, limit: 32
       definition.string :subject_id, limit: 191
-      json_column definition, :filters
+      definition.public_send(json_type, :filters)
       definition.string :actor, limit: 255
       definition.datetime :occurred_at, null: false, precision: 6
       definition.timestamps precision: 6, null: false
@@ -20,12 +20,7 @@ class AddSolidObjectsAdministrationEvents < ActiveRecord::Migration[7.1]
   private
 
   # @rbs () -> Symbol
-  def json_column_type
+  def json_type
     connection.adapter_name.match?(/postgres/i) ? :jsonb : :json
-  end
-
-  # @rbs (untyped, Symbol, ?null: bool) -> void
-  def json_column(definition, name, null: true)
-    definition.public_send(json_column_type, name, null:)
   end
 end

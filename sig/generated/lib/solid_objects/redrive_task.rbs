@@ -25,4 +25,9 @@ module SolidObjects
 
     def members: () -> [ :id, :kind, :filters, :status, :moved, :remaining, :started_at, :finished_at ]
   end
+
+  class RedriveTask
+    # @rbs (?authorization_context: untyped) -> RedriveTask
+    def cancel: (?authorization_context: untyped) -> RedriveTask
+  end
 end

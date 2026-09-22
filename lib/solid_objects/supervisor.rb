@@ -207,10 +207,6 @@ module SolidObjects
       [ backoff, interval ].min
     end
 
-    # An operator starts a redrive and expects it to move, so the supervisor
-    # advances it rather than ask the application to schedule a job. Each pass
-    # takes one bounded batch, and the loop pauses between batches so a large
-    # redrive shares the database with delivery.
     # @rbs () -> void
     def redrive_loop
       while @started

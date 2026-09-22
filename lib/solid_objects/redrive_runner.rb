@@ -1,13 +1,10 @@
 # rbs_inline: enabled
 
 module SolidObjects
-  # Moves dead rows back to pending for one redrive task at a time, in bounded
-  # batches. Each batch is its own short transaction, so a redrive of thousands
-  # of rows never holds a lock long enough to starve delivery.
   class RedriveRunner
     # @rbs () -> bool
     def run_once
-      database_adapter.transaction do
+      SolidObjects.database_adapter.transaction do
         record = claim
         next false unless record
 
@@ -19,7 +16,8 @@ module SolidObjects
 
     # @rbs () -> Redrive?
     def claim
-      Redrive.lock.where(status: RedriveManager::RUNNING).order(:started_at, :id).first
+      relation = Redrive.where(status: RedriveManager::RUNNING).order(:started_at, :id)
+      SolidObjects.database_adapter.lock_candidates(relation).first
     end
 
     # @rbs (Redrive) -> bool
@@ -63,11 +61,6 @@ module SolidObjects
       manager = SolidObjects.redrives
       manager.close(record, status: RedriveManager::COMPLETED)
       manager.audit(record, action: "redrive.finish")
-    end
-
-    # @rbs () -> DatabaseAdapter
-    def database_adapter
-      SolidObjects.database_adapter
     end
   end
 end

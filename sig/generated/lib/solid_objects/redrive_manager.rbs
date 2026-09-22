@@ -34,8 +34,6 @@ module SolidObjects
     # @rbs (scope: DeadLetterScope, filters: Hash[String, untyped], active_scope: String, authorization_context: untyped) -> Redrive
     def open_task: (scope: DeadLetterScope, filters: Hash[String, untyped], active_scope: String, authorization_context: untyped) -> Redrive
 
-    # A running task reports what is left to move rather than a stored
-    # estimate, because rows die and are retried while it runs.
     # @rbs (Redrive) -> Integer
     def remaining_for: (Redrive) -> Integer
 
