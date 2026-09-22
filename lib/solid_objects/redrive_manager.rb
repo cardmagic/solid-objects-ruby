@@ -10,6 +10,7 @@ module SolidObjects
 
     # @rbs (scope: DeadLetterScope, filters: Hash[String, untyped], authorization_context: untyped) -> RedriveTask
     def start(scope:, filters:, authorization_context:)
+      scope.authorize!(:redrive, authorization_context:)
       active_scope = active_scope_for(kind: scope.kind, filters:)
       running = Redrive.find_by(active_scope:)
       return task_for(running) if running

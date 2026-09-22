@@ -212,6 +212,18 @@ class RedriveTest < ActiveSupport::TestCase
       SolidObjects::AdministrationEvent.order(:id).map(&:action)
   end
 
+  test "refuses an unauthorized caller that reaches the manager directly" do
+    SolidObjects.configuration.authorize_administration = ->(**) { false }
+
+    assert_raises(SolidObjects::Unauthorized) do
+      SolidObjects.redrives.start(
+        scope: SolidObjects.dead_letters.effects,
+        filters: { "actor_type" => nil, "failed_after" => nil, "limit" => nil },
+        authorization_context: "operator"
+      )
+    end
+  end
+
   test "refuses an unauthorized caller" do
     dead_effects(5)
     task = SolidObjects.dead_letters.effects.redrive(authorization_context: "operator")

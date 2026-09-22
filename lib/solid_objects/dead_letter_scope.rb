@@ -51,7 +51,6 @@ module SolidObjects
 
     # @rbs (?actor_type: String?, ?failed_after: untyped, ?limit: Integer?, ?authorization_context: untyped) -> RedriveTask
     def redrive(actor_type: nil, failed_after: nil, limit: nil, authorization_context: nil)
-      authorize!(:redrive, authorization_context:)
       SolidObjects.redrives.start(
         scope: self,
         filters: {
