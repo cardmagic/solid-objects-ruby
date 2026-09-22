@@ -55,11 +55,27 @@ module SolidObjects
         scope: self,
         filters: {
           "actor_type" => actor_type,
-          "failed_after" => failed_after&.utc&.iso8601(6),
-          "limit" => limit
+          "failed_after" => failed_after_filter(failed_after),
+          "limit" => limit_filter(limit)
         },
         authorization_context:
       )
+    end
+
+    # @rbs (untyped) -> String?
+    def failed_after_filter(failed_after)
+      return nil if failed_after.nil?
+      raise ArgumentError, "failed_after must be a time" unless failed_after.respond_to?(:utc)
+
+      failed_after.utc.iso8601(6)
+    end
+
+    # @rbs (untyped) -> Integer?
+    def limit_filter(limit)
+      return nil if limit.nil?
+      return limit if limit.is_a?(Integer) && limit.positive?
+
+      raise ArgumentError, "limit must be a positive integer"
     end
 
     # @rbs () -> ActiveRecord::Relation[untyped]

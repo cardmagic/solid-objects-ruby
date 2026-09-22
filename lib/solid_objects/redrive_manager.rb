@@ -40,18 +40,20 @@ module SolidObjects
       record = Redrive.find(id)
       return task_for(record) unless record.status == RUNNING
 
-      close(record, status: CANCELLED)
-      audit(record, action: "redrive.cancel")
+      audit(record, action: "redrive.cancel") if close(record, status: CANCELLED)
       task_for(record)
     end
 
-    # @rbs (Redrive, status: String) -> void
+    # @rbs (Redrive, status: String) -> bool
     def close(record, status:)
-      record.update!(
+      changed = Redrive.where(id: record.id, status: RUNNING).update_all(
         status:,
         active_scope: nil,
-        finished_at: SolidObjects.database_adapter.database_now
+        finished_at: SolidObjects.database_adapter.database_now,
+        updated_at: SolidObjects.database_adapter.database_now
       )
+      record.reload if changed.positive?
+      changed.positive?
     end
 
     # @rbs (Redrive, action: String) -> void

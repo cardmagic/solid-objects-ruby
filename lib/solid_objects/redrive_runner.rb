@@ -59,7 +59,8 @@ module SolidObjects
     # @rbs (Redrive) -> void
     def finish(record)
       manager = SolidObjects.redrives
-      manager.close(record, status: RedriveManager::COMPLETED)
+      return unless manager.close(record, status: RedriveManager::COMPLETED)
+
       manager.audit(record, action: "redrive.finish")
     end
   end

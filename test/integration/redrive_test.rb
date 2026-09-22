@@ -212,6 +212,41 @@ class RedriveTest < ActiveSupport::TestCase
       SolidObjects::AdministrationEvent.order(:id).map(&:action)
   end
 
+  test "refuses an invalid filter rather than redrive everything" do
+    dead_effects(2)
+
+    assert_raises(ArgumentError) do
+      SolidObjects.dead_letters.effects.redrive(limit: 0, authorization_context: "operator")
+    end
+    assert_raises(ArgumentError) do
+      SolidObjects.dead_letters.effects.redrive(limit: 1.5, authorization_context: "operator")
+    end
+
+    assert_equal 0, SolidObjects::Redrive.count
+    assert_equal 0, SolidObjects::AdministrationEvent.count
+  end
+
+  test "writes no audit row when a retry names a row that does not exist" do
+    assert_raises(ActiveRecord::RecordNotFound) do
+      SolidObjects.dead_letters.effects.retry("missing", authorization_context: "operator")
+    end
+
+    assert_equal 0, SolidObjects::AdministrationEvent.count
+  end
+
+  test "a cancel cannot overwrite a task the runner already finished" do
+    dead_effects(1)
+    task = SolidObjects.dead_letters.effects.redrive(authorization_context: "operator")
+    drain
+
+    task.cancel(authorization_context: "operator")
+
+    assert_equal "completed",
+      SolidObjects.redrives.find(task.id, authorization_context: "operator").status
+    assert_equal [ "redrive.start", "redrive.finish" ],
+      SolidObjects::AdministrationEvent.order(:id).map(&:action)
+  end
+
   test "refuses an unauthorized caller that reaches the manager directly" do
     SolidObjects.configuration.authorize_administration = ->(**) { false }
 

@@ -20,8 +20,8 @@ module SolidObjects
     # @rbs (String, ?authorization_context: untyped) -> RedriveTask
     def cancel: (String, ?authorization_context: untyped) -> RedriveTask
 
-    # @rbs (Redrive, status: String) -> void
-    def close: (Redrive, status: String) -> void
+    # @rbs (Redrive, status: String) -> bool
+    def close: (Redrive, status: String) -> bool
 
     # @rbs (Redrive, action: String) -> void
     def audit: (Redrive, action: String) -> void
