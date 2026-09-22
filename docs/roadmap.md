@@ -133,7 +133,8 @@
   `LISTEN` does not survive a transaction-pooling proxy such as PgBouncer, so
   selection listens, sends one `NOTIFY` from a second connection, and waits for
   it to arrive. A probe that does not deliver falls back to polling and warns
-  once.
+  once, as does a requested adapter the environment cannot provide, so a
+  downgrade is recorded rather than hidden.
   `SolidObjects.wake_up.capability` reports the adapter, whether it crosses
   processes, its floor, and why, and the doctor shows the same record.
   MySQL still polls. It has no notification channel, and no MySQL notifier has
