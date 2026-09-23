@@ -31,6 +31,7 @@ module SolidObjects
     # @rbs @instance_retention_by_actor_type: Hash[String, Numeric]
     # @rbs @process_retention: Numeric
     # @rbs @prune_batch_size: Integer
+    # @rbs @retained_idempotency_keys: Integer
     # @rbs @redrive_batch_size: Integer
     # @rbs @redrive_batch_pause: Float
     # @rbs @worker_count: Integer
@@ -83,6 +84,7 @@ module SolidObjects
       :instance_retention_by_actor_type,
       :process_retention,
       :prune_batch_size,
+      :retained_idempotency_keys,
       :redrive_batch_size,
       :redrive_batch_pause,
       :worker_count,
@@ -140,6 +142,7 @@ module SolidObjects
       @instance_retention_by_actor_type = {}
       @process_retention = 7.days
       @prune_batch_size = 1_000
+      @retained_idempotency_keys = 64
       @redrive_batch_size = 100
       @redrive_batch_pause = 0.05
       @worker_count = 1
@@ -311,6 +314,7 @@ module SolidObjects
         message_retention:,
         process_retention:,
         prune_batch_size:,
+        retained_idempotency_keys:,
         redrive_batch_size:
       }
     end

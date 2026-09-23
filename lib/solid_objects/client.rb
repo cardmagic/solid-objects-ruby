@@ -103,10 +103,9 @@ module SolidObjects
         raise ArgumentError, "find_by with idempotency_key: requires reference:"
       end
 
-      readable_message(
-        looked_up_message(reference:, request_id:, idempotency_key:),
-        authorization_context:
-      )
+      return readable_message(requested_message(request_id), authorization_context:) if request_id
+
+      readable_message(remembered_message(reference, idempotency_key), authorization_context:)
     end
 
     # @rbs (Reference, ?authorization_context: untyped) -> StateSnapshot
@@ -179,17 +178,24 @@ module SolidObjects
       )
     end
 
-    # @rbs (reference: Reference?, request_id: String?, idempotency_key: String?) -> Message?
-    def looked_up_message(reference:, request_id:, idempotency_key:)
-      return Message.uncached { Message.find_by(request_id:) } if request_id
+    # @rbs (String) -> Message?
+    def requested_message(request_id)
+      Message.uncached { Message.find_by(request_id:) }
+    end
 
+    # @rbs (Reference, String) -> Message?
+    def remembered_message(reference, idempotency_key)
       instance = Instance.find_by(
         actor_type: reference.actor_type,
         actor_id: reference.actor_id
       )
       return nil unless instance
 
-      Message.uncached { Message.find_by(instance_id: instance.id, idempotency_key:) }
+      message = Message.uncached { Message.find_by(instance_id: instance.id, idempotency_key:) }
+      return message if message
+      raise MessagePruned, idempotency_key if Array(instance.completed_idempotency_keys).include?(idempotency_key)
+
+      nil
     end
 
     # @rbs (Message?, authorization_context: untyped) -> MessageReference?

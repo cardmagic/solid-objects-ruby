@@ -52,16 +52,7 @@ class SeparateDatabaseTest < ActiveSupport::TestCase
       pool: 10,
       timeout: 5_000
     )
-    [
-      CreateSolidObjectsTables,
-      AddStateRevisionToSolidObjectsInstances,
-      RenameMessageDispatchColumns,
-      AddSolidObjectsEffectRecoveries
-    ].each do |migration_class|
-      migration = migration_class.new
-      migration.define_singleton_method(:connection) { SolidObjects::Record.connection }
-      migration.migrate(:up)
-    end
+    SolidObjects::SchemaBootstrap.install(connection: SolidObjects::Record.connection)
     SolidObjects.reset!
     authorize_all_actor_operations
     SolidObjects::Record.descendants.each(&:reset_column_information)

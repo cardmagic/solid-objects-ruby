@@ -117,6 +117,14 @@
   batched and unbatched components, an inert replay of an applied revision,
   cancellation of the request left in flight by the drop, incarnation ordering
   after a destroy and recreate, and payload delivery exactly once per revision
+- Result lookup by request ID and by idempotency key, authorized with the hook
+  the original call ran and against the stored operation and arguments. An
+  actor remembers the idempotency keys of its own last `retained_idempotency_keys`
+  finished turns, written in the instance row the executor updates anyway, so a
+  lookup by key raises `MessagePruned` for a message that retention removed and
+  answers `nil` for a message that never existed. A lookup by request ID cannot
+  make that distinction, because the runtime generates a request ID and no
+  actor remembers one
 
 ## Partially implemented
 
@@ -197,9 +205,7 @@
 
 ## Next milestones
 
-1. Broaden deadlock retry classification. Result lookup by request ID and by
-   idempotency key is implemented; what remains is telling a pruned message
-   from one that never existed.
+1. Broaden deadlock retry classification.
 2. Add Turbo append intents.
 3. Add distributed rate limits, global admission hooks, and cache-capacity
    eviction.

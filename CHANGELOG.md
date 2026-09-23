@@ -17,6 +17,15 @@
   persisted error, the rejection, and the attempt count, so a terminal failure
   answers as well as a success. A result is stored for `sync` delivery only, so
   an asynchronous message reports its status and error and no result.
+- Tell a pruned message from one that never existed. An actor remembers the
+  idempotency keys of its own finished turns, the way an Orleans grain keeps
+  its deduplication history in grain state, so the memory needs no second
+  store and no second write. `reference.find_by(idempotency_key:)` raises
+  `SolidObjects::MessagePruned` for a key the actor remembers and whose message
+  retention removed, and still answers `nil` for a key no caller ever sent.
+  `retained_idempotency_keys` bounds the memory and defaults to 64 keys for
+  each actor. A lookup by request id cannot make the distinction, because the
+  runtime, not the caller, generates a request id and no actor remembers one.
 
 - Retry a dead effect or broadcast. `SolidObjects.dead_letters` keeps its
   message meaning and answers `effects` and `broadcasts`, so the kind rides on

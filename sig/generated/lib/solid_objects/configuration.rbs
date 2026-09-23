@@ -2,8 +2,6 @@
 
 module SolidObjects
   class Configuration
-    @table_name_prefix: String
-
     @shutdown_timeout: Float
 
     @supervisor_monitor_interval: Float
@@ -21,6 +19,8 @@ module SolidObjects
     @process_retention: Numeric
 
     @prune_batch_size: Integer
+
+    @retained_idempotency_keys: Integer
 
     @redrive_batch_size: Integer
 
@@ -65,6 +65,8 @@ module SolidObjects
     @administration_identity: Proc
 
     @transmission_actor_type_resolver: Proc
+
+    @table_name_prefix: String
 
     @polling_interval: Float
 
@@ -161,6 +163,8 @@ module SolidObjects
     attr_accessor process_retention: untyped
 
     attr_accessor prune_batch_size: untyped
+
+    attr_accessor retained_idempotency_keys: untyped
 
     attr_accessor redrive_batch_size: untyped
 

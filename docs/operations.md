@@ -215,6 +215,7 @@ end
 | `instance_retention_by_actor_type` | `{}`; instances never expire unless listed |
 | `process_retention` | 7 days |
 | `prune_batch_size` | 1,000 |
+| `retained_idempotency_keys` | 64 |
 | `worker_count` | 1 |
 | `effect_worker_count` | 1 |
 | `broadcast_worker_count` | 1 |
@@ -517,6 +518,7 @@ SolidObjects.configure do |configuration|
   }
   configuration.process_retention = 7.days
   configuration.prune_batch_size = 1_000
+  configuration.retained_idempotency_keys = 64
 end
 ```
 
@@ -544,9 +546,14 @@ broadcasts, and other message-owned rows. Choose a cutoff longer than every
 observe it.
 
 `find_by` reads the same rows, so a lookup answers only while the message it
-names survives retention. A pruned message and one that never existed both
-answer `nil` today, which is why a cutoff longer than the window in which a
-caller may retry matters.
+names survives retention. A lookup by idempotency key still tells the two cases
+apart after pruning, because the actor remembers the keys of its own last
+`retained_idempotency_keys` finished turns: it raises `MessagePruned` for a key
+the actor remembers and answers `nil` for a key no caller ever sent. Raise
+`retained_idempotency_keys` above the default of 64 when an actor finishes more
+keyed turns than that inside the window in which a caller may retry. A lookup
+by request id answers `nil` in both cases, so a caller that must tell them apart
+sends its own idempotency key.
 
 Actor expiration is disabled by default. `prune_instances` considers only
 actor types listed in `instance_retention_by_actor_type`, excludes active or

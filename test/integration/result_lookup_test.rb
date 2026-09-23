@@ -220,6 +220,64 @@ class ResultLookupTest < ActiveSupport::TestCase
     assert_equal 1, CartActor.ref("alice").snapshot.items
   end
 
+  test "tells a pruned message from one that never existed" do
+    reference = CartActor.ref("alice")
+    reference.async(idempotency_key: "checkout-7f3a").checkout(order_id: 1)
+    run_actors
+    SolidObjects::Message.delete_all
+
+    error = assert_raises(SolidObjects::MessagePruned) do
+      reference.find_by(idempotency_key: "checkout-7f3a")
+    end
+
+    assert_equal "checkout-7f3a", error.idempotency_key
+    assert_nil reference.find_by(idempotency_key: "never-used")
+  end
+
+  test "remembers a key whose message was rejected" do
+    reference = CartActor.ref("alice")
+    reference.async(idempotency_key: "rejected-7f3a").reject_checkout
+    run_actors
+    SolidObjects::Message.delete_all
+
+    assert_raises(SolidObjects::MessagePruned) do
+      reference.find_by(idempotency_key: "rejected-7f3a")
+    end
+  end
+
+  test "remembers a key whose message died" do
+    CartActor.fail = true
+    reference = CartActor.ref("alice")
+    reference.async(idempotency_key: "dead-7f3a").checkout(order_id: 1)
+    run_actors
+    SolidObjects::Message.delete_all
+    SolidObjects::DeadLetter.delete_all
+
+    assert_raises(SolidObjects::MessagePruned) do
+      reference.find_by(idempotency_key: "dead-7f3a")
+    end
+  end
+
+  test "bounds what an instance remembers" do
+    SolidObjects.configuration.retained_idempotency_keys = 3
+    reference = CartActor.ref("alice")
+    5.times { |index| reference.async(idempotency_key: "key-#{index}").checkout(order_id: index) }
+    run_actors
+    SolidObjects::Message.delete_all
+
+    assert_nil reference.find_by(idempotency_key: "key-0")
+    assert_raises(SolidObjects::MessagePruned) { reference.find_by(idempotency_key: "key-4") }
+    assert_equal 3, SolidObjects::Instance.sole.completed_idempotency_keys.size
+  end
+
+  test "remembers nothing for a message that carried no key" do
+    reference = CartActor.ref("alice")
+    reference.async.checkout(order_id: 1)
+    run_actors
+
+    assert_empty SolidObjects::Instance.sole.completed_idempotency_keys
+  end
+
   private
 
   def run_actors

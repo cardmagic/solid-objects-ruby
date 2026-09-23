@@ -263,4 +263,15 @@ module SolidObjects
 
   class ActorCallCycle < Error
   end
+
+  class MessagePruned < Error
+    # @rbs @idempotency_key: String
+    attr_reader :idempotency_key
+
+    # @rbs (String) -> void
+    def initialize(idempotency_key)
+      @idempotency_key = idempotency_key
+      super("the message for idempotency key #{idempotency_key.inspect} was pruned")
+    end
+  end
 end

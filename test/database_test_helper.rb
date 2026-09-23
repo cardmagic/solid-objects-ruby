@@ -21,19 +21,9 @@ ActiveRecord::Base.establish_connection(
 )
 ActiveRecord::Migration.verbose = false
 
-require_relative "../db/migrate/20260805000000_create_solid_objects_tables"
-require_relative "../db/migrate/20260806000000_add_state_revision_to_solid_objects_instances"
-require_relative "../db/migrate/20260813000000_rename_message_dispatch_columns"
-require_relative "../db/migrate/20260915000000_add_solid_objects_effect_recoveries"
-require_relative "../db/migrate/20260922000000_add_solid_objects_administration_events"
-require_relative "../db/migrate/20260922000001_add_solid_objects_redrives"
+require "solid_objects/schema_bootstrap"
 
-CreateSolidObjectsTables.new.migrate(:up)
-AddStateRevisionToSolidObjectsInstances.new.migrate(:up)
-RenameMessageDispatchColumns.new.migrate(:up)
-AddSolidObjectsEffectRecoveries.new.migrate(:up)
-AddSolidObjectsAdministrationEvents.new.migrate(:up)
-AddSolidObjectsRedrives.new.migrate(:up)
+SolidObjects::SchemaBootstrap.install
 
 ActiveRecord::Base.connection.create_table(:solid_objects_test_domain_records) do |table|
   table.string :name, null: false
