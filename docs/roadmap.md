@@ -58,7 +58,9 @@
   cannot reject the subscription or stop its siblings
 - Reconciliation read APIs
 - Installation doctor, authorization reference, fit guide, and legacy-state
-  migration cookbook
+  migration cookbook. The doctor names every column that a migration after the
+  first adds, so a half-applied migration fails the schema check rather than
+  reaching a worker. A test holds the list to that rule
 - Database server verification: each adapter reports its version against a
   tested minimum, MySQL confirms Solid Objects tables use InnoDB, and the
   doctor warns rather than refusing to run on an untested server

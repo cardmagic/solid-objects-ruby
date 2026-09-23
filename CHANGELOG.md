@@ -38,6 +38,12 @@
   `db/migrate`. Seven scripts each carried a hand-copied migration list, and
   three of them applied an incomplete schema. A test fails if any script names a
   migration class again.
+- Report a half-applied migration in `solid_objects doctor`. The column list
+  omitted `instances.state_revision`, `messages.operation`,
+  `effects.success_operation`, `effects.failure_operation`, and
+  `dead_letters.operation`, so an application that skipped a migration read as
+  healthy and found out from a worker crash. A test fails when the list does not
+  name a column that a migration after the first adds.
 
 - Retry a dead effect or broadcast. `SolidObjects.dead_letters` keeps its
   message meaning and answers `effects` and `broadcasts`, so the kind rides on
