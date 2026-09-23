@@ -405,9 +405,7 @@ module SolidObjects
         if error.is_a?(NonRetryableError) ||
             locked_message.attempt_count >= locked_message.max_attempts
           create_dead_letter(message: locked_message, error_details:, now:)
-          if locked_message.idempotency_key
-            instance.update!(completed_idempotency_keys: remembered_keys(instance, locked_message))
-          end
+          instance.update!(completed_idempotency_keys: remembered_keys(instance, locked_message)) if locked_message.idempotency_key
           dead = true
         else
           ReadyMessage.create!(
