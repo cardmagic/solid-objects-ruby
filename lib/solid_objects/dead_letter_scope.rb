@@ -30,22 +30,19 @@ module SolidObjects
     # @rbs (?authorization_context: untyped) -> Array[DeadRow]
     def all(authorization_context: nil)
       authorize!(:inspect, authorization_context:)
-      dead.includes(:instance).order(updated_at: :desc, id: :desc).map { |row| dead_row(row) }
-    end
-
-    # @rbs (untyped) -> DeadRow
-    def dead_row(row)
-      DeadRow.new(
-        id: row.public_send(identifier),
-        kind:,
-        actor_type: row.instance.actor_type,
-        actor_id: row.instance.actor_id,
-        status: row.status,
-        attempt_count: row.attempt_count,
-        available_at: row.available_at,
-        failed_at: row.updated_at,
-        error: row.error
-      )
+      dead.includes(:instance).order(updated_at: :desc, id: :desc).map do |row|
+        DeadRow.new(
+          id: row.public_send(identifier),
+          kind:,
+          actor_type: row.instance.actor_type,
+          actor_id: row.instance.actor_id,
+          status: row.status,
+          attempt_count: row.attempt_count,
+          available_at: row.available_at,
+          failed_at: row.updated_at,
+          error: row.error
+        )
+      end
     end
 
     # @rbs (String, ?authorization_context: untyped) -> untyped

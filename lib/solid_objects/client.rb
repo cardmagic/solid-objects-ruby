@@ -110,10 +110,27 @@ module SolidObjects
         )
       end
 
-      readable_message(
-        remembered_message(reference, idempotency_key, authorization_context:),
+      instance = Instance.find_by(
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id
+      )
+      return nil unless instance
+
+      message = Message.uncached { Message.find_by(instance_id: instance.id, idempotency_key:) }
+      return readable_message(message, authorization_context:) if message
+
+      remembered = Array(instance.completed_idempotency_keys)
+        .find { |entry| entry["key"] == idempotency_key }
+      return nil unless remembered && remembered["arguments"].is_a?(Hash)
+      return nil unless authorized_to_invoke?(
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id,
+        operation: remembered["operation"],
+        arguments: remembered["arguments"],
         authorization_context:
       )
+
+      raise MessagePruned, idempotency_key
     end
 
     # @rbs (Reference, ?authorization_context: untyped) -> StateSnapshot
@@ -184,31 +201,6 @@ module SolidObjects
         actor_id: reference.actor_id,
         operation: operation.to_s
       )
-    end
-
-    # @rbs (Reference, String, authorization_context: untyped) -> Message?
-    def remembered_message(reference, idempotency_key, authorization_context:)
-      instance = Instance.find_by(
-        actor_type: reference.actor_type,
-        actor_id: reference.actor_id
-      )
-      return nil unless instance
-
-      message = Message.uncached { Message.find_by(instance_id: instance.id, idempotency_key:) }
-      return message if message
-
-      remembered = Array(instance.completed_idempotency_keys)
-        .find { |entry| entry["key"] == idempotency_key }
-      return nil unless remembered
-      return nil unless authorized_to_invoke?(
-        actor_type: reference.actor_type,
-        actor_id: reference.actor_id,
-        operation: remembered["operation"],
-        arguments: {},
-        authorization_context:
-      )
-
-      raise MessagePruned, idempotency_key
     end
 
     # @rbs (Message?, authorization_context: untyped) -> MessageReference?

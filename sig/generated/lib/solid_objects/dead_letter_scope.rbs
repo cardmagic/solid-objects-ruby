@@ -25,9 +25,6 @@ module SolidObjects
     # @rbs (?authorization_context: untyped) -> Array[DeadRow]
     def all: (?authorization_context: untyped) -> Array[DeadRow]
 
-    # @rbs (untyped) -> DeadRow
-    def dead_row: (untyped) -> DeadRow
-
     # @rbs (String, ?authorization_context: untyped) -> untyped
     def retry: (String, ?authorization_context: untyped) -> untyped
 

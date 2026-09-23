@@ -309,6 +309,33 @@ class ResultLookupTest < ActiveSupport::TestCase
     assert_nil reference.find_by(idempotency_key: "checkout-7f3a")
   end
 
+  test "authorizes pruned keys with the original arguments" do
+    reference = CartActor.ref("alice")
+    reference.async(idempotency_key: "protected").checkout(order_id: 1)
+    run_actors
+    SolidObjects::Message.delete_all
+    seen = []
+    SolidObjects.configuration.authorize_message = lambda do |arguments:, **|
+      seen << arguments
+      arguments["order_id"] != 1
+    end
+
+    assert_nil reference.find_by(idempotency_key: "protected")
+    assert_equal [ { "order_id" => 1 } ], seen
+    SolidObjects.configuration.authorize_message = ->(arguments:, **) { arguments["order_id"] == 1 }
+    assert_raises(SolidObjects::MessagePruned) { reference.find_by(idempotency_key: "protected") }
+  end
+
+  test "does not disclose legacy keys without authorization arguments" do
+    reference = CartActor.ref("alice")
+    reference.async(idempotency_key: "legacy").checkout(order_id: 1)
+    run_actors
+    SolidObjects::Message.delete_all
+    SolidObjects::Instance.sole.update!(completed_idempotency_keys: [ { "key" => "legacy", "operation" => "checkout" } ])
+
+    assert_nil reference.find_by(idempotency_key: "legacy")
+  end
+
   test "remembers a key whose message was rejected" do
     reference = CartActor.ref("alice")
     reference.async(idempotency_key: "rejected-7f3a").reject_checkout
@@ -365,7 +392,7 @@ class ResultLookupTest < ActiveSupport::TestCase
 
     remembered = SolidObjects::Instance.sole.completed_idempotency_keys
 
-    assert_equal keys.last(2), remembered.map { |entry| entry["key"] }
+    assert_equal keys.last(1), remembered.map { |entry| entry["key"] }
     assert_operator remembered.to_json.bytesize, :<=, 128
   end
 

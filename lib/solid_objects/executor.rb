@@ -482,21 +482,17 @@ module SolidObjects
       instance.update!(completed_idempotency_keys: remembered_keys(instance, message))
     end
 
-    # @rbs (Instance, Message) -> Array[String]
+    # @rbs (Instance, Message) -> Array[Hash[String, untyped]]
     def remembered_keys(instance, message)
       remembered = Array(instance.completed_idempotency_keys)
       key = message.idempotency_key
       return remembered unless key
 
-      entry = { "key" => key, "operation" => message.operation }
+      entry = { "key" => key, "operation" => message.operation, "arguments" => message.arguments }
       return remembered if remembered.last == entry
 
-      bounded(remembered.reject { |value| value["key"] == key } + [ entry ])
-    end
-
-    # @rbs (Array[String]) -> Array[String]
-    def bounded(keys)
-      kept = keys.last(SolidObjects.configuration.retained_idempotency_keys)
+      kept = (remembered.reject { |value| value["key"] == key } + [ entry ])
+        .last(SolidObjects.configuration.retained_idempotency_keys)
       limit = SolidObjects.configuration.retained_idempotency_keys_bytes
       kept.shift while kept.any? && kept.to_json.bytesize > limit
       kept

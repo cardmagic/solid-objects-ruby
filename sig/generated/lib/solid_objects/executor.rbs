@@ -97,11 +97,8 @@ module SolidObjects
     # @rbs (Instance, Message) -> void
     def remember_key: (Instance, Message) -> void
 
-    # @rbs (Instance, Message) -> Array[String]
-    def remembered_keys: (Instance, Message) -> Array[String]
-
-    # @rbs (Array[String]) -> Array[String]
-    def bounded: (Array[String]) -> Array[String]
+    # @rbs (Instance, Message) -> Array[Hash[String, untyped]]
+    def remembered_keys: (Instance, Message) -> Array[Hash[String, untyped]]
 
     # @rbs (Exception) -> Hash[String, untyped]
     def serialized_error: (Exception) -> Hash[String, untyped]

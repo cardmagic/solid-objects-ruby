@@ -126,7 +126,8 @@
   lookup by key raises `MessagePruned` for a message that retention removed and
   answers `nil` for a message that never existed. A lookup by request ID cannot
   make that distinction, because the runtime generates a request ID and no
-  actor remembers one
+  actor remembers one. Pruned lookups retain the original arguments for authorization
+  within the byte limit; older entries without arguments answer `nil`
 
 ## Partially implemented
 

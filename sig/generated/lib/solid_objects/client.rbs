@@ -32,9 +32,6 @@ module SolidObjects
     # @rbs (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], idempotency_key: String?, timeout: Numeric) -> MessageReference
     def enqueue_sync: (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], idempotency_key: String?, timeout: Numeric) -> MessageReference
 
-    # @rbs (Reference, String, authorization_context: untyped) -> Message?
-    def remembered_message: (Reference, String, authorization_context: untyped) -> Message?
-
     # @rbs (Message?, authorization_context: untyped) -> MessageReference?
     def readable_message: (Message?, authorization_context: untyped) -> MessageReference?
 

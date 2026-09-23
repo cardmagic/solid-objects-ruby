@@ -568,12 +568,17 @@ names survives retention. A lookup by idempotency key still tells the two cases
 apart after pruning, because the actor remembers the keys of its own last
 `retained_idempotency_keys` finished turns: it raises `MessagePruned` for a key
 the actor remembers and answers `nil` for a key no caller ever sent. The actor
-remembers the operation beside each key, so the pruned answer runs the same
+remembers the operation and original arguments beside each key, so the pruned answer runs the same
 authorization the surviving row would. Raise
 `retained_idempotency_keys` above the default of 64 when an actor finishes more
 keyed turns than that inside the window in which a caller may retry. A lookup
 by request id answers `nil` in both cases, so a caller that must tell them apart
 sends its own idempotency key.
+
+Remembered arguments count toward the serialized memory limit and remain until
+the entry is evicted or the instance is removed. Entries from older versions
+that lack arguments return absence after pruning because their original
+authorization cannot be reproduced.
 
 `retained_idempotency_keys_bytes` bounds the serialized memory as well, because
 an idempotency key has no length limit on every adapter and the memory outlives
