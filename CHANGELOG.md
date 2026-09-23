@@ -28,6 +28,16 @@
   `retained_idempotency_keys` bounds the memory and defaults to 64 keys for
   each actor. A lookup by request id cannot make the distinction, because the
   runtime, not the caller, generates a request id and no actor remembers one.
+- Add `db/migrate/20260923000000_add_solid_objects_completed_idempotency_keys.rb`,
+  which adds `instances.completed_idempotency_keys` as `jsonb` on PostgreSQL and
+  `json` elsewhere. An application installs it with
+  `bin/rails solid_objects:install:migrations` and runs it before it upgrades a
+  worker, because the executor writes the column on every finished turn. The
+  doctor now reports the column as missing when it is not installed.
+- Apply migrations through `SolidObjects::SchemaBootstrap`, which reads
+  `db/migrate`. Seven scripts each carried a hand-copied migration list, and
+  three of them applied an incomplete schema. A test fails if any script names a
+  migration class again.
 
 - Retry a dead effect or broadcast. `SolidObjects.dead_letters` keeps its
   message meaning and answers `effects` and `broadcasts`, so the kind rides on

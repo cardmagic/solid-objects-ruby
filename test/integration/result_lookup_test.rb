@@ -283,6 +283,17 @@ class ResultLookupTest < ActiveSupport::TestCase
     assert_equal 3, SolidObjects::Instance.sole.completed_idempotency_keys.size
   end
 
+  test "remembers every key of one activation pass" do
+    reference = CartActor.ref("alice")
+    reference.async(idempotency_key: "first").checkout(order_id: 1)
+    reference.async(idempotency_key: "second").checkout(order_id: 2)
+    run_actors
+    SolidObjects::Message.delete_all
+
+    assert_raises(SolidObjects::MessagePruned) { reference.find_by(idempotency_key: "first") }
+    assert_raises(SolidObjects::MessagePruned) { reference.find_by(idempotency_key: "second") }
+  end
+
   test "remembers nothing for a message that carried no key" do
     reference = CartActor.ref("alice")
     reference.async.checkout(order_id: 1)

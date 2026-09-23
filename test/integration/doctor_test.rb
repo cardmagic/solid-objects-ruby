@@ -113,6 +113,25 @@ class DoctorTest < ActiveSupport::TestCase
     assert_equal :skip, report.check(:sync_round_trip).status
   end
 
+  test "fails when a migration that a runtime path needs is missing" do
+    installed = SolidObjects::Record.connection
+    instances = SolidObjects.table_name(:instances)
+    connection = Object.new
+    connection.define_singleton_method(:data_sources) { installed.data_sources }
+    connection.define_singleton_method(:columns) do |table|
+      columns = installed.columns(table)
+      next columns unless table == instances
+
+      columns.reject { |column| column.name == "completed_idempotency_keys" }
+    end
+
+    report = SolidObjects::Doctor.new(connection:).call
+
+    refute report.healthy?
+    assert_equal :fail, report.check(:schema).status
+    assert_match(/completed_idempotency_keys/, report.check(:schema).message)
+  end
+
   test "reports live runtime roles" do
     now = SolidObjects.database_adapter.database_now
     SolidObjects::Process.create!(

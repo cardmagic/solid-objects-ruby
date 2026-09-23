@@ -65,7 +65,7 @@ module SolidObjects
       instances: %w[
         id actor_type actor_id state state_version next_message_sequence
         activation_owner_id activation_token activation_expires_at
-        activation_generation
+        activation_generation completed_idempotency_keys
       ],
       messages: %w[
         id instance_id delivery_mode arguments sequence attempt_count request_id
