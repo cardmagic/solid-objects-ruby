@@ -105,7 +105,10 @@ module SolidObjects
 
       return readable_message(requested_message(request_id), authorization_context:) if request_id
 
-      readable_message(remembered_message(reference, idempotency_key), authorization_context:)
+      readable_message(
+        remembered_message(reference, idempotency_key, authorization_context:),
+        authorization_context:
+      )
     end
 
     # @rbs (Reference, ?authorization_context: untyped) -> StateSnapshot
@@ -183,8 +186,8 @@ module SolidObjects
       Message.uncached { Message.find_by(request_id:) }
     end
 
-    # @rbs (Reference, String) -> Message?
-    def remembered_message(reference, idempotency_key)
+    # @rbs (Reference, String, authorization_context: untyped) -> Message?
+    def remembered_message(reference, idempotency_key, authorization_context:)
       instance = Instance.find_by(
         actor_type: reference.actor_type,
         actor_id: reference.actor_id
@@ -193,9 +196,24 @@ module SolidObjects
 
       message = Message.uncached { Message.find_by(instance_id: instance.id, idempotency_key:) }
       return message if message
-      raise MessagePruned, idempotency_key if Array(instance.completed_idempotency_keys).include?(idempotency_key)
+      return nil unless Array(instance.completed_idempotency_keys).include?(idempotency_key)
+      return nil unless readable_state?(reference, authorization_context:)
 
-      nil
+      raise MessagePruned, idempotency_key
+    end
+
+    # @rbs (Reference, authorization_context: untyped) -> bool
+    def readable_state?(reference, authorization_context:)
+      authorize!(
+        hook: SolidObjects.configuration.authorize_query,
+        reference:,
+        operation: "__snapshot__",
+        arguments: {},
+        authorization_context:
+      )
+      true
+    rescue Unauthorized
+      false
     end
 
     # @rbs (Message?, authorization_context: untyped) -> MessageReference?

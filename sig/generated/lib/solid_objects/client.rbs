@@ -35,8 +35,11 @@ module SolidObjects
     # @rbs (String) -> Message?
     def requested_message: (String) -> Message?
 
-    # @rbs (Reference, String) -> Message?
-    def remembered_message: (Reference, String) -> Message?
+    # @rbs (Reference, String, authorization_context: untyped) -> Message?
+    def remembered_message: (Reference, String, authorization_context: untyped) -> Message?
+
+    # @rbs (Reference, authorization_context: untyped) -> bool
+    def readable_state?: (Reference, authorization_context: untyped) -> bool
 
     # @rbs (Message?, authorization_context: untyped) -> MessageReference?
     def readable_message: (Message?, authorization_context: untyped) -> MessageReference?

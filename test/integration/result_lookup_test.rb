@@ -234,6 +234,19 @@ class ResultLookupTest < ActiveSupport::TestCase
     assert_nil reference.find_by(idempotency_key: "never-used")
   end
 
+  test "does not tell a refused caller that a key was pruned" do
+    reference = CartActor.ref("alice")
+    reference.async(idempotency_key: "checkout-7f3a").checkout(order_id: 1)
+    run_actors
+    SolidObjects::Message.delete_all
+    SolidObjects.configuration.authorize_query = ->(**) { false }
+
+    assert_nil reference.find_by(
+      idempotency_key: "checkout-7f3a",
+      authorization_context: "stranger"
+    )
+  end
+
   test "remembers a key whose message was rejected" do
     reference = CartActor.ref("alice")
     reference.async(idempotency_key: "rejected-7f3a").reject_checkout
