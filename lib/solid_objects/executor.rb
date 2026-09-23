@@ -405,7 +405,9 @@ module SolidObjects
         if error.is_a?(NonRetryableError) ||
             locked_message.attempt_count >= locked_message.max_attempts
           create_dead_letter(message: locked_message, error_details:, now:)
-          remember_key(instance, locked_message)
+          if locked_message.idempotency_key
+            instance.update!(completed_idempotency_keys: remembered_keys(instance, locked_message))
+          end
           dead = true
         else
           ReadyMessage.create!(
@@ -473,13 +475,6 @@ module SolidObjects
       )
     rescue ActiveRecord::RecordNotFound
       raise LostActivation, "message claim changed"
-    end
-
-    # @rbs (Instance, Message) -> void
-    def remember_key(instance, message)
-      return unless message.idempotency_key
-
-      instance.update!(completed_idempotency_keys: remembered_keys(instance, message))
     end
 
     # @rbs (Instance, Message) -> Array[Hash[String, untyped]]

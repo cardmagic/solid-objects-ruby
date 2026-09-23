@@ -94,9 +94,6 @@ module SolidObjects
     # @rbs () -> ClaimedMessage
     def matching_claim!: () -> ClaimedMessage
 
-    # @rbs (Instance, Message) -> void
-    def remember_key: (Instance, Message) -> void
-
     # @rbs (Instance, Message) -> Array[Hash[String, untyped]]
     def remembered_keys: (Instance, Message) -> Array[Hash[String, untyped]]
 

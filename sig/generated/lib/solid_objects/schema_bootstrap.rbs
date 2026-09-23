@@ -7,8 +7,5 @@ module SolidObjects
 
     # @rbs () -> Array[Class]
     def self.migrations: () -> Array[Class]
-
-    # @rbs () -> Array[String]
-    private def self.migration_files: () -> Array[String]
   end
 end

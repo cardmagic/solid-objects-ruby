@@ -17,17 +17,10 @@ module SolidObjects
 
       # @rbs () -> Array[Class]
       def migrations
-        migration_files.map do |file|
+        Dir[File.expand_path("../../db/migrate/*.rb", __dir__)].sort.map do |file|
           require file
           Object.const_get(File.basename(file, ".rb").sub(/\A\d+_/, "").camelize)
         end
-      end
-
-      private
-
-      # @rbs () -> Array[String]
-      def migration_files
-        Dir[File.expand_path("../../db/migrate/*.rb", __dir__)].sort
       end
     end
   end
