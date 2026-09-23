@@ -94,6 +94,9 @@ module SolidObjects
     # @rbs () -> ClaimedMessage
     def matching_claim!: () -> ClaimedMessage
 
+    # @rbs (Instance, Message) -> Array[Hash[String, untyped]]
+    def remembered_keys: (Instance, Message) -> Array[Hash[String, untyped]]
+
     # @rbs (Exception) -> Hash[String, untyped]
     def serialized_error: (Exception) -> Hash[String, untyped]
 

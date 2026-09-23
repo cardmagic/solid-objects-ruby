@@ -58,7 +58,9 @@
   cannot reject the subscription or stop its siblings
 - Reconciliation read APIs
 - Installation doctor, authorization reference, fit guide, and legacy-state
-  migration cookbook
+  migration cookbook. The doctor names every column that a migration after the
+  first adds, so a half-applied migration fails the schema check rather than
+  reaching a worker. A test holds the list to that rule
 - Database server verification: each adapter reports its version against a
   tested minimum, MySQL confirms Solid Objects tables use InnoDB, and the
   doctor warns rather than refusing to run on an untested server
@@ -117,6 +119,15 @@
   batched and unbatched components, an inert replay of an applied revision,
   cancellation of the request left in flight by the drop, incarnation ordering
   after a destroy and recreate, and payload delivery exactly once per revision
+- Result lookup by request ID and by idempotency key, authorized with the hook
+  the original call ran and against the stored operation and arguments. An
+  actor remembers the idempotency keys of its own last `retained_idempotency_keys`
+  finished turns, written in the instance row the executor updates anyway, so a
+  lookup by key raises `MessagePruned` for a message that retention removed and
+  answers `nil` for a message that never existed. A lookup by request ID cannot
+  make that distinction, because the runtime generates a request ID and no
+  actor remembers one. Pruned lookups retain the original arguments for authorization
+  within the byte limit; older entries without arguments answer `nil`
 
 ## Partially implemented
 
@@ -160,7 +171,11 @@
   loads them in every process, and a rejected subscription reports which
   condition caused it instead of closing the socket silently.
 - Backpressure: mailbox/payload/state/result caps and fair yields exist;
-  distributed per-actor rate limits and global admission control do not. The
+  distributed per-actor rate limits, global admission control, and
+  cache-capacity eviction are not planned here. They are hot, request-path, and
+  loss-tolerant, so one durable ordered message per check is the wrong shape,
+  which [fit](fit.md) already says. Solid Objects Pro answers them with grouped
+  and ephemeral operations. The
   state cap is a limit rather than an operating point. `max_state_bytes`
   defaults to 5 MB, and committed throughput measured on SQLite falls about 53
   times between an empty state and 1 MB of state, which `docs/benchmarks.md`
@@ -197,13 +212,13 @@
 
 ## Next milestones
 
-1. Add result lookup by request ID and broader deadlock retry classification.
-2. Add Turbo append intents.
-3. Add distributed rate limits, global admission hooks, and cache-capacity
-   eviction.
-4. Expand security scanning beyond the Brakeman scan, such as dependency
+1. Broaden deadlock retry classification.
+2. Add Turbo append intents. The renderer already emits the `append` action for
+   batch refreshes and payload delivery, so what remains is letting an
+   application direct one.
+3. Expand security scanning beyond the Brakeman scan, such as dependency
    auditing and secret scanning.
-5. Benchmark all workloads under documented hardware/database settings and
+4. Benchmark all workloads under documented hardware/database settings and
    publish adapter-specific adoption measurements. Throughput, synchronous
    latency, query counts, and the three reactive delivery paths are measured on
    SQLite; adapter-specific and end-to-end browser measurements are not.

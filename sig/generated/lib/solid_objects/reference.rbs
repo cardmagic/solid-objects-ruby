@@ -2,9 +2,9 @@
 
 module SolidObjects
   class Reference
-    @actor_type: String
-
     @actor_id: String
+
+    @actor_type: String
 
     attr_reader actor_type: untyped
 
@@ -21,6 +21,9 @@ module SolidObjects
 
     # @rbs (?authorization_context: untyped) -> bool
     def destroy: (?authorization_context: untyped) -> bool
+
+    # @rbs (idempotency_key: String, ?authorization_context: untyped) -> MessageReference?
+    def find_by: (idempotency_key: String, ?authorization_context: untyped) -> MessageReference?
 
     # @rbs (?authorization_context: untyped) -> StateSnapshot
     def snapshot: (?authorization_context: untyped) -> StateSnapshot

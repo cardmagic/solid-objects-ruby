@@ -19,6 +19,7 @@ class LoadContractTest < ActiveSupport::TestCase
     "client" => "the caller path, required by SolidObjects.client",
     "doctor" => "an operator tool, loaded by the doctor command",
     "errors" => "defines error classes individually, so no SolidObjects::Errors exists",
+    "schema_bootstrap" => "a setup helper, required by a script that builds the schema",
     "sync_diagnostics" => "the caller path, required with the client",
     "synchronous_invocation" => "the caller path, required with the client",
     "test_helper" => "opt-in, required by host application tests",

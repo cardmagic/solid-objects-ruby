@@ -232,4 +232,12 @@ module SolidObjects
 
   class ActorCallCycle < Error
   end
+
+  class MessagePruned < Error
+    # @rbs @idempotency_key: String
+    attr_reader idempotency_key: untyped
+
+    # @rbs (String) -> void
+    def initialize: (String) -> void
+  end
 end

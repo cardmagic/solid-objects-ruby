@@ -67,6 +67,11 @@ module SolidObjects
       SolidObjects.client.destroy(self, authorization_context:)
     end
 
+    # @rbs (idempotency_key: String, ?authorization_context: untyped) -> MessageReference?
+    def find_by(idempotency_key:, authorization_context: nil)
+      SolidObjects.client.find_by(reference: self, idempotency_key:, authorization_context:)
+    end
+
     # @rbs (?authorization_context: untyped) -> StateSnapshot
     def snapshot(authorization_context: nil)
       SolidObjects.client.snapshot(self, authorization_context:)

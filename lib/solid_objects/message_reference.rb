@@ -35,21 +35,26 @@ module SolidObjects
 
     # @rbs () -> String
     def status
-      Message.uncached do
-        message = Message.find(id)
-        return "rejected" if message.rejected?
-        return "completed" if message.completed?
-        return "dead" if message.dead?
-        return "claimed" if message.claimed?
-        return "ready" if message.ready?
-
-        "unknown"
-      end
+      Message.uncached { status_of(Message.find(id)) }
     end
 
     # @rbs () -> untyped
     def result
       Message.uncached { Message.find(id).result }
+    end
+
+    # @rbs () -> Outcome
+    def outcome
+      Message.uncached do
+        message = Message.find(id)
+        Outcome.new(
+          status: status_of(message),
+          result: Serialization.readonly_copy(message.result),
+          error: ErrorRecord.from(message.error),
+          rejection: RejectionRecord.from(message.rejection),
+          attempts: message.attempt_count
+        )
+      end
     end
 
     # @rbs (?timeout: Numeric, ?authorization_context: untyped) -> untyped
@@ -59,6 +64,19 @@ module SolidObjects
         timeout:,
         authorization_context:
       )
+    end
+
+    private
+
+    # @rbs (Message) -> String
+    def status_of(message)
+      return "rejected" if message.rejected?
+      return "completed" if message.completed?
+      return "dead" if message.dead?
+      return "claimed" if message.claimed?
+      return "ready" if message.ready?
+
+      "unknown"
     end
   end
 end

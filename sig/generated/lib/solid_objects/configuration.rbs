@@ -2,69 +2,71 @@
 
 module SolidObjects
   class Configuration
-    @table_name_prefix: String
-
-    @shutdown_timeout: Float
-
-    @supervisor_monitor_interval: Float
-
-    @retention_interval: Float
-
-    @dead_process_cleanup_interval: Float
-
-    @message_retention: Numeric
-
-    @message_retention_by_actor_type: Hash[String, Numeric]
-
-    @instance_retention_by_actor_type: Hash[String, Numeric]
-
-    @process_retention: Numeric
-
-    @prune_batch_size: Integer
-
-    @redrive_batch_size: Integer
-
-    @redrive_batch_pause: Float
-
-    @worker_count: Integer
-
-    @effect_worker_count: Integer
+    @transmission_actor_type_resolver: Proc
 
     @broadcast_worker_count: Integer
 
-    @reminder_scheduler_count: Integer
+    @effect_worker_count: Integer
 
-    @connects_to: Hash[Symbol, untyped]?
+    @worker_count: Integer
 
-    @logger: untyped
+    @redrive_batch_pause: Float
 
-    @stream_signing_secret: String?
+    @redrive_batch_size: Integer
 
-    @broadcast_adapter: Proc?
+    @retained_idempotency_keys_bytes: Integer
 
-    @wake_up_adapter: untyped
+    @retained_idempotency_keys: Integer
 
-    @component_path_resolver: Proc?
+    @prune_batch_size: Integer
 
-    @component_authorization_context: Proc
+    @process_retention: Numeric
 
-    @payload_authorization_context: Proc
+    @instance_retention_by_actor_type: Hash[String, Numeric]
 
-    @authorize_message: Proc
+    @message_retention_by_actor_type: Hash[String, Numeric]
 
-    @authorize_query: Proc
+    @message_retention: Numeric
 
-    @authorize_destroy: Proc
+    @dead_process_cleanup_interval: Float
 
-    @authorize_subscription: Proc
+    @retention_interval: Float
 
-    @authorize_administration: Proc
+    @supervisor_monitor_interval: Float
 
-    @authorize_transmission: Proc
+    @table_name_prefix: String
 
     @administration_identity: Proc
 
-    @transmission_actor_type_resolver: Proc
+    @authorize_transmission: Proc
+
+    @authorize_administration: Proc
+
+    @authorize_subscription: Proc
+
+    @authorize_destroy: Proc
+
+    @authorize_query: Proc
+
+    @authorize_message: Proc
+
+    @payload_authorization_context: Proc
+
+    @component_authorization_context: Proc
+
+    @component_path_resolver: Proc?
+
+    @wake_up_adapter: untyped
+
+    @broadcast_adapter: Proc?
+
+    @stream_signing_secret: String?
+
+    @logger: untyped
+
+    @connects_to: Hash[Symbol, untyped]?
+
+    @reminder_scheduler_count: Integer
 
     @polling_interval: Float
 
@@ -103,6 +105,8 @@ module SolidObjects
     @process_heartbeat_interval: Float
 
     @process_alive_threshold: Float
+
+    @shutdown_timeout: Float
 
     attr_accessor table_name_prefix: untyped
 
@@ -161,6 +165,10 @@ module SolidObjects
     attr_accessor process_retention: untyped
 
     attr_accessor prune_batch_size: untyped
+
+    attr_accessor retained_idempotency_keys: untyped
+
+    attr_accessor retained_idempotency_keys_bytes: untyped
 
     attr_accessor redrive_batch_size: untyped
 

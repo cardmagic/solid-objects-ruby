@@ -37,13 +37,7 @@ module AtLeastOnceBoot
 
   # @rbs () -> void
   def self.migrate
-    require File.join(ROOT, "db/migrate/20260805000000_create_solid_objects_tables")
-    require File.join(ROOT, "db/migrate/20260806000000_add_state_revision_to_solid_objects_instances")
-    require File.join(ROOT, "db/migrate/20260813000000_rename_message_dispatch_columns")
-    require File.join(ROOT, "db/migrate/20260915000000_add_solid_objects_effect_recoveries")
-    CreateSolidObjectsTables.new.migrate(:up)
-    AddStateRevisionToSolidObjectsInstances.new.migrate(:up)
-    RenameMessageDispatchColumns.new.migrate(:up)
-    AddSolidObjectsEffectRecoveries.new.migrate(:up)
+    require "solid_objects/schema_bootstrap"
+    SolidObjects::SchemaBootstrap.install
   end
 end

@@ -1,0 +1,30 @@
+# Generated from lib/solid_objects/dead_row.rb with RBS::Inline
+
+module SolidObjects
+  class DeadRow < Data
+    attr_reader id(): untyped
+
+    attr_reader kind(): untyped
+
+    attr_reader actor_type(): untyped
+
+    attr_reader actor_id(): untyped
+
+    attr_reader status(): untyped
+
+    attr_reader attempt_count(): untyped
+
+    attr_reader available_at(): untyped
+
+    attr_reader failed_at(): untyped
+
+    attr_reader error(): untyped
+
+    def self.new: (untyped id, untyped kind, untyped actor_type, untyped actor_id, untyped status, untyped attempt_count, untyped available_at, untyped failed_at, untyped error) -> instance
+                | (id: untyped, kind: untyped, actor_type: untyped, actor_id: untyped, status: untyped, attempt_count: untyped, available_at: untyped, failed_at: untyped, error: untyped) -> instance
+
+    def self.members: () -> [ :id, :kind, :actor_type, :actor_id, :status, :attempt_count, :available_at, :failed_at, :error ]
+
+    def members: () -> [ :id, :kind, :actor_type, :actor_id, :status, :attempt_count, :available_at, :failed_at, :error ]
+  end
+end

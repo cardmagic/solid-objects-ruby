@@ -1,7 +1,71 @@
 # Changelog
 
-## Unreleased
+## 0.16.0 - 2026-09-23
 
+- Find a message whose reference a caller lost.
+  `SolidObjects.client.find_by(request_id:)` answers a request id, which is
+  unique across the table, and `reference.find_by(idempotency_key:)` answers a
+  key, which is unique per instance, so the receiver supplies the scope the key
+  needs. Naming neither key, naming both, or naming an idempotency key without a
+  reference raises `ArgumentError`.
+- Authorize every lookup with the hook the original call ran, against the stored
+  operation and arguments, because a request id is not a capability. An absent
+  row, an actor this process no longer registers, and a caller the policy
+  refuses all return `nil`, so a lookup cannot be used to ask whether a request
+  id exists.
+- Add `MessageReference#outcome`, which reports the status, the result, the
+  persisted error, the rejection, and the attempt count, so a terminal failure
+  answers as well as a success. A result is stored for `sync` delivery only, so
+  an asynchronous message reports its status and error and no result.
+- Tell a pruned message from one that never existed. An actor remembers the
+  idempotency keys of its own finished turns, the way an Orleans grain keeps
+  its deduplication history in grain state, so the memory needs no second
+  store and no second write. `reference.find_by(idempotency_key:)` raises
+  `SolidObjects::MessagePruned` for a key the actor remembers and whose message
+  retention removed, and still answers `nil` for a key no caller ever sent.
+  An actor remembers the operation beside each key, so the pruned answer runs
+  the same hook against the same operation a lookup of the surviving row would,
+  and a caller the policy refuses reads `nil` for both. Gating it on `snapshot`
+  would have told a caller who may read state, but not the operation, that the
+  operation had run.
+  `retained_idempotency_keys` bounds the memory and defaults to 64 keys for
+  each actor. A lookup by request id cannot make the distinction, because the
+  runtime, not the caller, generates a request id and no actor remembers one.
+  `retained_idempotency_keys_bytes` bounds the serialized memory as well,
+  because an idempotency key has no length limit on every adapter and the memory
+  outlives the message row. An actor drops its oldest keys until the list fits,
+  so a key long enough to fill the limit by itself is never remembered.
+- Add `db/migrate/20260923000000_add_solid_objects_completed_idempotency_keys.rb`,
+  which adds `instances.completed_idempotency_keys` as `jsonb` on PostgreSQL and
+  `json` elsewhere. An application installs it with
+  `bin/rails solid_objects:install:migrations` and runs it before it upgrades a
+  worker, because the executor writes the column on every finished turn. The
+  doctor now reports the column as missing when it is not installed.
+- Apply migrations through `SolidObjects::SchemaBootstrap`, which reads
+  `db/migrate`. Seven scripts each carried a hand-copied migration list, and
+  three of them applied an incomplete schema. A test fails if any script names a
+  migration class again.
+- Report a half-applied migration in `solid_objects doctor`. The column list
+  omitted `instances.state_revision`, `messages.operation`,
+  `effects.success_operation`, `effects.failure_operation`, and
+  `dead_letters.operation`, so an application that skipped a migration read as
+  healthy and found out from a worker crash. A test fails when the list does not
+  name a column that a migration after the first adds.
+
+- List a dead effect or broadcast as a `SolidObjects::DeadRow` rather than as
+  an Active Record row. `all` returned rows whose `id` was the primary key while
+  `retry` reads `effect_id` or `broadcast_id`, so the obvious
+  `scope.retry(scope.all.first.id)` raised `ActiveRecord::RecordNotFound`.
+  `DeadRow#id` is now the value `retry` accepts, which is what the TypeScript
+  runtime has always returned. `dead` still answers the relation for a caller
+  that wants to scope it further.
+- Raise a load error rather than report an unreachable database. Wake-up
+  selection rescued every exception, so a `NameError` from an unloaded model
+  read as "the database could not be reached" and downgraded the process to
+  in-process signalling. It now rescues database, system call, and IO errors
+  only.
+- Note that `json` 3.0.2 breaks `ActiveSupport::JSON.decode`, and therefore
+  every JSON column, in [docs/operations.md](docs/operations.md).
 - Retry a dead effect or broadcast. `SolidObjects.dead_letters` keeps its
   message meaning and answers `effects` and `broadcasts`, so the kind rides on
   the receiver. `retry` returns a dead row to pending with a zero attempt count

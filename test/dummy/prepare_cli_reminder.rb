@@ -3,15 +3,9 @@
 ENV["RAILS_ENV"] = "test"
 
 require_relative "config/environment"
-require_relative "../../db/migrate/20260805000000_create_solid_objects_tables"
-require_relative "../../db/migrate/20260806000000_add_state_revision_to_solid_objects_instances"
-require_relative "../../db/migrate/20260813000000_rename_message_dispatch_columns"
-require_relative "../../db/migrate/20260915000000_add_solid_objects_effect_recoveries"
+require "solid_objects/schema_bootstrap"
 
-CreateSolidObjectsTables.new.migrate(:up)
-AddStateRevisionToSolidObjectsInstances.new.migrate(:up)
-RenameMessageDispatchColumns.new.migrate(:up)
-AddSolidObjectsEffectRecoveries.new.migrate(:up)
+SolidObjects::SchemaBootstrap.install
 
 # A reminder that is already due, so the scheduler claims and enqueues it on
 # its first pass rather than waiting.

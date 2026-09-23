@@ -1,0 +1,11 @@
+# Generated from lib/solid_objects/schema_bootstrap.rb with RBS::Inline
+
+module SolidObjects
+  module SchemaBootstrap
+    # @rbs (?connection: untyped) -> void
+    def self.install: (?connection: untyped) -> void
+
+    # @rbs () -> Array[Class]
+    def self.migrations: () -> Array[Class]
+  end
+end

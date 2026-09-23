@@ -25,6 +25,22 @@ reports a failed or warned check rather than raising out of the command.
 
 ## Installing and upgrading
 
+Solid Objects keeps actor state, message arguments, results, and the remembered
+idempotency keys in JSON columns. Active Support decodes every one of them, and
+`ActiveSupport::JSON.decode` raises with the `json` gem at 3.0.2:
+
+```
+ArgumentError: wrong number of arguments (given 2, expected 1)
+```
+
+The failure is in Active Support rather than in Solid Objects, and it reaches
+every JSON column in a Rails application. A new Rails 8.1 application resolves
+`json` 3.0.2 today, so pin the 2.x series until Rails ships a fix:
+
+```ruby
+gem "json", "~> 2"
+```
+
 Review [CHANGELOG.md](CHANGELOG.md) for compatibility and deployment-order
 notes, then update the gem:
 
@@ -215,6 +231,8 @@ end
 | `instance_retention_by_actor_type` | `{}`; instances never expire unless listed |
 | `process_retention` | 7 days |
 | `prune_batch_size` | 1,000 |
+| `retained_idempotency_keys` | 64 |
+| `retained_idempotency_keys_bytes` | 16 KB |
 | `worker_count` | 1 |
 | `effect_worker_count` | 1 |
 | `broadcast_worker_count` | 1 |
@@ -517,6 +535,8 @@ SolidObjects.configure do |configuration|
   }
   configuration.process_retention = 7.days
   configuration.prune_batch_size = 1_000
+  configuration.retained_idempotency_keys = 64
+  configuration.retained_idempotency_keys_bytes = 16.kilobytes
 end
 ```
 
@@ -542,6 +562,29 @@ broadcasts. Deleting eligible history cascades to completed effects, delivered
 broadcasts, and other message-owned rows. Choose a cutoff longer than every
 `sync` timeout because a caller whose result row disappears can no longer
 observe it.
+
+`find_by` reads the same rows, so a lookup answers only while the message it
+names survives retention. A lookup by idempotency key still tells the two cases
+apart after pruning, because the actor remembers the keys of its own last
+`retained_idempotency_keys` finished turns: it raises `MessagePruned` for a key
+the actor remembers and answers `nil` for a key no caller ever sent. The actor
+remembers the operation and original arguments beside each key, so the pruned answer runs the same
+authorization the surviving row would. Raise
+`retained_idempotency_keys` above the default of 64 when an actor finishes more
+keyed turns than that inside the window in which a caller may retry. A lookup
+by request id answers `nil` in both cases, so a caller that must tell them apart
+sends its own idempotency key.
+
+Remembered arguments count toward the serialized memory limit and remain until
+the entry is evicted or the instance is removed. Entries from older versions
+that lack arguments return absence after pruning because their original
+authorization cannot be reproduced.
+
+`retained_idempotency_keys_bytes` bounds the serialized memory as well, because
+an idempotency key has no length limit on every adapter and the memory outlives
+the message row. An actor drops its oldest keys until the list fits, so a key
+long enough to fill the limit by itself is never remembered and its lookup
+answers `nil` rather than raising.
 
 Actor expiration is disabled by default. `prune_instances` considers only
 actor types listed in `instance_retention_by_actor_type`, excludes active or

@@ -68,6 +68,12 @@ a presence signal, or a view count. Reactive projections materialize a read
 model from the durable broadcast outbox, so request-path reads stop competing
 with mailbox work.
 
+Distributed per-actor rate limits, global admission control, and cache-capacity
+eviction are answered there rather than in this gem. Each one is hot and
+request-critical, and this gem writes one permanent message row for every
+invocation, so the cost model above rules out a limiter that checks on the
+request path. They are not open roadmap items here.
+
 ## Cost model
 
 Every synchronous or asynchronous invocation:

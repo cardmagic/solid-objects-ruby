@@ -16,6 +16,9 @@ module SolidObjects
     # @rbs (MessageReference, timeout: Numeric, ?authorization_context: untyped) -> untyped
     def wait: (MessageReference, timeout: Numeric, ?authorization_context: untyped) -> untyped
 
+    # @rbs (?reference: Reference?, ?request_id: String?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference?
+    def find_by: (?reference: Reference?, ?request_id: String?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference?
+
     # @rbs (Reference, ?authorization_context: untyped) -> StateSnapshot
     def snapshot: (Reference, ?authorization_context: untyped) -> StateSnapshot
 
@@ -28,6 +31,15 @@ module SolidObjects
 
     # @rbs (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], idempotency_key: String?, timeout: Numeric) -> MessageReference
     def enqueue_sync: (reference: Reference, operation: Symbol | String, arguments: Hash[Symbol | String, untyped], idempotency_key: String?, timeout: Numeric) -> MessageReference
+
+    # @rbs (Message?, authorization_context: untyped) -> MessageReference?
+    def readable_message: (Message?, authorization_context: untyped) -> MessageReference?
+
+    # @rbs (Message, authorization_context: untyped) -> bool
+    def authorized_to_read?: (Message, authorization_context: untyped) -> bool
+
+    # @rbs (actor_type: String, actor_id: String, operation: String, arguments: Hash[String, untyped], authorization_context: untyped) -> bool
+    def authorized_to_invoke?: (actor_type: String, actor_id: String, operation: String, arguments: Hash[String, untyped], authorization_context: untyped) -> bool
 
     # @rbs (MessageReference, Message) -> void
     def validate_message_reference!: (MessageReference, Message) -> void

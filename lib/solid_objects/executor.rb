@@ -111,7 +111,8 @@ module SolidObjects
           state: state_after.value,
           state_version: actor.class.state_version,
           state_revision: locked_message.sequence,
-          last_used_at: SolidObjects.database_adapter.database_now
+          last_used_at: SolidObjects.database_adapter.database_now,
+          completed_idempotency_keys: remembered_keys(instance, locked_message)
         )
         locked_message.update!(
           result: serialized_result,
@@ -394,7 +395,7 @@ module SolidObjects
       error_details = serialized_error(error)
       dead = false
 
-      activation.lease.fenced_transaction do
+      activation.lease.fenced_transaction do |instance|
         claimed_message = matching_claim!
         locked_message = Message.lock.find(message.id)
         now = SolidObjects.database_adapter.database_now
@@ -404,6 +405,7 @@ module SolidObjects
         if error.is_a?(NonRetryableError) ||
             locked_message.attempt_count >= locked_message.max_attempts
           create_dead_letter(message: locked_message, error_details:, now:)
+          instance.update!(completed_idempotency_keys: remembered_keys(instance, locked_message)) if locked_message.idempotency_key
           dead = true
         else
           ReadyMessage.create!(
@@ -439,7 +441,10 @@ module SolidObjects
         claimed_message = matching_claim!
         locked_message = Message.lock.find(message.id)
         now = SolidObjects.database_adapter.database_now
-        instance.update!(last_used_at: now)
+        instance.update!(
+          last_used_at: now,
+          completed_idempotency_keys: remembered_keys(instance, locked_message)
+        )
         locked_message.update!(
           result: nil,
           rejection: rejection_data,
@@ -468,6 +473,22 @@ module SolidObjects
       )
     rescue ActiveRecord::RecordNotFound
       raise LostActivation, "message claim changed"
+    end
+
+    # @rbs (Instance, Message) -> Array[Hash[String, untyped]]
+    def remembered_keys(instance, message)
+      remembered = Array(instance.completed_idempotency_keys)
+      key = message.idempotency_key
+      return remembered unless key
+
+      entry = { "key" => key, "operation" => message.operation, "arguments" => message.arguments }
+      return remembered if remembered.last == entry
+
+      kept = (remembered.reject { |value| value["key"] == key } + [ entry ])
+        .last(SolidObjects.configuration.retained_idempotency_keys)
+      limit = SolidObjects.configuration.retained_idempotency_keys_bytes
+      kept.shift while kept.any? && kept.to_json.bytesize > limit
+      kept
     end
 
     # @rbs (Exception) -> Hash[String, untyped]
