@@ -103,7 +103,12 @@ module SolidObjects
         raise ArgumentError, "find_by with idempotency_key: requires reference:"
       end
 
-      return readable_message(requested_message(request_id), authorization_context:) if request_id
+      if request_id
+        return readable_message(
+          Message.uncached { Message.find_by(request_id:) },
+          authorization_context:
+        )
+      end
 
       readable_message(
         remembered_message(reference, idempotency_key, authorization_context:),
@@ -181,11 +186,6 @@ module SolidObjects
       )
     end
 
-    # @rbs (String) -> Message?
-    def requested_message(request_id)
-      Message.uncached { Message.find_by(request_id:) }
-    end
-
     # @rbs (Reference, String, authorization_context: untyped) -> Message?
     def remembered_message(reference, idempotency_key, authorization_context:)
       instance = Instance.find_by(
@@ -243,7 +243,7 @@ module SolidObjects
         arguments: message.arguments,
         authorization_context:
       )
-    rescue UnknownActor
+    rescue UnknownActorType
       false
     end
 

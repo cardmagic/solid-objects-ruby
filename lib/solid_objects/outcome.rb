@@ -9,7 +9,7 @@ module SolidObjects
       new(
         class_name: error["class"],
         message: error["message"],
-        backtrace: Array(error["backtrace"]).freeze
+        backtrace: Serialization.readonly_copy(Array(error["backtrace"]))
       )
     end
   end

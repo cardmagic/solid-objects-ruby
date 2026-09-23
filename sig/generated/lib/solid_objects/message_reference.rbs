@@ -39,5 +39,10 @@ module SolidObjects
 
     # @rbs (?timeout: Numeric, ?authorization_context: untyped) -> untyped
     def wait: (?timeout: Numeric, ?authorization_context: untyped) -> untyped
+
+    private
+
+    # @rbs (Message) -> String
+    def status_of: (Message) -> String
   end
 end

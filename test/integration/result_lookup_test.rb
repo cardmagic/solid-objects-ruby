@@ -176,6 +176,56 @@ class ResultLookupTest < ActiveSupport::TestCase
     assert_nil CartActor.ref("alice").find_by(idempotency_key: "never-used")
   end
 
+  test "answers nil for a message whose actor type is not registered" do
+    original = CartActor.ref("alice").async.checkout(order_id: 1)
+    SolidObjects::Message.update_all(actor_type: "retired-carts")
+
+    assert_nil SolidObjects.client.find_by(request_id: original.request_id)
+  end
+
+  test "reports one snapshot for every outcome field" do
+    CartActor.ref("alice").sync.checkout(order_id: 9)
+    found = SolidObjects.client.find_by(request_id: SolidObjects::Message.sole.request_id)
+    reads = 0
+    subscription = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      reads += 1 if payload[:sql].include?(SolidObjects::Message.table_name)
+    end
+
+    found.outcome
+
+    assert_equal 1, reads, "every outcome field must describe one read"
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscription)
+  end
+
+  test "hands out a frozen result" do
+    CartActor.ref("alice").sync.checkout(order_id: 9)
+    outcome = SolidObjects.client.find_by(request_id: SolidObjects::Message.sole.request_id).outcome
+
+    assert_predicate outcome.result, :frozen?
+    assert_raises(FrozenError) { outcome.result["order_id"] = 1 }
+  end
+
+  test "hands out a frozen backtrace" do
+    CartActor.fail = true
+    original = CartActor.ref("alice").async.checkout(order_id: 1)
+    run_actors
+    outcome = SolidObjects.client.find_by(request_id: original.request_id).outcome
+
+    assert_predicate outcome.error.backtrace.first, :frozen?
+  end
+
+  test "propagates an authorization failure rather than reporting absence" do
+    original = CartActor.ref("alice").async.checkout(order_id: 1)
+    SolidObjects.configuration.authorize_message = ->(**) { raise "authorization service is down" }
+
+    error = assert_raises(RuntimeError) do
+      SolidObjects.client.find_by(request_id: original.request_id)
+    end
+
+    assert_equal "authorization service is down", error.message
+  end
+
   test "authorizes against the stored operation and arguments" do
     reference = CartActor.ref("alice")
     original = reference.async(idempotency_key: "checkout-7f3a").checkout(order_id: 4210)
