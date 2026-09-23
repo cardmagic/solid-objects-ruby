@@ -94,6 +94,21 @@ module SolidObjects
       raise SyncDiagnostics.new.database_contention_for(message_reference, timeout:)
     end
 
+    # @rbs (?reference: Reference?, ?request_id: String?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference?
+    def find_by(reference: nil, request_id: nil, idempotency_key: nil, authorization_context: nil)
+      unless [ request_id, idempotency_key ].compact.one?
+        raise ArgumentError, "find_by expects exactly one of request_id: or idempotency_key:"
+      end
+      if idempotency_key && reference.nil?
+        raise ArgumentError, "find_by with idempotency_key: requires reference:"
+      end
+
+      readable_message(
+        looked_up_message(reference:, request_id:, idempotency_key:),
+        authorization_context:
+      )
+    end
+
     # @rbs (Reference, ?authorization_context: untyped) -> StateSnapshot
     def snapshot(reference, authorization_context: nil)
       SolidObjects.registry.fetch(reference.actor_type)
@@ -162,6 +177,50 @@ module SolidObjects
         actor_id: reference.actor_id,
         operation: operation.to_s
       )
+    end
+
+    # @rbs (reference: Reference?, request_id: String?, idempotency_key: String?) -> Message?
+    def looked_up_message(reference:, request_id:, idempotency_key:)
+      return Message.uncached { Message.find_by(request_id:) } if request_id
+
+      instance = Instance.find_by(
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id
+      )
+      return nil unless instance
+
+      Message.uncached { Message.find_by(instance_id: instance.id, idempotency_key:) }
+    end
+
+    # @rbs (Message?, authorization_context: untyped) -> MessageReference?
+    def readable_message(message, authorization_context:)
+      return nil unless message
+      return nil unless authorized_to_read?(message, authorization_context:)
+
+      MessageReference.from_message(message)
+    end
+
+    # @rbs (Message, authorization_context: untyped) -> bool
+    def authorized_to_read?(message, authorization_context:)
+      actor_class = SolidObjects.registry.fetch(message.actor_type)
+      operation = message.operation.to_sym
+      query = actor_class.definition.queries.key?(operation)
+      return false unless query || actor_class.definition.messages.key?(operation)
+
+      hook = if query
+        SolidObjects.configuration.authorize_query
+      else
+        SolidObjects.configuration.authorize_message
+      end
+      hook.call(
+        actor_type: message.actor_type,
+        actor_id: message.actor_id,
+        operation: message.operation.to_s,
+        arguments: message.arguments,
+        authorization_context:
+      )
+    rescue UnknownActor
+      false
     end
 
     # @rbs (MessageReference, Message) -> void

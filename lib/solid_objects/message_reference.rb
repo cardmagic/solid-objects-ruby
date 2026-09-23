@@ -52,6 +52,20 @@ module SolidObjects
       Message.uncached { Message.find(id).result }
     end
 
+    # @rbs () -> Outcome
+    def outcome
+      Message.uncached do
+        message = Message.find(id)
+        Outcome.new(
+          status: status,
+          result: message.result,
+          error: ErrorRecord.from(message.error),
+          rejection: RejectionRecord.from(message.rejection),
+          attempts: message.attempt_count
+        )
+      end
+    end
+
     # @rbs (?timeout: Numeric, ?authorization_context: untyped) -> untyped
     def wait(timeout: 5.seconds, authorization_context: nil)
       SolidObjects.client.wait(

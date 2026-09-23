@@ -1,0 +1,52 @@
+# Generated from lib/solid_objects/outcome.rb with RBS::Inline
+
+module SolidObjects
+  class ErrorRecord < Data
+    attr_reader class_name(): untyped
+
+    attr_reader message(): untyped
+
+    attr_reader backtrace(): untyped
+
+    def self.new: (untyped class_name, untyped message, untyped backtrace) -> instance
+                | (class_name: untyped, message: untyped, backtrace: untyped) -> instance
+
+    def self.members: () -> [ :class_name, :message, :backtrace ]
+
+    def members: () -> [ :class_name, :message, :backtrace ]
+  end
+
+  class RejectionRecord < Data
+    attr_reader code(): untyped
+
+    attr_reader message(): untyped
+
+    attr_reader details(): untyped
+
+    def self.new: (untyped code, untyped message, untyped details) -> instance
+                | (code: untyped, message: untyped, details: untyped) -> instance
+
+    def self.members: () -> [ :code, :message, :details ]
+
+    def members: () -> [ :code, :message, :details ]
+  end
+
+  class Outcome < Data
+    attr_reader status(): untyped
+
+    attr_reader result(): untyped
+
+    attr_reader error(): untyped
+
+    attr_reader rejection(): untyped
+
+    attr_reader attempts(): untyped
+
+    def self.new: (untyped status, untyped result, untyped error, untyped rejection, untyped attempts) -> instance
+                | (status: untyped, result: untyped, error: untyped, rejection: untyped, attempts: untyped) -> instance
+
+    def self.members: () -> [ :status, :result, :error, :rejection, :attempts ]
+
+    def members: () -> [ :status, :result, :error, :rejection, :attempts ]
+  end
+end

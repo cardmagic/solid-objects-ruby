@@ -34,6 +34,9 @@ module SolidObjects
     # @rbs () -> untyped
     def result: () -> untyped
 
+    # @rbs () -> Outcome
+    def outcome: () -> Outcome
+
     # @rbs (?timeout: Numeric, ?authorization_context: untyped) -> untyped
     def wait: (?timeout: Numeric, ?authorization_context: untyped) -> untyped
   end
