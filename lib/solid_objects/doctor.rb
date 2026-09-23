@@ -65,11 +65,11 @@ module SolidObjects
       instances: %w[
         id actor_type actor_id state state_version next_message_sequence
         activation_owner_id activation_token activation_expires_at
-        activation_generation completed_idempotency_keys
+        activation_generation state_revision completed_idempotency_keys
       ],
       messages: %w[
-        id instance_id delivery_mode arguments sequence attempt_count request_id
-        result error rejection completed_at rejected_at
+        id instance_id operation delivery_mode arguments sequence attempt_count
+        request_id result error rejection completed_at rejected_at
       ],
       ready_messages: %w[id message_id instance_id sequence available_at],
       claimed_messages: %w[
@@ -77,10 +77,13 @@ module SolidObjects
         activation_generation claimed_at
       ],
       reminders: %w[id instance_id operation next_run_at status],
-      effects: %w[id message_id instance_id effect_id status available_at],
+      effects: %w[
+        id message_id instance_id effect_id status available_at
+        success_operation failure_operation
+      ],
       effect_recoveries: %w[effect_id instance_id recovery_operation status_operation recovery_timeout retired_at],
       broadcasts: %w[id message_id instance_id broadcast_id status available_at],
-      dead_letters: %w[id message_id instance_id actor_type actor_id attempts],
+      dead_letters: %w[id message_id instance_id actor_type actor_id operation attempts],
       administration_events: %w[id action kind subject_id actor occurred_at],
       redrives: %w[id kind filters status active_scope moved move_limit started_at finished_at]
     }.freeze

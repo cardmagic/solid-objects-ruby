@@ -3,6 +3,12 @@
 require "database_test_helper"
 require "rake"
 require "solid_objects/doctor"
+require "solid_objects/schema_bootstrap"
+require "tmpdir"
+
+class DoctorScratchSchema < ActiveRecord::Base
+  self.abstract_class = true
+end
 
 class DoctorTest < ActiveSupport::TestCase
   test "verifies a workerless synchronous installation" do
@@ -132,6 +138,18 @@ class DoctorTest < ActiveSupport::TestCase
     assert_match(/completed_idempotency_keys/, report.check(:schema).message)
   end
 
+  test "names a column from every migration that follows the first" do
+    added = columns_later_migrations_add
+
+    refute_empty added, "the schema has no migration after the first to verify"
+    unnamed = added.flat_map do |table, columns|
+      listed = SolidObjects::Doctor::EXPECTED_COLUMNS.fetch(table, [])
+      (columns - listed).map { |column| "#{table}.#{column}" }
+    end
+
+    assert_empty unnamed, "the doctor cannot report these half-applied migrations"
+  end
+
   test "reports live runtime roles" do
     now = SolidObjects.database_adapter.database_now
     SolidObjects::Process.create!(
@@ -165,6 +183,41 @@ class DoctorTest < ActiveSupport::TestCase
   end
 
   private
+
+  # @rbs () -> Hash[Symbol, Array[String]]
+  def columns_later_migrations_add
+    Dir.mktmpdir do |directory|
+      migrations = SolidObjects::SchemaBootstrap.migrations
+      first = schema_columns(directory, "first", migrations.first(1))
+      whole = schema_columns(directory, "whole", migrations)
+      first.each_with_object({}) do |(table, columns), added|
+        later = whole.fetch(table) - columns
+        added[table] = later unless later.empty?
+      end
+    end
+  end
+
+  # @rbs (String, String, Array[Class]) -> Hash[Symbol, Array[String]]
+  def schema_columns(directory, name, migrations)
+    DoctorScratchSchema.establish_connection(
+      adapter: "sqlite3",
+      database: File.join(directory, "#{name}.sqlite3")
+    )
+    connection = DoctorScratchSchema.connection
+    migrations.each do |migration_class|
+      migration = migration_class.new
+      migration.define_singleton_method(:connection) { connection }
+      migration.migrate(:up)
+    end
+    SolidObjects::Doctor::EXPECTED_COLUMNS.keys.each_with_object({}) do |table, columns|
+      name = SolidObjects.table_name(table)
+      next unless connection.data_sources.include?(name)
+
+      columns[table] = connection.columns(name).map(&:name)
+    end
+  ensure
+    DoctorScratchSchema.remove_connection
+  end
 
   def hold_sqlite_write_lock
     locked = Queue.new
