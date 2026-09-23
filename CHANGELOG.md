@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.16.0 - 2026-09-23
 
 - Find a message whose reference a caller lost.
   `SolidObjects.client.find_by(request_id:)` answers a request id, which is
