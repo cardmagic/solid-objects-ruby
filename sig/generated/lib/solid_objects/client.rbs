@@ -35,14 +35,14 @@ module SolidObjects
     # @rbs (Reference, String, authorization_context: untyped) -> Message?
     def remembered_message: (Reference, String, authorization_context: untyped) -> Message?
 
-    # @rbs (Reference, authorization_context: untyped) -> bool
-    def readable_state?: (Reference, authorization_context: untyped) -> bool
-
     # @rbs (Message?, authorization_context: untyped) -> MessageReference?
     def readable_message: (Message?, authorization_context: untyped) -> MessageReference?
 
     # @rbs (Message, authorization_context: untyped) -> bool
     def authorized_to_read?: (Message, authorization_context: untyped) -> bool
+
+    # @rbs (actor_type: String, actor_id: String, operation: String, arguments: Hash[String, untyped], authorization_context: untyped) -> bool
+    def authorized_to_invoke?: (actor_type: String, actor_id: String, operation: String, arguments: Hash[String, untyped], authorization_context: untyped) -> bool
 
     # @rbs (MessageReference, Message) -> void
     def validate_message_reference!: (MessageReference, Message) -> void

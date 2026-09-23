@@ -487,9 +487,11 @@ module SolidObjects
       remembered = Array(instance.completed_idempotency_keys)
       key = message.idempotency_key
       return remembered unless key
-      return remembered if remembered.last == key
 
-      bounded(remembered - [ key ] + [ key ])
+      entry = { "key" => key, "operation" => message.operation }
+      return remembered if remembered.last == entry
+
+      bounded(remembered.reject { |value| value["key"] == key } + [ entry ])
     end
 
     # @rbs (Array[String]) -> Array[String]

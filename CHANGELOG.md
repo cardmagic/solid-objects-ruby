@@ -23,8 +23,11 @@
   store and no second write. `reference.find_by(idempotency_key:)` raises
   `SolidObjects::MessagePruned` for a key the actor remembers and whose message
   retention removed, and still answers `nil` for a key no caller ever sent.
-  The memory is actor state, so `authorize_query` gates the pruned answer and a
-  caller the policy refuses reads `nil` for both.
+  An actor remembers the operation beside each key, so the pruned answer runs
+  the same hook against the same operation a lookup of the surviving row would,
+  and a caller the policy refuses reads `nil` for both. Gating it on `snapshot`
+  would have told a caller who may read state, but not the operation, that the
+  operation had run.
   `retained_idempotency_keys` bounds the memory and defaults to 64 keys for
   each actor. A lookup by request id cannot make the distinction, because the
   runtime, not the caller, generates a request id and no actor remembers one.

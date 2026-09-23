@@ -289,12 +289,24 @@ class ResultLookupTest < ActiveSupport::TestCase
     reference.async(idempotency_key: "checkout-7f3a").checkout(order_id: 1)
     run_actors
     SolidObjects::Message.delete_all
+    SolidObjects.configuration.authorize_message = ->(**) { false }
     SolidObjects.configuration.authorize_query = ->(**) { false }
 
     assert_nil reference.find_by(
       idempotency_key: "checkout-7f3a",
       authorization_context: "stranger"
     )
+  end
+
+  test "does not tell a snapshot-only caller that a key was pruned" do
+    reference = CartActor.ref("alice")
+    reference.async(idempotency_key: "checkout-7f3a").checkout(order_id: 1)
+    run_actors
+    SolidObjects::Message.delete_all
+    SolidObjects.configuration.authorize_query = ->(**) { true }
+    SolidObjects.configuration.authorize_message = ->(**) { false }
+
+    assert_nil reference.find_by(idempotency_key: "checkout-7f3a")
   end
 
   test "remembers a key whose message was rejected" do
@@ -345,7 +357,7 @@ class ResultLookupTest < ActiveSupport::TestCase
   end
 
   test "bounds what an instance remembers by size" do
-    SolidObjects.configuration.retained_idempotency_keys_bytes = 64
+    SolidObjects.configuration.retained_idempotency_keys_bytes = 128
     reference = CartActor.ref("alice")
     keys = 3.times.map { |index| "#{index}-#{"k" * 20}" }
     keys.each_with_index { |key, index| reference.async(idempotency_key: key).checkout(order_id: index) }
@@ -353,8 +365,8 @@ class ResultLookupTest < ActiveSupport::TestCase
 
     remembered = SolidObjects::Instance.sole.completed_idempotency_keys
 
-    assert_equal keys.last(2), remembered
-    assert_operator remembered.to_json.bytesize, :<=, 64
+    assert_equal keys.last(2), remembered.map { |entry| entry["key"] }
+    assert_operator remembered.to_json.bytesize, :<=, 128
   end
 
   test "remembers nothing for a key larger than what it retains" do
@@ -379,7 +391,7 @@ class ResultLookupTest < ActiveSupport::TestCase
     run_actors
 
     assert_equal [ "second", "first" ],
-      SolidObjects::Instance.sole.completed_idempotency_keys
+      SolidObjects::Instance.sole.completed_idempotency_keys.map { |entry| entry["key"] }
   end
 
   test "remembers nothing for a message that carried no key" do

@@ -567,8 +567,9 @@ observe it.
 names survives retention. A lookup by idempotency key still tells the two cases
 apart after pruning, because the actor remembers the keys of its own last
 `retained_idempotency_keys` finished turns: it raises `MessagePruned` for a key
-the actor remembers and answers `nil` for a key no caller ever sent. The
-memory is actor state, so `authorize_query` gates the pruned answer. Raise
+the actor remembers and answers `nil` for a key no caller ever sent. The actor
+remembers the operation beside each key, so the pruned answer runs the same
+authorization the surviving row would. Raise
 `retained_idempotency_keys` above the default of 64 when an actor finishes more
 keyed turns than that inside the window in which a caller may retry. A lookup
 by request id answers `nil` in both cases, so a caller that must tell them apart

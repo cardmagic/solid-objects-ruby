@@ -196,24 +196,19 @@ module SolidObjects
 
       message = Message.uncached { Message.find_by(instance_id: instance.id, idempotency_key:) }
       return message if message
-      return nil unless Array(instance.completed_idempotency_keys).include?(idempotency_key)
-      return nil unless readable_state?(reference, authorization_context:)
 
-      raise MessagePruned, idempotency_key
-    end
-
-    # @rbs (Reference, authorization_context: untyped) -> bool
-    def readable_state?(reference, authorization_context:)
-      authorize!(
-        hook: SolidObjects.configuration.authorize_query,
-        reference:,
-        operation: "__snapshot__",
+      remembered = Array(instance.completed_idempotency_keys)
+        .find { |entry| entry["key"] == idempotency_key }
+      return nil unless remembered
+      return nil unless authorized_to_invoke?(
+        actor_type: reference.actor_type,
+        actor_id: reference.actor_id,
+        operation: remembered["operation"],
         arguments: {},
         authorization_context:
       )
-      true
-    rescue Unauthorized
-      false
+
+      raise MessagePruned, idempotency_key
     end
 
     # @rbs (Message?, authorization_context: untyped) -> MessageReference?
@@ -226,10 +221,21 @@ module SolidObjects
 
     # @rbs (Message, authorization_context: untyped) -> bool
     def authorized_to_read?(message, authorization_context:)
-      actor_class = SolidObjects.registry.fetch(message.actor_type)
-      operation = message.operation.to_sym
-      query = actor_class.definition.queries.key?(operation)
-      return false unless query || actor_class.definition.messages.key?(operation)
+      authorized_to_invoke?(
+        actor_type: message.actor_type,
+        actor_id: message.actor_id,
+        operation: message.operation,
+        arguments: message.arguments,
+        authorization_context:
+      )
+    end
+
+    # @rbs (actor_type: String, actor_id: String, operation: String, arguments: Hash[String, untyped], authorization_context: untyped) -> bool
+    def authorized_to_invoke?(actor_type:, actor_id:, operation:, arguments:, authorization_context:)
+      actor_class = SolidObjects.registry.fetch(actor_type)
+      operation_symbol = operation.to_sym
+      query = actor_class.definition.queries.key?(operation_symbol)
+      return false unless query || actor_class.definition.messages.key?(operation_symbol)
 
       hook = if query
         SolidObjects.configuration.authorize_query
@@ -237,10 +243,10 @@ module SolidObjects
         SolidObjects.configuration.authorize_message
       end
       hook.call(
-        actor_type: message.actor_type,
-        actor_id: message.actor_id,
-        operation: message.operation.to_s,
-        arguments: message.arguments,
+        actor_type:,
+        actor_id:,
+        operation: operation.to_s,
+        arguments:,
         authorization_context:
       )
     rescue UnknownActorType

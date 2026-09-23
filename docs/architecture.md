@@ -442,9 +442,12 @@ than in a separate tombstone table, which needs no second store, no second
 write, and no separate retention. `reference.find_by(idempotency_key:)` raises
 `MessagePruned` for a key the actor remembers and whose message retention
 removed, and answers `nil` for a key no caller ever sent, so a client can tell
-a lost result from a request that never arrived. The memory is actor state, so
-`authorize_query` gates the pruned answer the way it gates `snapshot`, and a
-caller the policy refuses reads `nil` for both.
+a lost result from a request that never arrived. An actor remembers the operation beside each key, so
+the pruned answer runs the same hook against the same operation that a lookup
+of the surviving row would, and a caller the policy refuses reads `nil` whether
+the message is pruned or never existed. Gating it on `snapshot` instead would
+tell a caller who may read state, but not the operation, that the operation had
+run.
 `retained_idempotency_keys` bounds the memory and defaults to 64 keys for each
 actor, and `retained_idempotency_keys_bytes` bounds its serialized size at 16 KB,
 because an idempotency key has no length limit on every adapter and the memory
