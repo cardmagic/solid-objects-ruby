@@ -543,6 +543,11 @@ broadcasts, and other message-owned rows. Choose a cutoff longer than every
 `sync` timeout because a caller whose result row disappears can no longer
 observe it.
 
+`find_by` reads the same rows, so a lookup answers only while the message it
+names survives retention. A pruned message and one that never existed both
+answer `nil` today, which is why a cutoff longer than the window in which a
+caller may retry matters.
+
 Actor expiration is disabled by default. `prune_instances` considers only
 actor types listed in `instance_retention_by_actor_type`, excludes active or
 paused actors, and preserves ready/claimed mailbox work, scheduled reminders,

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Find a message whose reference a caller lost.
+  `SolidObjects.client.find_by(request_id:)` answers a request id, which is
+  unique across the table, and `reference.find_by(idempotency_key:)` answers a
+  key, which is unique per instance, so the receiver supplies the scope the key
+  needs. Naming neither key, naming both, or naming an idempotency key without a
+  reference raises `ArgumentError`.
+- Authorize every lookup with the hook the original call ran, against the stored
+  operation and arguments, because a request id is not a capability. An absent
+  row, an actor this process no longer registers, and a caller the policy
+  refuses all return `nil`, so a lookup cannot be used to ask whether a request
+  id exists.
+- Add `MessageReference#outcome`, which reports the status, the result, the
+  persisted error, the rejection, and the attempt count, so a terminal failure
+  answers as well as a success. A result is stored for `sync` delivery only, so
+  an asynchronous message reports its status and error and no result.
+
 - Retry a dead effect or broadcast. `SolidObjects.dead_letters` keeps its
   message meaning and answers `effects` and `broadcasts`, so the kind rides on
   the receiver. `retry` returns a dead row to pending with a zero attempt count

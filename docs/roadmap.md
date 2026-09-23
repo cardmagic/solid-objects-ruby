@@ -197,7 +197,9 @@
 
 ## Next milestones
 
-1. Add result lookup by request ID and broader deadlock retry classification.
+1. Broaden deadlock retry classification. Result lookup by request ID and by
+   idempotency key is implemented; what remains is telling a pruned message
+   from one that never existed.
 2. Add Turbo append intents.
 3. Add distributed rate limits, global admission hooks, and cache-capacity
    eviction.

@@ -424,6 +424,16 @@ outer commit, and callers timing out on work they indirectly block.
 waiting and immediately returns a `MessageReference`. Runtime workers process
 it normally.
 
+A caller that loses that reference rebuilds one. `SolidObjects.client.find_by`
+answers a request id, which is unique across the table, and
+`reference.find_by` answers an idempotency key, which is unique per instance.
+Each lookup runs the authorization hook the original call ran, against the
+stored operation and arguments, and answers `nil` for an absent row, an
+unregistered actor, and a refused caller alike, so it cannot be used to ask
+whether a request id exists. `MessageReference#outcome` reports the status, the
+result, the persisted error, the rejection, and the attempt count. A result is
+stored for `sync` delivery only.
+
 An executing caller receives an inline after-commit callback error even though
 the turn committed. An independently waiting caller observes the durable
 result and may return before that callback raises in the worker. Completed
@@ -867,7 +877,7 @@ All backends use unique identity and sequence constraints, short transactions, a
 12. **How are leases renewed?** Conditional database update by instance, owner, generation, and unexpired lease.
 13. **How does graceful shutdown work?** Stop claims, finish current turn within timeout, release cached leases, stop heartbeat, mark process stopped.
 14. **How does synchronous invocation work across processes?** The caller first tries to claim and execute the actor locally. If another process owns it, a wake-up adapter prompts a durable result query and bounded polling remains the fallback.
-15. **What happens after caller timeout?** A committed message continues and its eventual result can be recovered with the timeout's authorized message reference. An enqueue timeout leaves no message. Running Ruby code is not preempted.
+15. **What happens after caller timeout?** A committed message continues and its eventual result can be recovered with the timeout's authorized message reference, or with `find_by` from the request id or the idempotency key when that reference is gone. An enqueue timeout leaves no message. Running Ruby code is not preempted.
 16. **How are results cleaned up?** `prune_messages` deletes eligible terminal history in bounded batches after global or per-actor retention. It previews by default and preserves live work, dead letters, retry links, and unfinished outboxes.
 17. **How are large mailboxes managed?** The implemented controls are the per-actor mailbox cap, payload caps, and fair activation yields; rate and global admission controls remain roadmap work.
 18. **How are completed messages pruned?** Operators schedule the dry-run-reviewed `prune_messages --execute` command. Solid Objects does not run deletion automatically.
