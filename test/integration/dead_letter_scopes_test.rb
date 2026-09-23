@@ -144,9 +144,24 @@ class DeadLetterScopesTest < ActiveSupport::TestCase
     broadcasts = SolidObjects.dead_letters.broadcasts.all(authorization_context: "operator")
     messages = SolidObjects.dead_letters.all(authorization_context: "operator")
 
-    assert_equal [ effect.effect_id ], effects.map(&:effect_id)
-    assert_equal [ broadcast.broadcast_id ], broadcasts.map(&:broadcast_id)
+    assert_equal [ effect.effect_id ], effects.map(&:id)
+    assert_equal [ broadcast.broadcast_id ], broadcasts.map(&:id)
     assert_equal 1, messages.count
+  end
+
+  test "lists a dead row whose id retry accepts" do
+    effect = dead_effect
+
+    row = SolidObjects.dead_letters.effects.all(authorization_context: "operator").sole
+
+    assert_equal effect.effect_id, row.id
+    assert_equal "effect", row.kind
+    assert_equal "dead", row.status
+    assert_equal "scoped-dead-letter-orders", row.actor_type
+    assert_equal "one", row.actor_id
+    SolidObjects.dead_letters.effects.retry(row.id, authorization_context: "operator")
+
+    assert_equal "pending", effect.reload.status
   end
 
   test "reads only dead rows, not pending ones" do
@@ -157,7 +172,7 @@ class DeadLetterScopesTest < ActiveSupport::TestCase
     effects = SolidObjects.dead_letters.effects.all(authorization_context: "operator")
 
     assert_equal 2, SolidObjects::Effect.count
-    assert_equal [ dead.effect_id ], effects.map(&:effect_id)
+    assert_equal [ dead.effect_id ], effects.map(&:id)
   end
 
   test "refuses an unauthorized caller" do

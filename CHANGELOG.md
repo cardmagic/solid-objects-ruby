@@ -49,6 +49,20 @@
   healthy and found out from a worker crash. A test fails when the list does not
   name a column that a migration after the first adds.
 
+- List a dead effect or broadcast as a `SolidObjects::DeadRow` rather than as
+  an Active Record row. `all` returned rows whose `id` was the primary key while
+  `retry` reads `effect_id` or `broadcast_id`, so the obvious
+  `scope.retry(scope.all.first.id)` raised `ActiveRecord::RecordNotFound`.
+  `DeadRow#id` is now the value `retry` accepts, which is what the TypeScript
+  runtime has always returned. `dead` still answers the relation for a caller
+  that wants to scope it further.
+- Raise a load error rather than report an unreachable database. Wake-up
+  selection rescued every exception, so a `NameError` from an unloaded model
+  read as "the database could not be reached" and downgraded the process to
+  in-process signalling. It now rescues database, system call, and IO errors
+  only.
+- Note that `json` 3.0.2 breaks `ActiveSupport::JSON.decode`, and therefore
+  every JSON column, in [docs/operations.md](docs/operations.md).
 - Retry a dead effect or broadcast. `SolidObjects.dead_letters` keeps its
   message meaning and answers `effects` and `broadcasts`, so the kind rides on
   the receiver. `retry` returns a dead row to pending with a zero attempt count

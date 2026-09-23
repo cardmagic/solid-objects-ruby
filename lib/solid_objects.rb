@@ -32,6 +32,7 @@ require "solid_objects/administration_audit"
 require "solid_objects/redrive_task"
 require "solid_objects/redrive_manager"
 require "solid_objects/redrive_runner"
+require "solid_objects/dead_row"
 require "solid_objects/dead_letter_scope"
 require "solid_objects/dead_letter_manager"
 require "solid_objects/message_pruner"
@@ -229,7 +230,7 @@ module SolidObjects
       WakeUpAdapters.build(configuration.wake_up_adapter)
     rescue ArgumentError
       raise
-    rescue => error
+    rescue ActiveRecord::ActiveRecordError, SystemCallError, IOError => error
       unreachable_wake_up(error)
     end
 

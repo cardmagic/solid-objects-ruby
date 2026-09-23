@@ -25,6 +25,22 @@ reports a failed or warned check rather than raising out of the command.
 
 ## Installing and upgrading
 
+Solid Objects keeps actor state, message arguments, results, and the remembered
+idempotency keys in JSON columns. Active Support decodes every one of them, and
+`ActiveSupport::JSON.decode` raises with the `json` gem at 3.0.2:
+
+```
+ArgumentError: wrong number of arguments (given 2, expected 1)
+```
+
+The failure is in Active Support rather than in Solid Objects, and it reaches
+every JSON column in a Rails application. A new Rails 8.1 application resolves
+`json` 3.0.2 today, so pin the 2.x series until Rails ships a fix:
+
+```ruby
+gem "json", "~> 2"
+```
+
 Review [CHANGELOG.md](CHANGELOG.md) for compatibility and deployment-order
 notes, then update the gem:
 

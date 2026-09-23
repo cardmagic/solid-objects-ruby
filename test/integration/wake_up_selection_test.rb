@@ -260,6 +260,17 @@ class WakeUpSelectionTest < ActiveSupport::TestCase
     end
   end
 
+  test "a load error is not reported as an unreachable database" do
+    SolidObjects::WakeUpAdapters.singleton_class.alias_method(:built, :build)
+    SolidObjects::WakeUpAdapters.define_singleton_method(:build) do |_name|
+      raise NameError, "uninitialized constant SolidObjects::Record"
+    end
+
+    assert_raises(NameError) { SolidObjects.wake_up }
+  ensure
+    SolidObjects::WakeUpAdapters.singleton_class.alias_method(:build, :built)
+  end
+
   test "the doctor reports the selected adapter" do
     SolidObjects.configuration.authorize_administration = ->(**) { true }
     check = SolidObjects::Doctor.new.call.check(:wake_up)

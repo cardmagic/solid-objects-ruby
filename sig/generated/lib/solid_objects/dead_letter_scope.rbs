@@ -22,8 +22,11 @@ module SolidObjects
     # @rbs (String) -> DeadLetterScope
     def self.for_kind: (String) -> DeadLetterScope
 
-    # @rbs (?authorization_context: untyped) -> ActiveRecord::Relation[untyped]
-    def all: (?authorization_context: untyped) -> ActiveRecord::Relation[untyped]
+    # @rbs (?authorization_context: untyped) -> Array[DeadRow]
+    def all: (?authorization_context: untyped) -> Array[DeadRow]
+
+    # @rbs (untyped) -> DeadRow
+    def dead_row: (untyped) -> DeadRow
 
     # @rbs (String, ?authorization_context: untyped) -> untyped
     def retry: (String, ?authorization_context: untyped) -> untyped
