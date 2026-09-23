@@ -28,6 +28,10 @@
   `retained_idempotency_keys` bounds the memory and defaults to 64 keys for
   each actor. A lookup by request id cannot make the distinction, because the
   runtime, not the caller, generates a request id and no actor remembers one.
+  `retained_idempotency_keys_bytes` bounds the serialized memory as well,
+  because an idempotency key has no length limit on every adapter and the memory
+  outlives the message row. An actor drops its oldest keys until the list fits,
+  so a key long enough to fill the limit by itself is never remembered.
 - Add `db/migrate/20260923000000_add_solid_objects_completed_idempotency_keys.rb`,
   which adds `instances.completed_idempotency_keys` as `jsonb` on PostgreSQL and
   `json` elsewhere. An application installs it with

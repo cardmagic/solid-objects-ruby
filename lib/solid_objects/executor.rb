@@ -489,7 +489,15 @@ module SolidObjects
       return remembered unless key
       return remembered if remembered.last == key
 
-      (remembered - [ key ] + [ key ]).last(SolidObjects.configuration.retained_idempotency_keys)
+      bounded(remembered - [ key ] + [ key ])
+    end
+
+    # @rbs (Array[String]) -> Array[String]
+    def bounded(keys)
+      kept = keys.last(SolidObjects.configuration.retained_idempotency_keys)
+      limit = SolidObjects.configuration.retained_idempotency_keys_bytes
+      kept.shift while kept.any? && kept.to_json.bytesize > limit
+      kept
     end
 
     # @rbs (Exception) -> Hash[String, untyped]

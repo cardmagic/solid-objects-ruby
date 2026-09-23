@@ -294,6 +294,31 @@ class ResultLookupTest < ActiveSupport::TestCase
     assert_raises(SolidObjects::MessagePruned) { reference.find_by(idempotency_key: "second") }
   end
 
+  test "bounds what an instance remembers by size" do
+    SolidObjects.configuration.retained_idempotency_keys_bytes = 64
+    reference = CartActor.ref("alice")
+    keys = 3.times.map { |index| "#{index}-#{"k" * 20}" }
+    keys.each_with_index { |key, index| reference.async(idempotency_key: key).checkout(order_id: index) }
+    run_actors
+
+    remembered = SolidObjects::Instance.sole.completed_idempotency_keys
+
+    assert_equal keys.last(2), remembered
+    assert_operator remembered.to_json.bytesize, :<=, 64
+  end
+
+  test "remembers nothing for a key larger than what it retains" do
+    SolidObjects.configuration.retained_idempotency_keys_bytes = 16
+    reference = CartActor.ref("alice")
+    key = "k" * 100
+    reference.async(idempotency_key: key).checkout(order_id: 1)
+    run_actors
+    SolidObjects::Message.delete_all
+
+    assert_empty SolidObjects::Instance.sole.completed_idempotency_keys
+    assert_nil reference.find_by(idempotency_key: key)
+  end
+
   test "remembers a re-sent key once" do
     reference = CartActor.ref("alice")
     reference.async(idempotency_key: "first").checkout(order_id: 1)

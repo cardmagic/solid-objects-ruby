@@ -32,6 +32,7 @@ module SolidObjects
     # @rbs @process_retention: Numeric
     # @rbs @prune_batch_size: Integer
     # @rbs @retained_idempotency_keys: Integer
+    # @rbs @retained_idempotency_keys_bytes: Integer
     # @rbs @redrive_batch_size: Integer
     # @rbs @redrive_batch_pause: Float
     # @rbs @worker_count: Integer
@@ -85,6 +86,7 @@ module SolidObjects
       :process_retention,
       :prune_batch_size,
       :retained_idempotency_keys,
+      :retained_idempotency_keys_bytes,
       :redrive_batch_size,
       :redrive_batch_pause,
       :worker_count,
@@ -143,6 +145,7 @@ module SolidObjects
       @process_retention = 7.days
       @prune_batch_size = 1_000
       @retained_idempotency_keys = 64
+      @retained_idempotency_keys_bytes = 16.kilobytes
       @redrive_batch_size = 100
       @redrive_batch_pause = 0.05
       @worker_count = 1
@@ -315,6 +318,7 @@ module SolidObjects
         process_retention:,
         prune_batch_size:,
         retained_idempotency_keys:,
+        retained_idempotency_keys_bytes:,
         redrive_batch_size:
       }
     end

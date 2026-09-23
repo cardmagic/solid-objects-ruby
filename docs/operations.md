@@ -216,6 +216,7 @@ end
 | `process_retention` | 7 days |
 | `prune_batch_size` | 1,000 |
 | `retained_idempotency_keys` | 64 |
+| `retained_idempotency_keys_bytes` | 16 KB |
 | `worker_count` | 1 |
 | `effect_worker_count` | 1 |
 | `broadcast_worker_count` | 1 |
@@ -519,6 +520,7 @@ SolidObjects.configure do |configuration|
   configuration.process_retention = 7.days
   configuration.prune_batch_size = 1_000
   configuration.retained_idempotency_keys = 64
+  configuration.retained_idempotency_keys_bytes = 16.kilobytes
 end
 ```
 
@@ -555,6 +557,12 @@ memory is actor state, so `authorize_query` gates the pruned answer. Raise
 keyed turns than that inside the window in which a caller may retry. A lookup
 by request id answers `nil` in both cases, so a caller that must tell them apart
 sends its own idempotency key.
+
+`retained_idempotency_keys_bytes` bounds the serialized memory as well, because
+an idempotency key has no length limit on every adapter and the memory outlives
+the message row. An actor drops its oldest keys until the list fits, so a key
+long enough to fill the limit by itself is never remembered and its lookup
+answers `nil` rather than raising.
 
 Actor expiration is disabled by default. `prune_instances` considers only
 actor types listed in `instance_retention_by_actor_type`, excludes active or
