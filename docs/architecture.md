@@ -72,7 +72,7 @@ through the client.
 
 ### Client and mailbox
 
-The client finds or creates the actor instance and atomically allocates a sequence. It inserts one durable message-history row and one ready-membership row. It validates operations and JSON payloads before writing and enforces idempotency-key uniqueness, payload limits, and the per-actor mailbox cap. It also authorizes and coordinates actor destruction. Distributed rate limiting and global admission control are not implemented.
+The client finds or creates the actor instance and atomically allocates a sequence. It inserts one durable message-history row and one ready-membership row. It validates operations and JSON payloads before writing and enforces idempotency-key uniqueness, payload limits, and the per-actor mailbox cap. It also authorizes and coordinates actor destruction. Distributed rate limiting and global admission control are not implemented and are not planned here.
 
 Message execution state is table membership, not a status column. The durable message remains for results, retention, and diagnostics. Only live work occupies `ready_messages` or `claimed_messages`, so completed history cannot inflate the polling index.
 
@@ -781,11 +781,11 @@ Enqueue counts unfinished rows under the locked actor instance and rejects with 
 
 ### Per-actor rate limits
 
-The initial implementation supplies the mailbox cap. Distributed token buckets or time-window counters are a hardening milestone.
+This runtime supplies the mailbox cap. Distributed token buckets and time-window counters are not planned here, because a request-path limiter is hot and loss-tolerant while every invocation writes one permanent message row. Solid Objects Pro answers that shape with grouped and ephemeral operations, which [fit](fit.md) describes.
 
 ### Global enqueue limits
 
-Global admission hooks are not implemented. A future hook can reject based on database health or application policy without introducing a strict global counter as a contention hotspot.
+Global admission hooks are not implemented and are not planned here, for the same reason as per-actor rate limits. A strict global counter would also be a contention hotspot. Reject on database health or application policy in front of the actor instead.
 
 ### Payload size
 
@@ -900,7 +900,7 @@ All backends use unique identity and sequence constraints, short transactions, a
 14. **How does synchronous invocation work across processes?** The caller first tries to claim and execute the actor locally. If another process owns it, a wake-up adapter prompts a durable result query and bounded polling remains the fallback.
 15. **What happens after caller timeout?** A committed message continues and its eventual result can be recovered with the timeout's authorized message reference, or with `find_by` from the request id or the idempotency key when that reference is gone. An enqueue timeout leaves no message. Running Ruby code is not preempted.
 16. **How are results cleaned up?** `prune_messages` deletes eligible terminal history in bounded batches after global or per-actor retention. It previews by default and preserves live work, dead letters, retry links, and unfinished outboxes.
-17. **How are large mailboxes managed?** The implemented controls are the per-actor mailbox cap, payload caps, and fair activation yields; rate and global admission controls remain roadmap work.
+17. **How are large mailboxes managed?** The implemented controls are the per-actor mailbox cap, payload caps, and fair activation yields. Rate and global admission controls are not planned here; Solid Objects Pro answers that shape.
 18. **How are completed messages pruned?** Operators schedule the dry-run-reviewed `prune_messages --execute` command. Solid Objects does not run deletion automatically.
 19. **How are state migrations performed?** Explicit one-step actor migrations on activation, persisted only with a successful fenced commit.
 20. **What happens during rolling deploys?** Newer state can make old workers incompatible; deploys must preserve backward readability or drain old workers.

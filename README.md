@@ -16,7 +16,7 @@ Solid Object Rails Actors elegantly fit anything where one identifiable thing mu
 - Ticket holds and reservations
 - Multiplayer games and shared rooms
 - Shopping carts and checkout recovery
-- Rate limits and account quotas
+- Low-rate quotas and account limits
 - Session expiration
 - Job leases and workflows
 - Connected devices
