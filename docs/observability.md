@@ -47,6 +47,17 @@ Portable `polling.interval_changed` events carry `previousIntervalMilliseconds`,
 `currentIntervalMilliseconds`, and a string `reason`. Ruby converts its native
 second-based notification values while preserving the original notification.
 
+## Synchronous timeout diagnostics
+
+`solid_objects.sync.timeout` includes `waitingOn`, `activationOwnerId`, and
+`activationGeneration` in `attributes`. Generations are decimal strings;
+unavailable activation fields are null. Both runtimes use the same wait reasons:
+`actorPaused`, `activationHeld`, `earlierMessage`, `messageClaimed`,
+`notYetAvailable`, `readyUnclaimed`, `databaseContention`, and `unknown`.
+Ruby's exception attributes and Active Support notifications retain their native
+snake_case names and reason values. The portable instrumentation envelope uses
+the shared camelCase contract.
+
 ## Metrics and tracing
 
 Metrics are sample descriptions. Exporting them is opt-in: the runtime does not

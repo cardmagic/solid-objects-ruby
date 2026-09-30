@@ -338,6 +338,8 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync does not steal an unexpired activation" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
     reference = CounterActor.ref("leased")
     reference.async.increment
     instance = SolidObjects::Instance.find_by!(
@@ -363,6 +365,10 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     assert_equal timed_out_message.sequence, error.sequence
     assert_equal "ready", error.status
     assert_equal "activation_held", error.waiting_on
+    attributes = events.find { |event| event.fetch("name") == "solid_objects.sync.timeout" }.fetch("attributes")
+    assert_equal "activationHeld", attributes.fetch("waitingOn")
+    assert_equal process_record.id, attributes.fetch("activationOwnerId")
+    assert_equal lease.generation.to_s, attributes.fetch("activationGeneration")
     assert_equal process_record.id, error.activation.fetch("owner_id")
     assert_equal "worker", error.activation.fetch("process").fetch("kind")
     assert_equal "test-host", error.activation.fetch("process").fetch("hostname")

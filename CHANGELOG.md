@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Guard personalized payload projections against state changes, staged work,
+  and application database writes. Each payload gets an isolated actor from
+  the committed snapshot and honors `max_payload_bytes`, matching JavaScript.
+- Preserve timeout wait reasons, activation owner IDs, and activation generations
+  in portable telemetry using the shared camelCase fields and reason values.
+- Use a yielding SQLite busy handler for background transactions so concurrent
+  writers can finish on Rails 7.1 and 7.2. Preserve configured wait limits and
+  synchronous deadlines; cover contention with a coordinated lock regression.
+
 - Reject query and observable state mutation and staged durable work with
   terminal `QueryMutatedState` errors. Cover individual snapshot projections and
   preserve ordinary operations' already-staged work while reading projections,

@@ -3,13 +3,16 @@
 ## Implemented and tested
 
 - Portable telemetry with a shared JSON schema, metric samples, isolated observer
-  callbacks, and bounded authorized actor diagnostics. See [observability](observability.md).
+  callbacks, bounded authorized actor diagnostics, and matching timeout wait
+  reasons and activation metadata. See [observability](observability.md).
 
 - Rails engine, install generator, migration, and CLI
 - Explicit actor registry, references, JSON state, and state migrations
-- Queries and observable projections reject state mutation and staged durable
-  work with terminal `QueryMutatedState` errors, matching JavaScript. Shared JSON
-  fixtures preserve reserved property names as ordinary data in both runtimes.
+- Queries, observable projections, and personalized payloads reject state mutation
+  and staged durable work with `QueryMutatedState`, matching JavaScript. Query
+  and observable violations fail terminally; a payload violation is confined to
+  that payload. Shared JSON fixtures preserve reserved property names as ordinary
+  data in both runtimes.
 - Fluent direct synchronous RPC, configured `sync`, and durable `async`
 - Durable message history plus ready/claimed membership tables
 - Concurrent sequence allocation and actor creation. An enqueue finds the
@@ -61,7 +64,9 @@
   subscriber's authorization context, fenced by actor revision, resolved through
   `payload_authorization_context` so the block and `authorize_query` see the
   same subject a controller render passes, and confined so one failing payload
-  cannot reject the subscription or stop its siblings
+  cannot reject the subscription or stop its siblings. Each payload uses an
+  isolated actor from the same committed snapshot, prevents application database
+  writes, and enforces the configured `max_payload_bytes` limit
 - Reconciliation read APIs
 - Installation doctor, authorization reference, fit guide, and legacy-state
   migration cookbook. The doctor names every column that a migration after the

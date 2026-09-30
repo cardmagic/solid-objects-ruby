@@ -545,6 +545,18 @@ module SolidObjects
         reminder_intents.length + outbound_message_intents.length
     end
 
+    # @rbs (String) { () -> untyped } -> untyped
+    def read_projection(operation)
+      state_before = state.to_h
+      intents_before = intent_snapshot
+      result = guard_application_writes(operation) { yield }
+      unless state.to_h == state_before && intent_snapshot == intents_before
+        raise QueryMutatedState, "projections must not mutate actor state or stage durable work"
+      end
+
+      result
+    end
+
     private
 
     attr_reader :effect_intents,
@@ -552,18 +564,6 @@ module SolidObjects
       :commit_action_intents,
       :reminder_intents,
       :outbound_message_intents
-
-    # @rbs (String) { () -> untyped } -> untyped
-    def read_projection(operation)
-      state_before = state.to_h
-      intents_before = intent_snapshot
-      result = guard_application_writes(operation) { yield }
-      unless state.to_h == state_before && intent_snapshot == intents_before
-        raise QueryMutatedState, "observables must not mutate actor state or stage durable work"
-      end
-
-      result
-    end
 
     # @rbs () -> Array[Array[Hash[Symbol, untyped]]]
     def intent_snapshot

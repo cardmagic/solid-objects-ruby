@@ -30,6 +30,32 @@ class TelemetryTest < ActiveSupport::TestCase
     assert_equal({ "role" => "actors", "previousIntervalMilliseconds" => 100, "currentIntervalMilliseconds" => 200, "reason" => "idle" }, events.last.fetch("attributes"))
   end
 
+  JSON.parse(File.read(File.expand_path("../../compatibility/sync-timeout.json", __dir__))).each do |fixture|
+    test "portable timeout telemetry preserves #{fixture.fetch("waitingOn")} diagnostics" do
+      attributes = SolidObjects::Telemetry.event(:"sync.timeout",
+        waiting_on: fixture.fetch("rubyReason"),
+        activation_owner_id: "worker-1",
+        activation_generation: 7,
+        arguments: { secret: "private" }).fetch("attributes")
+
+      assert_equal({ "waitingOn" => fixture.fetch("waitingOn"), "activationOwnerId" => "worker-1", "activationGeneration" => "7" }, attributes)
+    end
+  end
+
+  test "portable database contention telemetry preserves unknown activation fields" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
+    reference = Counter.ref("contention").async.increment
+
+    error = SolidObjects::SyncDiagnostics.new.database_contention_for(reference, timeout: 1)
+
+    assert_equal "database_contention", error.waiting_on
+    attributes = events.last.fetch("attributes")
+    assert_equal "databaseContention", attributes.fetch("waitingOn")
+    assert_nil attributes.fetch("activationOwnerId")
+    assert_nil attributes.fetch("activationGeneration")
+  end
+
   test "a failing started subscriber cannot fail a turn" do
     subscriber = ActiveSupport::Notifications.subscribe("solid_objects.message.started") { raise "private sink failure" }
     assert_equal 1, Counter.ref("one").increment

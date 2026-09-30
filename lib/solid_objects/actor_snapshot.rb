@@ -7,6 +7,7 @@ module SolidObjects
     # @rbs @actor: Actor
     # @rbs @instance_id: Integer
     # @rbs @revision: Integer
+    # @rbs @state_data: Hash[String, untyped]
     # @rbs @observable_values: Hash[String, untyped]?
     # @rbs @observable_value_cache: Hash[String, untyped]
 
@@ -24,6 +25,7 @@ module SolidObjects
       end
       @instance_id = @instance&.id || 0
       @revision = @instance&.state_revision || 0
+      @state_data = State.new(actor_class.definition.state_definition, migrated_state).to_h
       @actor = build_actor
       @observable_values = nil
       @observable_value_cache = {}
@@ -43,14 +45,23 @@ module SolidObjects
         Serialization.readonly_copy(actor.observable_value(observable_name))
     end
 
+    # @rbs () -> Actor
+    def build_actor
+      actor_class.new(
+        actor_id: reference.actor_id,
+        state: State.new(actor_class.definition.state_definition, @state_data),
+        instance_id: instance&.id
+      )
+    end
+
     private
 
     attr_reader :instance
 
-    # @rbs () -> Actor
-    def build_actor
+    # @rbs () -> Hash[String, untyped]
+    def migrated_state
       state_version = instance&.state_version || actor_class.state_version
-      state_data = ApplicationWriteGuard.call(
+      ApplicationWriteGuard.call(
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
         operation: "state_migration"
@@ -60,11 +71,6 @@ module SolidObjects
           instance&.state || {}
         )
       end
-      actor_class.new(
-        actor_id: reference.actor_id,
-        state: State.new(actor_class.definition.state_definition, state_data),
-        instance_id: @instance&.id
-      )
     end
   end
 end

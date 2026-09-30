@@ -9,6 +9,7 @@ module SolidObjects
       outboxKind truncated broadcastId code role reason processId processKind ownerId componentCount byteCount
       thresholdBytes previousRunAt nextRunAt name commitAction payload
       previousIntervalMilliseconds currentIntervalMilliseconds
+      waitingOn activationOwnerId activationGeneration
     ].freeze
     ALIASES = { "errorClass" => "errorName", "stateRevision" => "revision", "durationMs" => "durationMilliseconds" }.freeze
 
@@ -89,7 +90,8 @@ module SolidObjects
           next unless FIELDS.include?(name)
           next unless value.nil? || value.is_a?(String) || value.is_a?(Numeric) || value == true || value == false
 
-          value = value.to_s if !value.nil? && (name.end_with?("Id") || %w[revision sequence generation].include?(name))
+          value = value.camelize(:lower) if name == "waitingOn" && value.is_a?(String)
+          value = value.to_s if !value.nil? && (name.end_with?("Id") || %w[revision sequence generation activationGeneration].include?(name))
           attributes[name] = value
         end
       end

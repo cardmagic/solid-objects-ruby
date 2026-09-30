@@ -2,7 +2,6 @@
 
 module SolidObjects
   class PayloadBroadcast
-    MAXIMUM_PAYLOAD_BYTES = 1_048_576
     REVISION_OBSERVABLE = "solid_objects.revision"
 
     # @rbs @snapshot: ActorSnapshot
@@ -42,7 +41,7 @@ module SolidObjects
     def rendered_payload(handler)
       payload = Serialization.dump(
         evaluated_payload(handler),
-        max_bytes: MAXIMUM_PAYLOAD_BYTES
+        max_bytes: SolidObjects.configuration.max_payload_bytes
       )
       return payload if payload.is_a?(Hash) || payload.is_a?(Array)
 
@@ -56,10 +55,12 @@ module SolidObjects
     # unaffected.
     # @rbs (ActorDefinition::Handler) -> untyped
     def evaluated_payload(handler)
-      actor = snapshot.actor
-      actor.instance_exec(actor, authorization_context, &handler.block)
+      actor = snapshot.build_actor
+      actor.read_projection("payload.#{name}") do
+        actor.instance_exec(actor, authorization_context, &handler.block)
+      end
     rescue NameError => error
-      raise unless class_level_receiver?(error)
+      raise unless class_level_receiver?(error, actor)
 
       raise InvalidPayloadBroadcast,
         "payload broadcast #{name.inspect} called #{error.name.inspect} on the " \
@@ -70,9 +71,9 @@ module SolidObjects
     # Distinguishes a block that relied on the old class-level receiver from an
     # ordinary typo, so the one behaviour change reports itself instead of
     # surfacing as an unexplained NameError.
-    # @rbs (NameError[untyped]) -> bool
-    def class_level_receiver?(error)
-      error.receiver.equal?(snapshot.actor) &&
+    # @rbs (NameError[untyped], Actor?) -> bool
+    def class_level_receiver?(error, actor)
+      error.receiver.equal?(actor) &&
         snapshot.actor_class.respond_to?(error.name)
     rescue ArgumentError, NameError
       false
