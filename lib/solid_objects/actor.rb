@@ -556,13 +556,20 @@ module SolidObjects
     # @rbs (String) { () -> untyped } -> untyped
     def read_projection(operation)
       state_before = state.to_h
-      intents_before = intent_count
+      intents_before = intent_snapshot
       result = guard_application_writes(operation) { yield }
-      unless state.to_h == state_before && intent_count == intents_before
+      unless state.to_h == state_before && intent_snapshot == intents_before
         raise QueryMutatedState, "observables must not mutate actor state or stage durable work"
       end
 
       result
+    end
+
+    # @rbs () -> Array[Array[Hash[Symbol, untyped]]]
+    def intent_snapshot
+      [ effect_intents, effect_recovery_intents, commit_action_intents, reminder_intents, outbound_message_intents ].map do |intents|
+        intents.map { |intent| intent.to_h.deep_dup }
+      end
     end
 
     # @rbs (String) { () -> untyped } -> untyped

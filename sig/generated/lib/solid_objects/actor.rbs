@@ -366,6 +366,9 @@ module SolidObjects
     # @rbs (String) { () -> untyped } -> untyped
     def read_projection: (String) { () -> untyped } -> untyped
 
+    # @rbs () -> Array[Array[Hash[Symbol, untyped]]]
+    def intent_snapshot: () -> Array[Array[Hash[Symbol, untyped]]]
+
     # @rbs (String) { () -> untyped } -> untyped
     def guard_application_writes: (String) { () -> untyped } -> untyped
 

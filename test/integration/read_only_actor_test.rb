@@ -26,6 +26,11 @@ class ReadOnlyActorTest < ActiveSupport::TestCase
       items
     end
 
+    def append_with_work(action:)
+      perform_action(action)
+      append
+    end
+
     private
 
     def perform_action(action)
@@ -36,6 +41,12 @@ class ReadOnlyActorTest < ActiveSupport::TestCase
       when "reminder" then schedule(at: Time.now + 60).append
       when "outbound" then send_to(self.class.ref("other")).append
       when "state" then items << "unexpected"
+      when "replace_effect", "replace_commit_action"
+        return unless intent_count.positive?
+
+        discard_intents
+        emit(:replacement) if action == "replace_effect"
+        commit_action(:replacement) if action == "replace_commit_action"
       end
     end
   end
@@ -45,6 +56,7 @@ class ReadOnlyActorTest < ActiveSupport::TestCase
     SolidObjects.configuration.max_attempts = 3
     SolidObjects.configuration.retry_delay = ->(_) { 0 }
     SolidObjects.register_commit_action(:unexpected) { SolidObjectsTestDomainRecord.create!(name: "unexpected") }
+    SolidObjects.register_commit_action(:replacement) { SolidObjectsTestDomainRecord.create!(name: "replacement") }
   end
 
   %w[effect recovery commit_action reminder outbound state].each do |action|
@@ -73,6 +85,17 @@ class ReadOnlyActorTest < ActiveSupport::TestCase
 
     assert_equal "SolidObjects::QueryMutatedState", error.class.name
     assert_empty SolidObjects::Instance.all
+  end
+
+  %w[effect commit_action].each do |action|
+    test "observables cannot replace staged #{action} with the same intent count" do
+      Reader.projection_action = "replace_#{action}"
+
+      error = assert_raises(SolidObjects::MessageFailed) { Reader.ref("one").sync.append_with_work(action:) }
+
+      assert_equal "SolidObjects::QueryMutatedState", error.details.fetch("class")
+      assert_no_committed_work
+    end
   end
 
   test "pure projections preserve effects already staged by an operation" do
