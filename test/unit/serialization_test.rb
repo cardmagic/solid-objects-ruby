@@ -3,6 +3,15 @@
 require "test_helper"
 
 class SerializationTest < ActiveSupport::TestCase
+  JSON.parse(File.read(File.expand_path("../../compatibility/json-values.json", __dir__))).each do |fixture|
+    test "preserves #{fixture.fetch("name")} as JSON data" do
+      value = fixture.fetch("value")
+
+      assert_equal value, SolidObjects::Serialization.dump(value)
+      assert_equal value, SolidObjects::Serialization.readonly_copy(value)
+    end
+  end
+
   test "normalizes symbol keys and nested values" do
     value = SolidObjects::Serialization.dump({
       product_id: "shirt",

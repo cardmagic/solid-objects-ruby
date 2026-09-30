@@ -1,0 +1,14 @@
+[
+  {
+    "name": "object prototype key",
+    "value": { "__proto__": { "role": "ordinary data" }, "value": 1 }
+  },
+  { "name": "scalar prototype key", "value": { "__proto__": "ordinary data" } },
+  { "name": "null prototype key", "value": { "__proto__": null } },
+  {
+    "name": "nested reserved names",
+    "value": {
+      "items": [{ "__proto__": { "constructor": "data" }, "prototype": true, "hasOwnProperty": 1 }]
+    }
+  }
+]

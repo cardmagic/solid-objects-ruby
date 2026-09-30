@@ -87,11 +87,19 @@ SolidObjects.configure do |configuration|
 end
 ```
 
-These settings apply to every effect, not only transmits. A dead transmit
-effect has no retry API; the dashboard lists it, and recovery means
-returning its row to `pending` with a cleared `attempt_count`. Order
-survives that recovery, because the drain orders by mailbox sequence, not
-by retry time.
+These settings apply to every effect, including transmits. Retry a dead transmit
+through the authorized administration API:
+
+```ruby
+SolidObjects.dead_letters.effects.retry(effect_id, authorization_context: operator)
+```
+
+Retry resets attempts and returns the effect to pending with its stable identity,
+so the receiver still deduplicates replays. The administration policy must allow
+`retry` on `effect_dead_letters`; the action is recorded in the audit log. Use
+`SolidObjects.dead_letters.effects.redrive(authorization_context: operator)` to
+recover a scope in bounded batches. Order survives recovery because the drain
+orders by source sequence and staging order.
 
 ## Wire contract
 

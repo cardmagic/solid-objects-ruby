@@ -167,10 +167,12 @@ creating a message or activation, applies required state migrations in memory,
 and returns deeply frozen declared attributes. It can race with an in-flight
 turn. `SolidObjects.mutable_copy` creates an independent mutable JSON value.
 
-`message` and `query` both execute as durable mailbox turns. A query may not
-mutate state. The executor detects query mutation and fails the message. An
-observable is a named projection of state used by server rendering and realtime
-updates. Its durable broadcast row stores only an empty invalidation marker by
+`message` and `query` both execute as durable mailbox turns. Queries and
+observables must not mutate state or stage effects, recovery checks, commit
+actions, reminders, or outbound messages. Violations raise `QueryMutatedState`
+and fail the message without retrying or committing its work. Individual snapshot
+projections enforce the same rule. An observable is a named projection used by
+server rendering and realtime updates. Its durable broadcast row stores only an empty invalidation marker by
 default. `broadcast: :value` explicitly opts into storing and sharing the
 projected value.
 

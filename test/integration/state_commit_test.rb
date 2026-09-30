@@ -151,7 +151,7 @@ class StateCommitTest < ActiveSupport::TestCase
       CountingActor.ref("guard").sync.mutating
     end
 
-    assert_equal "SolidObjects::InvalidActor", error.details.fetch("class")
+    assert_equal "SolidObjects::QueryMutatedState", error.details.fetch("class")
     instance = SolidObjects::Instance.find_by!(actor_type: "state-commit-counting", actor_id: "guard")
     assert_empty instance.state, "the rejected mutation must not reach the committed row"
   end
@@ -163,7 +163,7 @@ class StateCommitTest < ActiveSupport::TestCase
       ObservableMutatingActor.ref("observable").sync.current
     end
 
-    assert_equal "SolidObjects::InvalidActor", error.details.fetch("class")
+    assert_equal "SolidObjects::QueryMutatedState", error.details.fetch("class")
     instance = SolidObjects::Instance.find_by!(actor_type: "state-commit-observable", actor_id: "observable")
     assert_empty instance.state, "the observable mutation must not reach the committed row"
   end

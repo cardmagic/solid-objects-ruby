@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Reject query and observable state mutation and staged durable work with
+  terminal `QueryMutatedState` errors. Cover individual snapshot projections and
+  preserve ordinary operations' already-staged work while reading projections.
+- Pin reserved JSON property names with shared Ruby/JS fixtures. Document the
+  reminder-name limit difference and the authorized dead-transmit retry API.
+
 - Reauthorize every message-reference status, result, and outcome read against
   the original invocation. Pass `authorization_context:` on every read.
 - Retain immutable JSON results for background and internal messages as well as

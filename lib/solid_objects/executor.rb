@@ -31,7 +31,7 @@ module SolidObjects
       result = invoke_actor(message_context)
       observable_changes = changed_observables(observables_before, actor.observable_values)
       state_after = actor.state.to_h_with_byte_size
-      ensure_query_did_not_mutate_state!(state_before, state_after.value)
+      ensure_query_is_read_only!(state_before, state_after.value)
       complete(
         result,
         observable_changes,
@@ -70,12 +70,11 @@ module SolidObjects
     end
 
     # @rbs (Hash[String, untyped], Hash[String, untyped]) -> void
-    def ensure_query_did_not_mutate_state!(state_before, state_after)
-      return unless message.delivery_mode == "sync"
+    def ensure_query_is_read_only!(state_before, state_after)
       return unless actor.class.definition.queries.key?(message.operation.to_sym)
-      return if state_after == state_before
 
-      raise InvalidActor, "query #{message.operation.inspect} mutated actor state"
+      raise QueryMutatedState, "query #{message.operation.inspect} mutated actor state" if state_after != state_before
+      raise QueryMutatedState, "query #{message.operation.inspect} staged durable work" if actor.intent_count.positive?
     end
 
     # @rbs (Hash[String, untyped], Hash[String, untyped]) -> Hash[String, untyped]

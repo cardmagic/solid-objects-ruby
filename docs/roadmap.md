@@ -7,6 +7,9 @@
 
 - Rails engine, install generator, migration, and CLI
 - Explicit actor registry, references, JSON state, and state migrations
+- Queries and observable projections reject state mutation and staged durable
+  work with terminal `QueryMutatedState` errors, matching JavaScript. Shared JSON
+  fixtures preserve reserved property names as ordinary data in both runtimes.
 - Fluent direct synchronous RPC, configured `sync`, and durable `async`
 - Durable message history plus ready/claimed membership tables
 - Concurrent sequence allocation and actor creation. An enqueue finds the
