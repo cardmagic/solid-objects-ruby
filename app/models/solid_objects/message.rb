@@ -47,6 +47,21 @@ module SolidObjects
       dead_letter.present?
     end
 
+    # @rbs () -> untyped
+    def result!
+      if rejected?
+        raise Rejected.new(
+          code: rejection.fetch("code"),
+          message: rejection.fetch("message"),
+          details: rejection.fetch("details"),
+          message_id: id
+        )
+      end
+      raise MessageFailed.new("actor message failed permanently", message_id: id, details: error || {}) if dead?
+
+      Serialization.readonly_copy(result)
+    end
+
     private
 
     # @rbs () -> void

@@ -391,7 +391,8 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     assert_raises(SolidObjects::Unauthorized) do
       message_reference.wait(timeout: 1)
     end
-    assert_equal "ready", message_reference.status
+    assert_raises(SolidObjects::Unauthorized) { message_reference.status }
+    assert SolidObjects::Message.find(message_reference.id).ready?
   end
 
   test "sync database lock waits are bounded by the invocation deadline" do

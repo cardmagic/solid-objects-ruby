@@ -17,6 +17,9 @@ module SolidObjects
     # @rbs () -> bool
     def dead?: () -> bool
 
+    # @rbs () -> untyped
+    def result!: () -> untyped
+
     private
 
     # @rbs () -> void

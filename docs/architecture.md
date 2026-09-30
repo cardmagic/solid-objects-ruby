@@ -431,8 +431,16 @@ Each lookup runs the authorization hook the original call ran, against the
 stored operation and arguments, and answers `nil` for an absent row, an
 unregistered actor, and a refused caller alike, so it cannot be used to ask
 whether a request id exists. `MessageReference#outcome` reports the status, the
-result, the persisted error, the rejection, and the attempt count. A result is
-stored for `sync` delivery only.
+result, the persisted error, the rejection, and the attempt count. Every delivery
+mode stores its JSON result, including background messages. Result serialization
+and `max_result_bytes` apply before commit; a result that cannot be stored fails
+the turn. Return `nil` explicitly from operations that need no result.
+
+`status`, `result`, and `outcome` reauthorize the stored operation on every read.
+Pass `authorization_context:` each time; references retain identity rather than
+caller permissions. `result` raises `Rejected` or `MessageFailed` for terminal
+errors and returns a deeply frozen successful value. `outcome` reports terminal
+errors as data.
 
 An actor remembers the idempotency keys of its own finished turns. The executor
 already writes the instance row in the transaction that completes, rejects, or

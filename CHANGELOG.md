@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Reauthorize every message-reference status, result, and outcome read against
+  the original invocation. Pass `authorization_context:` on every read.
+- Retain immutable JSON results for background and internal messages as well as
+  synchronous calls. All operations now enforce result serialization and size
+  limits; return `nil` explicitly when an operation does not need a result.
+  `result` raises terminal rejection/failure errors; `outcome` exposes them as data.
+- Preserve polling transition intervals in milliseconds and string reasons in
+  portable telemetry. Pin transmit staging order and null-argument validation
+  against the shared JavaScript contract.
+
 - Add portable telemetry, isolated observer hooks, metric definitions, and bounded authorized actor diagnostics matching JavaScript.
 
 

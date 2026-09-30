@@ -18,6 +18,9 @@ actor does the same with `transmit.increment(amount:)`. Either ingest
 accepts either sender, so Rails-to-Rails, Rails-to-Node, Node-to-Rails,
 and browser-to-Rails replication all ride one contract.
 
+An omitted `arguments` field defaults to `{}`. Explicit `null` and arrays are
+rejected by both runtimes. Shared fixtures cover this distinction.
+
 ## The sending side
 
 ```ruby
@@ -57,7 +60,7 @@ retries with backoff and dead-letters on exhaustion, like any other effect.
 
 The drain keeps per-actor order across failures: a claimed transmit effect
 delivers every undelivered sibling for its actor up to its own mailbox
-sequence, oldest first. The receiving side dedups on `transmit:<effectId>`,
+sequence, oldest first, preserving staging order within each turn. The receiving side dedups on `transmit:<effectId>`,
 so a redelivered envelope applies once.
 
 Delivery is at-least-once by design, and the drain accepts redundant sends

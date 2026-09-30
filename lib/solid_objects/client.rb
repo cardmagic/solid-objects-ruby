@@ -94,6 +94,19 @@ module SolidObjects
       raise SyncDiagnostics.new.database_contention_for(message_reference, timeout:)
     end
 
+    # @rbs (MessageReference, ?authorization_context: untyped) -> Message
+    def read_message(message_reference, authorization_context: nil)
+      Message.uncached do
+        message = Message.includes(:ready_message, :claimed_message, :dead_letter).find(message_reference.id)
+        validate_message_reference!(message_reference, message)
+        raise Unauthorized, "message result is not authorized" unless authorized_to_read?(message, authorization_context:)
+
+        message
+      end
+    rescue ActiveRecord::RecordNotFound, ActorDestroyed
+      raise Unauthorized, "message result is not authorized"
+    end
+
     # @rbs (?reference: Reference?, ?request_id: String?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference?
     def find_by(reference: nil, request_id: nil, idempotency_key: nil, authorization_context: nil)
       unless [ request_id, idempotency_key ].compact.one?

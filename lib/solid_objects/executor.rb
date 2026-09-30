@@ -89,7 +89,7 @@ module SolidObjects
     def complete(result, observable_changes, state_after:, state_changed:)
       ensure_state_fits!(state_after.byte_size)
       serialized_result = Serialization.dump(
-        (message.delivery_mode == "sync") ? result : nil,
+        result,
         max_bytes: SolidObjects.configuration.max_result_bytes
       )
       effect_intents = actor.drain_effect_intents

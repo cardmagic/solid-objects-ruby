@@ -16,8 +16,8 @@ delegate to the authorized synchronous invocation path. Keep implementation
 helpers private or protected. Query, attribute, observable, and committed
 `snapshot` reads use the separate query authorization policy. Explicit `async`
 message delivery uses the same message authorization policy as direct calls.
-Recovering a timed-out result through `MessageReference#wait` reauthorizes the
-stored operation.
+Message reference status, result, outcome, and wait reads reauthorize the stored
+operation and arguments with the context supplied to that read.
 `reference.destroy` delegates to `authorize_destroy` before checking whether
 the actor exists, so denial does not reveal actor existence.
 

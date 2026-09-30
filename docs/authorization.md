@@ -15,8 +15,10 @@ answers nothing until the host application defines its trust boundary.
 | `authorize_subscription` | Action Cable subscription to one actor stream | The `ActionCable::Connection` object | Clients can receive future observable updates for other actors |
 | `authorize_administration` | Engine administration controllers, every `SolidObjects::Web` page, process inspection/cleanup/pruning, message pruning, and dead-letter inspection/retry | Rails controller, a `SolidObjects::Web` request that answers `request`/`session`/`env`, or `{ source: "cli" }` | Operational metadata, arguments, errors, deletion, and retries become exposed or mutable |
 
-Waiting again through `MessageReference#wait` reauthorizes the stored
-invocation as a message or query. Internal reminder, effect-callback, and
+Every `MessageReference#status`, `#result`, `#outcome`, and `#wait` call
+reauthorizes the stored operation and arguments as a message or query. Supply
+`authorization_context:` on each call, including after `find_by`; the reference
+does not retain the original caller's context. Internal reminder, effect-callback, and
 actor-to-actor deliveries come from
 already committed runtime rows and do not re-enter the public client policy.
 

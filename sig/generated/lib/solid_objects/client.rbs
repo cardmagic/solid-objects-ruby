@@ -16,6 +16,9 @@ module SolidObjects
     # @rbs (MessageReference, timeout: Numeric, ?authorization_context: untyped) -> untyped
     def wait: (MessageReference, timeout: Numeric, ?authorization_context: untyped) -> untyped
 
+    # @rbs (MessageReference, ?authorization_context: untyped) -> Message
+    def read_message: (MessageReference, ?authorization_context: untyped) -> Message
+
     # @rbs (?reference: Reference?, ?request_id: String?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference?
     def find_by: (?reference: Reference?, ?request_id: String?, ?idempotency_key: String?, ?authorization_context: untyped) -> MessageReference?
 

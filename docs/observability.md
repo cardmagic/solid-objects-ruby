@@ -43,6 +43,10 @@ Events describe local observations. Concurrent deletion, crashes, and failed
 exporters can omit events. Never infer exactly-once delivery from event counts.
 Additional existing runtime events retain their names.
 
+Portable `polling.interval_changed` events carry `previousIntervalMilliseconds`,
+`currentIntervalMilliseconds`, and a string `reason`. Ruby converts its native
+second-based notification values while preserving the original notification.
+
 ## Metrics and tracing
 
 Metrics are sample descriptions. Exporting them is opt-in: the runtime does not

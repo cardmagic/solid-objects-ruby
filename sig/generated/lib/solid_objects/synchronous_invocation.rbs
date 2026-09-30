@@ -24,9 +24,6 @@ module SolidObjects
     # @rbs (Message) -> untyped
     def completed_result: (Message) -> untyped
 
-    # @rbs (Message) -> bot
-    def raise_rejection: (Message) -> bot
-
     # @rbs () -> ProcessRegistry
     def process_registry: () -> ProcessRegistry
 

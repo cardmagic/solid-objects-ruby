@@ -8,6 +8,7 @@ module SolidObjects
       depth count errorName outcome retryable status effectId effectName reminderId occurrence
       outboxKind truncated broadcastId code role reason processId processKind ownerId componentCount byteCount
       thresholdBytes previousRunAt nextRunAt name commitAction payload
+      previousIntervalMilliseconds currentIntervalMilliseconds
     ].freeze
     ALIASES = { "errorClass" => "errorName", "stateRevision" => "revision", "durationMs" => "durationMilliseconds" }.freeze
 
@@ -78,6 +79,11 @@ module SolidObjects
       # @rbs (Hash[Symbol, untyped]) -> Hash[String, untyped]
       def safe_attributes(payload)
         payload.each_with_object({}) do |(key, value), attributes|
+          value = value.to_s if key == :reason && value.is_a?(Symbol)
+          if %i[previous_interval current_interval].include?(key) && value.is_a?(Numeric)
+            attributes["#{key.to_s.camelize(:lower)}Milliseconds"] = value * 1000
+            next
+          end
           name = key.to_s.camelize(:lower)
           name = ALIASES.fetch(name, name)
           next unless FIELDS.include?(name)

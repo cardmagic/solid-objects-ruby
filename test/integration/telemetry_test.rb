@@ -22,6 +22,14 @@ class TelemetryTest < ActiveSupport::TestCase
     end
   end
 
+  test "portable polling transitions keep millisecond intervals and reasons" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
+    backoff = SolidObjects::PollingBackoff.new(minimum_interval: 0.1, maximum_interval: 1, on_change: ->(transition) { SolidObjects.instrument(:"polling.interval_changed", role: "actors", **transition) })
+    backoff.record_idle
+    assert_equal({ "role" => "actors", "previousIntervalMilliseconds" => 100, "currentIntervalMilliseconds" => 200, "reason" => "idle" }, events.last.fetch("attributes"))
+  end
+
   test "a failing started subscriber cannot fail a turn" do
     subscriber = ActiveSupport::Notifications.subscribe("solid_objects.message.started") { raise "private sink failure" }
     assert_equal 1, Counter.ref("one").increment
