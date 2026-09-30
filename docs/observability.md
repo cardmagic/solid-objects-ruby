@@ -92,6 +92,9 @@ confers no permission.
 
 Diagnostics read at most `limit + 1` rows per queue source, with a hard limit of
 100. Each category returns `sampled`, `truncated`, and `oldestAgeMilliseconds`.
+The limit applies to each combined category: one effect plus one broadcast with
+`limit: 1` returns `sampled: 1, truncated: true`, even when both source queries
+returned all their rows. The extra row proves that the category exceeds its cap.
 The last value measures nonnegative time since availability (or terminal failure
 for recovery callbacks); future reminders have zero age. No payloads or row
 identifiers are returned. Samples are observations across several queries,

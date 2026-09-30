@@ -6,6 +6,9 @@ module SolidObjects
 
     ALIASES: untyped
 
+    # @rbs (Effect | Broadcast) -> void
+    def self.outbox: (Effect | Broadcast) -> void
+
     # @rbs (Symbol, Hash[Symbol, untyped]) -> void
     def self.emit: (Symbol, Hash[Symbol, untyped]) -> void
 

@@ -161,7 +161,7 @@ module SolidObjects
       end
       SolidObjects.instrument_after_commit(:"recovery.completed", **instrumentation_payload) if recovery_message?
       report_large_state(state_after.byte_size)
-      SolidObjects.instrument_after_commit(:"message.completed", **instrumentation_payload, revision: message.sequence)
+      SolidObjects.instrument_after_commit(:"message.completed", **instrumentation_payload, revision: message.sequence, duration_milliseconds: elapsed_milliseconds)
       SolidObjects.wake_up.signal
     rescue CommittedTransactionError
       raise
@@ -424,6 +424,7 @@ module SolidObjects
         :"message.failed",
         **instrumentation_payload,
         error_class: error.class.name,
+        duration_milliseconds: elapsed_milliseconds,
         dead:
       )
       SolidObjects.instrument_after_commit(:"recovery.failed", **instrumentation_payload) if dead && recovery_message?
@@ -463,7 +464,8 @@ module SolidObjects
       SolidObjects.instrument_after_commit(
         :"message.rejected",
         **instrumentation_payload,
-        code: rejection.code
+        code: rejection.code,
+        duration_milliseconds: elapsed_milliseconds
       )
       SolidObjects.wake_up.signal
     end
@@ -530,6 +532,11 @@ module SolidObjects
       message.delivery_mode == "internal" && message.idempotency_key.to_s.start_with?("effect:") && message.idempotency_key.to_s.end_with?(":recovery")
     end
 
+    # @rbs () -> (Integer | Float)
+    def elapsed_milliseconds
+      ((::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - @started_at) * 1000).round(3)
+    end
+
     # @rbs () -> Hash[Symbol, untyped]
     def instrumentation_payload
       {
@@ -539,8 +546,7 @@ module SolidObjects
         actor_id: message.actor_id,
         sequence: message.sequence,
         attempt: message.attempt_count,
-        request_id: message.request_id,
-        duration_milliseconds: ((::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - @started_at) * 1000).round(3)
+        request_id: message.request_id
       }
     end
   end

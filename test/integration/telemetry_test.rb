@@ -6,6 +6,7 @@ class TelemetryTest < ActiveSupport::TestCase
   class Counter < SolidObjects::Actor
     actor_type "telemetry-counter"
     attribute :count, default: 0
+    observable :count, broadcast: :value
 
     def arrange
       emit :telemetry_effect, secret: "private effect"
@@ -40,6 +41,8 @@ class TelemetryTest < ActiveSupport::TestCase
     assert_equal 1, event.fetch("attempt")
     assert event.fetch("incarnation")
     refute_includes event.fetch("metrics").to_json, "actorId"
+    started = events.find { |entry| entry.fetch("name") == "solid_objects.message.started" }
+    refute_includes started.fetch("metrics").map { |metric| metric.fetch("name") }, "solid_objects.duration"
   end
   test "diagnostics and observers require authorization and are bounded" do
     reference = Counter.ref("diagnostics")
@@ -117,5 +120,45 @@ class TelemetryTest < ActiveSupport::TestCase
     assert events.any? { |event| event.fetch("name") == "solid_objects.recovery.failed" }
   ensure
     worker&.stop
+  end
+  test "outbox measurement failure cannot fail delivery" do
+    SolidObjects.configuration.instrumentation = ->(_) { true }
+    Counter.ref("measurement").arrange
+    calls = []
+    SolidObjects.register_effect(:telemetry_effect) {
+      calls << :delivered
+      "result"
+    }
+    executor = SolidObjects::EffectExecutor.new
+    executor.define_singleton_method(:claim_next) do
+      super().tap do |effect|
+        effect.define_singleton_method(:available_at) { raise "measurement failed" }
+      end
+    end
+    assert executor.run_once
+    assert_equal [ :delivered ], calls
+    assert_equal "completed", SolidObjects::Effect.first.status
+  ensure
+    executor&.stop
+  end
+
+  test "samples broadcast age and caps the combined outbox category" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
+    SolidObjects.configuration.authorize_administration = ->(**) { true }
+    SolidObjects.configuration.broadcast_adapter = ->(_) { true }
+    reference = Counter.ref("broadcast")
+    reference.increment
+    reference.arrange
+    summary = reference.diagnostics(limit: 1)
+    assert_equal 1, summary.fetch("outbox").fetch("sampled")
+    assert summary.fetch("outbox").fetch("truncated")
+    executor = SolidObjects::BroadcastExecutor.new
+    assert executor.run_once
+    event = events.find { |entry| entry.fetch("name") == "solid_objects.outbox.age" && entry.fetch("attributes")["outboxKind"] == "broadcast" }
+    assert event
+    assert_operator event.fetch("metrics").last.fetch("value"), :>=, 0
+  ensure
+    executor&.stop
   end
 end

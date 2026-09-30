@@ -108,6 +108,9 @@ module SolidObjects
     # @rbs () -> bool
     def recovery_message?: () -> bool
 
+    # @rbs () -> (Integer | Float)
+    def elapsed_milliseconds: () -> (Integer | Float)
+
     # @rbs () -> Hash[Symbol, untyped]
     def instrumentation_payload: () -> Hash[Symbol, untyped]
   end

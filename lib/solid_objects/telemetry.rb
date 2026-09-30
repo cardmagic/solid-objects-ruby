@@ -6,12 +6,31 @@ module SolidObjects
       actorType actorId instanceId incarnation revision messageId requestId attempt sequence
       operation deliveryMode generation durationMilliseconds latenessMilliseconds ageMilliseconds
       depth count errorName outcome retryable status effectId effectName reminderId occurrence
-      truncated broadcastId code role reason processId processKind ownerId componentCount byteCount
+      outboxKind truncated broadcastId code role reason processId processKind ownerId componentCount byteCount
       thresholdBytes previousRunAt nextRunAt name commitAction payload
     ].freeze
     ALIASES = { "errorClass" => "errorName", "stateRevision" => "revision", "durationMs" => "durationMilliseconds" }.freeze
 
     class << self
+      # @rbs (Effect | Broadcast) -> void
+      def outbox(record)
+        return unless SolidObjects.configuration.instrumentation || ActiveSupport::Notifications.notifier.listening?("solid_objects.outbox.age")
+
+        instance = record.instance
+        SolidObjects.instrument(
+          :"outbox.age",
+          instance_id: record.instance_id,
+          actor_type: instance.actor_type,
+          actor_id: instance.actor_id,
+          message_id: record.message_id,
+          attempt: record.attempt_count,
+          outbox_kind: record.is_a?(Effect) ? "effect" : "broadcast",
+          age_milliseconds: [ ((SolidObjects.database_adapter.database_now - record.available_at) * 1000).round, 0 ].max
+        )
+      rescue
+        nil
+      end
+
       # @rbs (Symbol, Hash[Symbol, untyped]) -> void
       def emit(name, payload)
         observer = SolidObjects.configuration.instrumentation
@@ -27,7 +46,7 @@ module SolidObjects
         attributes = safe_attributes(payload)
         adapter = DatabaseAdapter.family(Record.connection).to_s
         event_name = "solid_objects.#{name}"
-        labels = { "event" => event_name, "adapter" => adapter, "actorType" => attributes.fetch("actorType", "") }
+        labels = { "event" => event_name, "adapter" => adapter, "actorType" => attributes["actorType"].to_s }
         metrics = [ { "name" => "solid_objects.events", "kind" => "counter", "unit" => "1", "value" => 1, "labels" => labels } ]
         [
           [ "durationMilliseconds", "solid_objects.duration", "histogram", "ms" ],

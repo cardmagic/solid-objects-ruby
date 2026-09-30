@@ -137,7 +137,7 @@ module SolidObjects
 
     # @rbs (Effect) -> untyped
     def deliver(effect)
-      SolidObjects.instrument(:"outbox.age", instance_id: effect.instance_id, actor_type: effect.instance.actor_type, actor_id: effect.instance.actor_id, message_id: effect.message_id, attempt: effect.attempt_count, age_milliseconds: [ ((database_adapter.database_now - effect.available_at) * 1000).round, 0 ].max)
+      Telemetry.outbox(effect)
       return deliver_actor_message(effect) if effect.name == ACTOR_MESSAGE_EFFECT
 
       handler = SolidObjects.effect_registry.fetch(effect.name)
