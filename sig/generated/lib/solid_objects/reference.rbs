@@ -13,6 +13,15 @@ module SolidObjects
     # @rbs (actor_type: String, actor_id: String) -> void
     def initialize: (actor_type: String, actor_id: String) -> void
 
+    # @rbs (?limit: Integer, ?authorization_context: untyped) -> Hash[String, untyped]
+    def diagnostics: (?limit: Integer, ?authorization_context: untyped) -> Hash[String, untyped]
+
+    # @rbs (?authorization_context: untyped) { (Hash[String, untyped]) -> untyped } -> Proc
+    def observe: (?authorization_context: untyped) { (Hash[String, untyped]) -> untyped } -> Proc
+
+    # @rbs (String, ?authorization_context: untyped) { (Hash[String, untyped]) -> untyped } -> Proc
+    def on: (String, ?authorization_context: untyped) { (Hash[String, untyped]) -> untyped } -> Proc
+
     # @rbs (?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> OperationDispatcher
     def async: (?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> OperationDispatcher
 

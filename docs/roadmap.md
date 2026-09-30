@@ -2,6 +2,9 @@
 
 ## Implemented and tested
 
+- Portable telemetry with a shared JSON schema, metric samples, isolated observer
+  callbacks, and bounded authorized actor diagnostics. See [observability](observability.md).
+
 - Rails engine, install generator, migration, and CLI
 - Explicit actor registry, references, JSON state, and state migrations
 - Fluent direct synchronous RPC, configured `sync`, and durable `async`

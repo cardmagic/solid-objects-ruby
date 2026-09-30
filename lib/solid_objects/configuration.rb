@@ -40,6 +40,7 @@ module SolidObjects
     # @rbs @broadcast_worker_count: Integer
     # @rbs @reminder_scheduler_count: Integer
     # @rbs @connects_to: Hash[Symbol, untyped]?
+    # @rbs @instrumentation: Proc?
     # @rbs @logger: untyped
     # @rbs @stream_signing_secret: String?
     # @rbs @broadcast_adapter: Proc?
@@ -95,6 +96,7 @@ module SolidObjects
       :reminder_scheduler_count,
       :connects_to,
       :logger,
+      :instrumentation,
       :stream_signing_secret,
       :broadcast_adapter,
       :wake_up_adapter,
@@ -159,6 +161,7 @@ module SolidObjects
       @component_path_resolver = nil
       @component_authorization_context = ->(controller:) { controller }
       @payload_authorization_context = ->(connection:) { connection }
+      @instrumentation = nil
       @logger = if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
         Rails.logger
       else

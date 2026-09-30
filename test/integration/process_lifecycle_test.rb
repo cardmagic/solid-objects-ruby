@@ -14,6 +14,8 @@ class ProcessLifecycleTest < ActiveSupport::TestCase
   end
 
   test "recovers a claimed message after its worker heartbeat expires" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
     message_reference = RecoveryActor.ref("one").async.run
     message = SolidObjects::Message.find(message_reference.id)
     instance = message.instance
@@ -41,6 +43,7 @@ class ProcessLifecycleTest < ActiveSupport::TestCase
     worker.run_until_idle
 
     assert_equal({ "runs" => 1 }, instance.reload.state)
+    assert events.any? { |event| event.fetch("name") == "solid_objects.recovery.reclaimed" && event.fetch("attempt") == 2 }
     assert_equal 2, message.reload.attempt_count
     assert message.completed?
   ensure

@@ -12,7 +12,7 @@ module SolidObjects
             {
               event: event.name,
               duration_ms: event.duration.round(2)
-            }.merge(event.payload)
+            }.merge(event.payload.except(:error_message, :arguments, :state, :credentials, :response, :exception, :exception_object))
           )
         end
       end

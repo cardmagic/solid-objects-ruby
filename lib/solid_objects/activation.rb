@@ -24,15 +24,19 @@ module SolidObjects
       @actor = build_actor(instance)
       @last_used_at = monotonic_now
       @pass_exhausted = false
+      SolidObjects.instrument(:"activation.started", instance_id: instance.id, actor_type: instance.actor_type, actor_id: instance.actor_id, generation: lease.generation)
       actor.activate
       SolidObjects.instrument(
-        :"activation.started",
+        :"activation.completed",
         instance_id: instance.id,
         actor_type: instance.actor_type,
         actor_id: instance.actor_id,
         owner_id: lease.owner_id,
         generation: lease.generation
       )
+    rescue => error
+      SolidObjects.instrument(:"activation.failed", instance_id: lease.instance_id, actor_type: instance&.actor_type, actor_id: instance&.actor_id, error_class: error.class.name)
+      raise
     end
 
     # @rbs () -> Integer
@@ -104,8 +108,7 @@ module SolidObjects
         actor_id: actor.actor_id,
         owner_id: lease.owner_id,
         generation: lease.generation,
-        error_class: error.class.name,
-        error_message: error.message
+        error_class: error.class.name
       )
       SolidObjects.configuration.logger.error(
         "SolidObjects activation deactivation failed " \

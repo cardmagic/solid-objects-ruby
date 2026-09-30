@@ -4,12 +4,14 @@ module SolidObjects
   class Executor
     # @rbs @activation: Activation
     # @rbs @message: Message
+    # @rbs @started_at: Float
     # @rbs @completion_transaction: untyped
 
     # @rbs (activation: Activation, message: Message) -> void
     def initialize(activation:, message:)
       @activation = activation
       @message = message
+      @started_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
     end
 
     # @rbs () -> bool
@@ -24,6 +26,7 @@ module SolidObjects
         request_id: message.request_id
       )
 
+      SolidObjects.instrument(:"recovery.reclaimed", **instrumentation_payload) if message.attempt_count > 1 && message.error.nil?
       SolidObjects.instrument(:"message.started", **instrumentation_payload)
       result = invoke_actor(message_context)
       observable_changes = changed_observables(observables_before, actor.observable_values)
@@ -156,8 +159,9 @@ module SolidObjects
           actor_id: message.actor_id
         )
       end
+      SolidObjects.instrument_after_commit(:"recovery.completed", **instrumentation_payload) if recovery_message?
       report_large_state(state_after.byte_size)
-      SolidObjects.instrument_after_commit(:"message.completed", **instrumentation_payload)
+      SolidObjects.instrument_after_commit(:"message.completed", **instrumentation_payload, revision: message.sequence)
       SolidObjects.wake_up.signal
     rescue CommittedTransactionError
       raise
@@ -224,8 +228,7 @@ module SolidObjects
       SolidObjects.instrument(
         :"commit_action.failed",
         **payload,
-        error_class: error.class.name,
-        error_message: error.message
+        error_class: error.class.name
       )
       raise
     end
@@ -423,6 +426,8 @@ module SolidObjects
         error_class: error.class.name,
         dead:
       )
+      SolidObjects.instrument_after_commit(:"recovery.failed", **instrumentation_payload) if dead && recovery_message?
+      SolidObjects.instrument_after_commit(dead ? :"dead_letter.created" : :"message.retry", **instrumentation_payload)
       SolidObjects.wake_up.signal
     end
 
@@ -520,15 +525,22 @@ module SolidObjects
       )
     end
 
+    # @rbs () -> bool
+    def recovery_message?
+      message.delivery_mode == "internal" && message.idempotency_key.to_s.start_with?("effect:") && message.idempotency_key.to_s.end_with?(":recovery")
+    end
+
     # @rbs () -> Hash[Symbol, untyped]
     def instrumentation_payload
       {
+        instance_id: message.instance_id,
         message_id: message.id,
         actor_type: message.actor_type,
         actor_id: message.actor_id,
         sequence: message.sequence,
         attempt: message.attempt_count,
-        request_id: message.request_id
+        request_id: message.request_id,
+        duration_milliseconds: ((::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - @started_at) * 1000).round(3)
       }
     end
   end

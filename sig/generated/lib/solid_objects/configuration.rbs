@@ -4,6 +4,8 @@ module SolidObjects
   class Configuration
     @transmission_actor_type_resolver: Proc
 
+    @reminder_scheduler_count: Integer
+
     @broadcast_worker_count: Integer
 
     @effect_worker_count: Integer
@@ -34,8 +36,6 @@ module SolidObjects
 
     @supervisor_monitor_interval: Float
 
-    @table_name_prefix: String
-
     @administration_identity: Proc
 
     @authorize_transmission: Proc
@@ -64,9 +64,11 @@ module SolidObjects
 
     @logger: untyped
 
+    @instrumentation: Proc?
+
     @connects_to: Hash[Symbol, untyped]?
 
-    @reminder_scheduler_count: Integer
+    @table_name_prefix: String
 
     @polling_interval: Float
 
@@ -185,6 +187,8 @@ module SolidObjects
     attr_accessor connects_to: untyped
 
     attr_accessor logger: untyped
+
+    attr_accessor instrumentation: untyped
 
     attr_accessor stream_signing_secret: untyped
 

@@ -1,0 +1,18 @@
+# Generated from lib/solid_objects/telemetry.rb with RBS::Inline
+
+module SolidObjects
+  module Telemetry
+    FIELDS: untyped
+
+    ALIASES: untyped
+
+    # @rbs (Symbol, Hash[Symbol, untyped]) -> void
+    def self.emit: (Symbol, Hash[Symbol, untyped]) -> void
+
+    # @rbs (Symbol, Hash[Symbol, untyped]) -> Hash[String, untyped]
+    def self.event: (Symbol, Hash[Symbol, untyped]) -> Hash[String, untyped]
+
+    # @rbs (Hash[Symbol, untyped]) -> Hash[String, untyped]
+    def self.safe_attributes: (Hash[Symbol, untyped]) -> Hash[String, untyped]
+  end
+end

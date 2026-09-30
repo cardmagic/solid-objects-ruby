@@ -10,6 +10,7 @@ module SolidObjects
       actor_snapshot = ActorSnapshot.new(reference)
       @actor_class = actor_snapshot.actor_class
       @data = Serialization.readonly_copy(actor_snapshot.actor.state.to_h)
+      SolidObjects.instrument(:"snapshot.read", actor_type: reference.actor_type, actor_id: reference.actor_id, instance_id: actor_snapshot.instance_id.zero? ? nil : actor_snapshot.instance_id, revision: actor_snapshot.revision)
     end
 
     # @rbs () -> Hash[String, untyped]

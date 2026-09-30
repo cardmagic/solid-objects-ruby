@@ -69,8 +69,7 @@ module SolidObjects
       SolidObjects.configuration.logger.error(
         event: "solid_objects.worker.error",
         process_id: process_registry.process_record&.id,
-        error_class: error.class.name,
-        error_message: error.message
+        error_class: error.class.name
       )
       0
     end

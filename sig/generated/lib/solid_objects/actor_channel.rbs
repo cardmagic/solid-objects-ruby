@@ -7,6 +7,9 @@ module SolidObjects
     # @rbs () -> void
     def subscribed: () -> void
 
+    # @rbs () -> void
+    def unsubscribed: () -> void
+
     private
 
     attr_reader reference: untyped

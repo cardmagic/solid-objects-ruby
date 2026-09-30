@@ -4,6 +4,8 @@ module SolidObjects
   class Executor
     @completion_transaction: untyped
 
+    @started_at: Float
+
     @message: Message
 
     @activation: Activation
@@ -102,6 +104,9 @@ module SolidObjects
 
     # @rbs (message: Message, error_details: Hash[String, untyped], now: Time) -> DeadLetter
     def create_dead_letter: (message: Message, error_details: Hash[String, untyped], now: Time) -> DeadLetter
+
+    # @rbs () -> bool
+    def recovery_message?: () -> bool
 
     # @rbs () -> Hash[Symbol, untyped]
     def instrumentation_payload: () -> Hash[Symbol, untyped]

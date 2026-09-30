@@ -166,6 +166,10 @@ module SolidObjects
       mailbox.announce(message)
       SolidObjects.instrument(
         :"reminder.enqueued",
+        instance_id: reminder.instance_id,
+        message_id: message.id,
+        attempt: message.attempt_count,
+        lateness_milliseconds: [ (((now || database_adapter.database_now) - reminder.next_run_at) * 1000).round, 0 ].max,
         reminder_id: reminder.id,
         actor_type: reminder.actor_type,
         actor_id: reminder.actor_id,

@@ -4,7 +4,28 @@ module SolidObjects
   module Instrumentation
     # @rbs (Symbol, **untyped) { (Hash[Symbol, untyped]) -> untyped } -> untyped
     def instrument(event, **payload, &block)
-      ActiveSupport::Notifications.instrument("solid_objects.#{event}", payload, &block)
+      executed = false
+      application_error = nil
+      result = nil
+      begin
+        ActiveSupport::Notifications.instrument("solid_objects.#{event}", payload) do
+          executed = true
+          begin
+            result = block&.call(payload)
+          rescue => error
+            application_error = error
+            raise
+          end
+        end
+      rescue => error
+        raise application_error if application_error
+
+        report_instrumentation_failure(event, error) unless event == :"instrumentation.failed"
+        result = block&.call(payload) unless executed
+      ensure
+        Telemetry.emit(event, payload)
+      end
+      result
     end
 
     # @rbs (Symbol, **untyped) -> void

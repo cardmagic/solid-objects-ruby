@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add portable telemetry, isolated observer hooks, metric definitions, and bounded authorized actor diagnostics matching JavaScript.
+
+
 ## 0.16.0 - 2026-09-23
 
 - Find a message whose reference a caller lost.

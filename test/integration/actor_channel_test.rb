@@ -68,6 +68,8 @@ class ActorChannelTest < ActionCable::Channel::TestCase
   end
 
   test "subscribes to scalar updates through rendered Turbo data" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
     reference = ChannelActor.ref("actor-1")
     SolidObjects.configuration.authorize_subscription = ->(**) { true }
     parameters = rendered_subscription_parameters(reference) do |actor|
@@ -96,6 +98,9 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     updates = transmissions.select { |transmission| transmission.include?(target) }
     assert_equal 2, updates.length
     assert_includes updates.last, ">1</span>"
+    unsubscribe
+    assert_includes events.map { |event| event.fetch("name") }, "solid_objects.realtime.connected"
+    assert_includes events.map { |event| event.fetch("name") }, "solid_objects.realtime.disconnected"
   ensure
     worker&.stop
   end

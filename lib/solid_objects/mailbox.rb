@@ -79,6 +79,8 @@ module SolidObjects
     def announce(message)
       SolidObjects.instrument(
         :"message.enqueued",
+        instance_id: message.instance_id,
+        attempt: message.attempt_count,
         message_id: message.id,
         actor_type: message.actor_type,
         actor_id: message.actor_id,
