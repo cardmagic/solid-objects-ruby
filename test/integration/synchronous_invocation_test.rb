@@ -588,7 +588,10 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     database_adapter = SolidObjects.database_adapter
     database_adapter.define_singleton_method(:configured_busy_handler_timeout) { |_connection| nil }
 
-    SolidObjects::Record.connection_pool.with_connection do
+    SolidObjects::Record.connection_pool.with_connection do |connection|
+      connection.raw_connection.busy_handler_timeout = configured_sqlite_busy_handler_timeout
+      assert_equal 0, connection.select_value("PRAGMA busy_timeout").to_i
+
       CounterActor.ref("unrestorable").increment
 
       assert_nothing_raised do
