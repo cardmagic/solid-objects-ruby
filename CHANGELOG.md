@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- `solid_objects.activation.started` now fires before the actor's `activate`
+  hook. Before, it fired after a successful hook. The new
+  `solid_objects.activation.completed` event takes that meaning, and
+  `solid_objects.activation.failed` reports a failed hook. JavaScript changes
+  the same events. Move a subscriber that reads `activation.started` as a
+  finished activation to `activation.completed`.
+- Active Support payloads no longer carry `error_message`. This applies to
+  `commit_action.failed`, `activation.deactivation_failed`,
+  `supervisor.monitor_failed`, `supervisor.retention_failed`,
+  `supervisor.redrive_failed`, and `wake_up.failed`. The
+  `solid_objects.worker.error` log entry also omits it. Each keeps
+  `error_class`. Exception text can contain actor state, so JavaScript already
+  reports only the error name.
+
 - Rename `solid_objects.payload_broadcast_failed` to
   `solid_objects.payload_broadcast.failed`, the dotted form that every other
   event uses. Update Active Support subscribers to the new name. The portable

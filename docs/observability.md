@@ -6,6 +6,17 @@ and the Durable Objects host. Existing JavaScript `name`, `occurredAt`, and
 `attributes` fields remain available. Ruby's Active Support notifications remain
 available with their existing snake_case payloads.
 
+```ruby
+SolidObjects.configure do |configuration|
+  configuration.instrumentation = ->(event) do
+    Rails.logger.info(JSON.generate(event))
+  end
+end
+```
+
+JavaScript passes `instrumentation` to `configure()`. Ruby sets
+`configuration.instrumentation` inside `SolidObjects.configure`.
+
 ## Schema version 1
 
 Every event has `schemaVersion`, `name` (prefixed with `solid_objects.`),
@@ -118,10 +129,16 @@ calling the returned proc. `on` filters one event name, such as `message.retry`.
 Observers receive only this actor's events in the current runtime/process; they
 are not subscriptions to workers on other hosts. Dispose them when the caller's
 session ends or authorization is revoked. Each runtime or process accepts at most
-1,000 local observers. An observer needs a callback or a block.
-For remote Durable Objects, configure `instrumentation` on the actor host and
-filter by actor identity there; process-local reference observers raise
-`UnsupportedCapability`. Remote `reference.diagnostics` is supported.
+1,000 local observers. More observers raise `RangeError` in JavaScript and
+`ArgumentError` in Ruby. An observer needs a callback or a block. JavaScript
+rejects a missing `onEvent` with `TypeError`, and Ruby raises `ArgumentError`
+without a block. Both checks run before authorization.
+
+The JavaScript Durable Objects host does not support process-local reference
+observers. On that host, `observe` and `on` raise `UnsupportedCapability`, and
+remote `reference.diagnostics` works. To observe a remote actor, configure
+`instrumentation` on the actor host and filter the events by actor identity.
+Ruby has no Durable Objects host.
 
 Both APIs default to denied. Set `authorizeAdministration` / `authorize_administration`
 to allow action `observe` or `inspect`, resource `actor_diagnostics`, and resource ID
