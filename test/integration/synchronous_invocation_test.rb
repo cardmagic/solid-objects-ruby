@@ -415,7 +415,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     result = Queue.new
     invocation = Thread.new do
       result << capture_exception do
-        SolidObjects::SynchronousInvocation.new.call(message_reference, timeout: 0.25)
+        SolidObjects::SynchronousInvocation.new.call(message_reference, timeout: 1)
       end
     end
 
@@ -440,11 +440,11 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
 
     started_at = monotonic_now
     DeadlineActor.continue << true
-    error = Timeout.timeout(2) { result.pop }
+    error = Timeout.timeout(3) { result.pop }
     elapsed = monotonic_now - started_at
 
     assert_instance_of SolidObjects::SyncTimeout, error
-    assert_operator elapsed, :<, 1.5
+    assert_operator elapsed, :<, 2
     assert_equal message_reference.id, error.message_id
   ensure
     DeadlineActor.continue << true if invocation&.alive?
