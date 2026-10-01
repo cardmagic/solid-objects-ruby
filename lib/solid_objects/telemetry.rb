@@ -3,15 +3,22 @@
 module SolidObjects
   module Telemetry
     FIELDS = %w[
-      actorType actorId instanceId incarnation revision messageId requestId attempt sequence
-      operation deliveryMode generation durationMilliseconds latenessMilliseconds ageMilliseconds
-      depth count errorName outcome retryable status effectId effectName reminderId occurrence
-      outboxKind truncated broadcastId code role reason processId processKind ownerId componentCount byteCount
-      thresholdBytes previousRunAt nextRunAt name commitAction payload
-      previousIntervalMilliseconds currentIntervalMilliseconds
-      waitingOn activationOwnerId activationGeneration
+      activationGeneration activationOwnerId actorId actorType ageMilliseconds attempt broadcastId
+      broadcastWorkers byteCount code commitAction component componentCount count currentIntervalMilliseconds
+      deliveryMode depth durationMilliseconds effectId effectName effectWorkers errorName failureCount
+      generation idlePollingIntervalMilliseconds incarnation instanceId intervalMilliseconds
+      latenessMilliseconds messageId name nextRunAt occurrence operation outboxKind outcome ownerId payload
+      phase pollingIntervalMilliseconds previousIntervalMilliseconds previousRunAt processId processKind
+      reason reminderId reminderSchedulers requestId retryable revision role sequence status thresholdBytes
+      timeoutMilliseconds truncated waitingOn workers
     ].freeze
-    ALIASES = { "errorClass" => "errorName", "stateRevision" => "revision", "durationMs" => "durationMilliseconds" }.freeze
+    ALIASES = {
+      "errorClass" => "errorName",
+      "stateRevision" => "revision",
+      "durationMs" => "durationMilliseconds",
+      "commitActionName" => "commitAction",
+      "payloadName" => "payload"
+    }.freeze
 
     class << self
       # @rbs (Effect | Broadcast) -> void
@@ -27,7 +34,8 @@ module SolidObjects
           message_id: record.message_id,
           attempt: record.attempt_count,
           outbox_kind: record.is_a?(Effect) ? "effect" : "broadcast",
-          age_milliseconds: [ ((SolidObjects.database_adapter.database_now - record.available_at) * 1000).round, 0 ].max
+          age_milliseconds: [ ((SolidObjects.database_adapter.database_now - record.available_at) * 1000).round, 0 ].max,
+          **outbox_identity(record)
         )
       rescue
         nil
@@ -38,9 +46,16 @@ module SolidObjects
         observer = SolidObjects.configuration.instrumentation
         return unless observer
 
-        observer.call(event(name, payload))
+        deliver(observer, event(name, payload))
       rescue
         nil
+      end
+
+      # @rbs (^(Hash[String, untyped]) -> void, Hash[String, untyped]) -> void
+      def deliver(observer, event)
+        observer.call(event)
+      rescue => error
+        log_delivery_failure(event.fetch("name"), error)
       end
 
       # @rbs (Symbol, Hash[Symbol, untyped]) -> Hash[String, untyped]
@@ -82,7 +97,7 @@ module SolidObjects
         payload.each_with_object({}) do |(key, value), attributes|
           value = value.to_s if key == :reason && value.is_a?(Symbol)
           if %i[previous_interval current_interval].include?(key) && value.is_a?(Numeric)
-            attributes["#{key.to_s.camelize(:lower)}Milliseconds"] = value * 1000
+            attributes["#{key.to_s.camelize(:lower)}Milliseconds"] = (value * 1000).round
             next
           end
           name = key.to_s.camelize(:lower)
@@ -94,6 +109,28 @@ module SolidObjects
           value = value.to_s if !value.nil? && (name.end_with?("Id") || %w[revision sequence generation activationGeneration].include?(name))
           attributes[name] = value
         end
+      end
+
+      private
+
+      # @rbs (Effect | Broadcast) -> Hash[Symbol, String | Integer]
+      def outbox_identity(record)
+        return { effect_id: record.effect_id, effect_name: record.name } if record.is_a?(Effect)
+
+        { broadcast_id: record.broadcast_id, revision: record.message.sequence }
+      end
+
+      # @rbs (String, Exception) -> void
+      def log_delivery_failure(event_name, error)
+        SolidObjects.configuration.logger.error(
+          {
+            event: "solid_objects.instrumentation.failed",
+            instrumentation_event: event_name,
+            error_class: error.class.name
+          }
+        )
+      rescue
+        nil
       end
     end
   end

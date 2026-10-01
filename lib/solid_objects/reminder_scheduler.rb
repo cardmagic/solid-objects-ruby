@@ -173,6 +173,7 @@ module SolidObjects
         reminder_id: reminder.id,
         actor_type: reminder.actor_type,
         actor_id: reminder.actor_id,
+        operation: reminder.operation,
         occurrence: reminder.occurrence
       )
       MessageReference.from_message(message)

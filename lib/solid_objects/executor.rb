@@ -212,11 +212,8 @@ module SolidObjects
     # @rbs (intent: Actor::CommitActionIntent, handler: Proc, context: CommitActionContext) -> untyped
     def execute_commit_action(intent:, handler:, context:)
       payload = {
+        **instrumentation_payload,
         commit_action_name: intent.name,
-        message_id: message.id,
-        request_id: message.request_id,
-        actor_type: message.actor_type,
-        actor_id: message.actor_id,
         activation_generation: activation.lease.generation
       }
       SolidObjects.instrument(:"commit_action.started", **payload)
@@ -424,6 +421,8 @@ module SolidObjects
         **instrumentation_payload,
         error_class: error.class.name,
         duration_milliseconds: elapsed_milliseconds,
+        retryable: !error.is_a?(NonRetryableError),
+        outcome: dead ? "dead" : "retrying",
         dead:
       )
       SolidObjects.instrument_after_commit(:"recovery.failed", **instrumentation_payload) if dead && recovery_message?
@@ -545,7 +544,9 @@ module SolidObjects
         actor_id: message.actor_id,
         sequence: message.sequence,
         attempt: message.attempt_count,
-        request_id: message.request_id
+        request_id: message.request_id,
+        operation: message.operation,
+        delivery_mode: message.delivery_mode
       }
     end
   end

@@ -3,6 +3,7 @@
 require "database_test_helper"
 require "action_cable/test_helper"
 require "action_cable/channel/test_case"
+require "portable_telemetry_assertions"
 
 ActionCable.server.config.cable = { "adapter" => "test" }
 
@@ -11,6 +12,7 @@ ActionCable.server.config.cable = { "adapter" => "test" }
 # down with it.
 class PayloadDeliveryTest < ActionCable::Channel::TestCase
   tests SolidObjects::ActorChannel
+  include PortableTelemetryAssertions
 
   class RoomActor < SolidObjects::Actor
     actor_type "delivery-room"
@@ -178,6 +180,19 @@ class PayloadDeliveryTest < ActionCable::Channel::TestCase
     assert_equal "delivery-room", event[:actor_type]
     assert_equal "broken_state", event[:payload_name]
     assert_equal "RuntimeError", event[:error_class]
+  end
+
+  test "a raising payload block emits the portable payload failure contract" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
+    reference = deal_to("alice")
+    stub_connection(session_id: "alice")
+
+    subscribe token: payload_token(reference, %w[broken_state])
+
+    assert_portable_events(events, %w[payload_broadcast.failed])
+    failure = events.find { |event| event.fetch("name") == "solid_objects.payload_broadcast.failed" }
+    assert_equal "broken_state", failure.fetch("attributes").fetch("payload")
   end
 
   test "the failure event carries no payload state" do
@@ -366,7 +381,7 @@ class PayloadDeliveryTest < ActionCable::Channel::TestCase
   def capture_failures
     events = []
     subscription = ActiveSupport::Notifications.subscribe(
-      "solid_objects.payload_broadcast_failed"
+      "solid_objects.payload_broadcast.failed"
     ) { |event| events << event.payload }
     yield
     events

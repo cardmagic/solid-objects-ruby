@@ -12,10 +12,19 @@ module SolidObjects
     # @rbs (Symbol, Hash[Symbol, untyped]) -> void
     def self.emit: (Symbol, Hash[Symbol, untyped]) -> void
 
+    # @rbs (^(Hash[String, untyped]) -> void, Hash[String, untyped]) -> void
+    def self.deliver: (^(Hash[String, untyped]) -> void, Hash[String, untyped]) -> void
+
     # @rbs (Symbol, Hash[Symbol, untyped]) -> Hash[String, untyped]
     def self.event: (Symbol, Hash[Symbol, untyped]) -> Hash[String, untyped]
 
     # @rbs (Hash[Symbol, untyped]) -> Hash[String, untyped]
     def self.safe_attributes: (Hash[Symbol, untyped]) -> Hash[String, untyped]
+
+    # @rbs (Effect | Broadcast) -> Hash[Symbol, String | Integer]
+    private def self.outbox_identity: (Effect | Broadcast) -> Hash[Symbol, String | Integer]
+
+    # @rbs (String, Exception) -> void
+    private def self.log_delivery_failure: (String, Exception) -> void
   end
 end

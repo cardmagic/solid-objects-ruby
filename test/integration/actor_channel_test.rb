@@ -7,11 +7,13 @@ require "action_view/test_case"
 require "action_view/testing/resolvers"
 require "cgi/escape"
 require_relative "../../app/helpers/solid_objects/actor_helper"
+require "portable_telemetry_assertions"
 
 ActionCable.server.config.cable = { "adapter" => "test" }
 
 class ActorChannelTest < ActionCable::Channel::TestCase
   tests SolidObjects::ActorChannel
+  include PortableTelemetryAssertions
 
   class ChannelActor < SolidObjects::Actor
     actor_type "channel-actor"
@@ -99,8 +101,7 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     assert_equal 2, updates.length
     assert_includes updates.last, ">1</span>"
     unsubscribe
-    assert_includes events.map { |event| event.fetch("name") }, "solid_objects.realtime.connected"
-    assert_includes events.map { |event| event.fetch("name") }, "solid_objects.realtime.disconnected"
+    assert_portable_events(events, %w[realtime.connected realtime.disconnected])
   ensure
     worker&.stop
   end

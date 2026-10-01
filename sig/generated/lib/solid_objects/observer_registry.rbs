@@ -1,0 +1,29 @@
+# Generated from lib/solid_objects/observer_registry.rb with RBS::Inline
+
+module SolidObjects
+  class ObserverRegistry
+    MAXIMUM_OBSERVERS: ::Integer
+
+    @subscriptions: Array[Object]
+
+    @mutex: Mutex
+
+    # @rbs () -> void
+    def initialize: () -> void
+
+    # @rbs () { (ActiveSupport::Notifications::Event) -> void } -> Proc
+    def subscribe: () { (ActiveSupport::Notifications::Event) -> void } -> Proc
+
+    # @rbs () -> void
+    def clear: () -> void
+
+    private
+
+    attr_reader subscriptions: Array[Object]
+
+    attr_reader mutex: Mutex
+
+    # @rbs (Object) -> void
+    def unsubscribe: (Object) -> void
+  end
+end

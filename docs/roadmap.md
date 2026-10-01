@@ -4,7 +4,9 @@
 
 - Portable telemetry with a shared JSON schema, metric samples, isolated observer
   callbacks, bounded authorized actor diagnostics, and matching timeout wait
-  reasons and activation metadata. See [observability](observability.md).
+  reasons and activation metadata. Both test suites check the attribute keys of
+  each core SQL event against `compatibility/telemetry-events.json`. See
+  [observability](observability.md).
 
 - Rails engine, install generator, migration, and CLI
 - Explicit actor registry, references, JSON state, and state migrations

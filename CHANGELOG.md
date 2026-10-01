@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Rename `solid_objects.payload_broadcast_failed` to
+  `solid_objects.payload_broadcast.failed`, the dotted form that every other
+  event uses. Update Active Support subscribers to the new name. The portable
+  event names the payload `payload`.
+- Match portable event attributes to JavaScript through the shared
+  `compatibility/telemetry-events.json` contract. Message events carry
+  `operation` and `deliveryMode`, `message.failed` carries `retryable` and
+  `outcome`, commit action events carry the message fields and `commitAction`,
+  and `reminder.enqueued` carries `operation`. `outbox.age` carries the effect or
+  broadcast identity, `sync.enqueue_timeout` carries `timeoutMilliseconds`, and
+  polling intervals are integers. `realtime.connected` carries only actor fields.
+- Log `solid_objects.instrumentation.failed` when an exporter or observer raises.
+  Observers require a block, a process accepts at most 1,000 observers, and
+  `SolidObjects.reset!` removes them. Pin reserved JSON keys through actor
+  arguments, state, and retained results.
+
 - Guard personalized payload projections against state changes, staged work,
   and application database writes. Each payload gets an isolated actor from
   the committed snapshot and honors `max_payload_bytes`, matching JavaScript.

@@ -22,26 +22,48 @@ attributes are excluded. Actor IDs remain correlation data: applications should
 use opaque actor identifiers and apply their own retention policy to event logs.
 Events and metric samples are immutable. Throwing observers, rejected observer
 promises, and a failing instrumentation error logger cannot change a turn's
-result. Delivery is best effort and synchronous callbacks should be short;
+result. When an exporter or observer raises, both runtimes log
+`solid_objects.instrumentation.failed` with the event name and the error class.
+Delivery is best effort and synchronous callbacks should be short;
 JavaScript does not await exporters. Telemetry is not a durable audit trail.
 
-| Event | Meaning |
-| --- | --- |
-| `activation.started/completed/failed` | Local actor activation hook lifecycle |
-| `message.started/completed/failed/rejected` | One attempt's execution outcome |
-| `message.retry` | Failed attempt durably queued for another attempt |
-| `dead_letter.created` | Message exhausted retries or failed permanently |
-| `mailbox.depth` | On-demand diagnostic sample; exact depth only if not truncated |
-| `reminder.enqueued` | Due reminder dispatch; lateness is measured from due time |
-| `outbox.age` | Delivery observation; age is time since the item's current availability time |
-| `recovery.reclaimed` | A previously claimed, interrupted message begins another attempt |
-| `recovery.completed/failed` | Durable effect recovery callback commits or enters the dead-letter queue |
-| `snapshot.read` | Authorized snapshot constructed without exposing its contents |
-| `realtime.connected/disconnected` | Actor subscription added or removed |
+| Event                                       | Meaning                                                                      |
+| ------------------------------------------- | ---------------------------------------------------------------------------- |
+| `activation.started/completed/failed`       | Local actor activation hook lifecycle                                        |
+| `message.started/completed/failed/rejected` | One attempt's execution outcome                                              |
+| `message.retry`                             | Failed attempt durably queued for another attempt                            |
+| `dead_letter.created`                       | Message exhausted retries or failed permanently                              |
+| `commit_action.started/completed/failed`    | One registered commit action inside the commit transaction                   |
+| `mailbox.depth`                             | On-demand diagnostic sample; `depth` is null when the sample is truncated    |
+| `reminder.enqueued`                         | Due reminder dispatch; lateness is measured from due time                    |
+| `outbox.age`                                | Delivery observation; age is time since the item's current availability time |
+| `recovery.reclaimed`                        | A previously claimed, interrupted message begins another attempt             |
+| `recovery.completed/failed`                 | Durable effect recovery callback commits or enters the dead-letter queue     |
+| `snapshot.read`                             | Authorized snapshot constructed without exposing its contents                |
+| `realtime.connected/disconnected`           | Actor subscription added or removed                                          |
+| `payload_broadcast.failed`                  | One personalized payload failed; `payload` names it                          |
 
 Events describe local observations. Concurrent deletion, crashes, and failed
 exporters can omit events. Never infer exactly-once delivery from event counts.
 Additional existing runtime events retain their names.
+
+## Event attributes
+
+`compatibility/telemetry-events.json` holds the attribute allowlist and the exact
+attribute keys of each core event. Both test suites compare the events of the SQL
+runtimes with this file. Message events carry `operation` and `deliveryMode`.
+`message.failed` also carries a boolean `retryable` and an `outcome` of
+`retrying` or `dead`. Commit action events carry `commitAction` and
+`activationGeneration`. Activation events carry `generation` and `ownerId`.
+
+Ruby activates an actor instance before it claims a message, so its activation
+events have no message fields. JavaScript activates an actor in the turn that
+claims a message, so its activation events also carry the `messageId`,
+`requestId`, `sequence`, `attempt`, `operation`, and `deliveryMode` of that
+message. The contract file records these keys as JavaScript-only.
+
+The Durable Objects host sends the same envelope, but some of its events carry
+fewer attributes. The contract file does not apply to that host.
 
 Portable `polling.interval_changed` events carry `previousIntervalMilliseconds`,
 `currentIntervalMilliseconds`, and a string `reason`. Ruby converts its native
@@ -56,20 +78,21 @@ unavailable activation fields are null. Both runtimes use the same wait reasons:
 `notYetAvailable`, `readyUnclaimed`, `databaseContention`, and `unknown`.
 Ruby's exception attributes and Active Support notifications retain their native
 snake_case names and reason values. The portable instrumentation envelope uses
-the shared camelCase contract.
+the shared camelCase contract. The Durable Objects host does not send
+`sync.timeout`. A `call` timeout there reports `waitingOn: "unknown"`.
 
 ## Metrics and tracing
 
 Metrics are sample descriptions. Exporting them is opt-in: the runtime does not
 register meters, allocate per-actor metric series, or install a vendor SDK.
 
-| Name | Kind | Unit | Aggregation |
-| --- | --- | --- | --- |
-| `solid_objects.events` | counter | `1` | Sum one per event |
-| `solid_objects.duration` | histogram | `ms` | Distribution of observed attempt duration |
-| `solid_objects.reminder.lateness` | histogram | `ms` | Distribution of reminder dispatch delay |
-| `solid_objects.outbox.age` | histogram | `ms` | Distribution of delivery delay since availability |
-| `solid_objects.mailbox.depth` | gauge | `1` | Last exact sampled actor depth; omit truncated samples |
+| Name                              | Kind      | Unit | Aggregation                                            |
+| --------------------------------- | --------- | ---- | ------------------------------------------------------ |
+| `solid_objects.events`            | counter   | `1`  | Sum one per event                                      |
+| `solid_objects.duration`          | histogram | `ms` | Distribution of observed attempt duration              |
+| `solid_objects.reminder.lateness` | histogram | `ms` | Distribution of reminder dispatch delay                |
+| `solid_objects.outbox.age`        | histogram | `ms` | Distribution of delivery delay since availability      |
+| `solid_objects.mailbox.depth`     | gauge     | `1`  | Last exact sampled actor depth; omit truncated samples |
 
 Labels contain only event name, adapter family, and declared actor type. Keep the
 actor type registry finite. Never add actor ID, incarnation, message ID, operation
@@ -94,7 +117,8 @@ Ruby uses `reference.observe(authorization_context:) { |event| ... }` and
 calling the returned proc. `on` filters one event name, such as `message.retry`.
 Observers receive only this actor's events in the current runtime/process; they
 are not subscriptions to workers on other hosts. Dispose them when the caller's
-session ends or authorization is revoked. JS limits local observers to 1,000.
+session ends or authorization is revoked. Each runtime or process accepts at most
+1,000 local observers. An observer needs a callback or a block.
 For remote Durable Objects, configure `instrumentation` on the actor host and
 filter by actor identity there; process-local reference observers raise
 `UnsupportedCapability`. Remote `reference.diagnostics` is supported.
@@ -105,8 +129,9 @@ to allow action `observe` or `inspect`, resource `actor_diagnostics`, and resour
 runs before reading summaries or registering observers; possessing an actor ID
 confers no permission.
 
-Diagnostics read at most `limit + 1` rows per queue source, with a hard limit of
-100. Each category returns `sampled`, `truncated`, and `oldestAgeMilliseconds`.
+Diagnostics read at most `limit + 1` rows per queue source, with a hard limit
+of 100 rows. Each category returns `sampled`, `truncated`, and
+`oldestAgeMilliseconds`.
 The limit applies to each combined category: one effect plus one broadcast with
 `limit: 1` returns `sampled: 1, truncated: true`, even when both source queries
 returned all their rows. The extra row proves that the category exceeds its cap.

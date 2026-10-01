@@ -27,6 +27,9 @@ module SolidObjects
   # @rbs (String | Symbol) { (Hash[String, untyped], CommitActionContext) -> untyped } -> Proc
   def self.register_commit_action: (String | Symbol) { (Hash[String, untyped], CommitActionContext) -> untyped } -> Proc
 
+  # @rbs () -> ObserverRegistry
+  def self.observer_registry: () -> ObserverRegistry
+
   # @rbs () -> Client
   def self.client: () -> Client
 

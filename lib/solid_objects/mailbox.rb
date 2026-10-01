@@ -85,7 +85,9 @@ module SolidObjects
         actor_type: message.actor_type,
         actor_id: message.actor_id,
         sequence: message.sequence,
-        request_id: message.request_id
+        request_id: message.request_id,
+        operation: message.operation,
+        delivery_mode: message.delivery_mode
       )
       SolidObjects.wake_up.signal
     end

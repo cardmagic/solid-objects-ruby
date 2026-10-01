@@ -28,6 +28,8 @@ module SolidObjects
 
     # @rbs (String, ?authorization_context: untyped) { (Hash[String, untyped]) -> untyped } -> Proc
     def on(name, authorization_context: nil, &block)
+      raise ArgumentError, "an actor observer requires a block" unless block
+
       observe(authorization_context:) do |event|
         block.call(event) if event.fetch("name") == "solid_objects.#{name}"
       end

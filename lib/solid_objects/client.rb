@@ -206,7 +206,8 @@ module SolidObjects
         :"sync.enqueue_timeout",
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
-        operation: operation.to_s
+        operation: operation.to_s,
+        timeout_milliseconds: (timeout * 1000).round
       )
       raise SyncEnqueueTimeout.new(
         timeout:,

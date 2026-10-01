@@ -9,6 +9,11 @@ end
 module ActiveSupport
   class MessageVerifier
   end
+
+  module Notifications
+    class Event
+    end
+  end
 end
 
 module ActionCable

@@ -44,18 +44,15 @@ module SolidObjects
 
     # @rbs (?authorization_context: untyped) { (Hash[String, untyped]) -> untyped } -> Proc
     def observe(authorization_context: nil, &block)
+      raise ArgumentError, "an actor observer requires a block" unless block
+
       authorize!(:observe, authorization_context:)
-      subscription = ActiveSupport::Notifications.subscribe(/\Asolid_objects\./) do |notification|
+      SolidObjects.observer_registry.subscribe do |notification|
         payload = notification.payload
         next unless payload[:actor_type] == reference.actor_type && payload[:actor_id] == reference.actor_id
 
-        begin
-          block.call(Telemetry.event(notification.name.delete_prefix("solid_objects.").to_sym, payload))
-        rescue
-          nil
-        end
+        Telemetry.deliver(block, Telemetry.event(notification.name.delete_prefix("solid_objects.").to_sym, payload))
       end
-      -> { ActiveSupport::Notifications.unsubscribe(subscription) }
     end
 
     private

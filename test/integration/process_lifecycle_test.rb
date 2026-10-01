@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 require "database_test_helper"
+require "portable_telemetry_assertions"
 
 class ProcessLifecycleTest < ActiveSupport::TestCase
+  include PortableTelemetryAssertions
+
   class RecoveryActor < SolidObjects::Actor
     actor_type "process-recovery"
 
@@ -44,6 +47,7 @@ class ProcessLifecycleTest < ActiveSupport::TestCase
 
     assert_equal({ "runs" => 1 }, instance.reload.state)
     assert events.any? { |event| event.fetch("name") == "solid_objects.recovery.reclaimed" && event.fetch("attempt") == 2 }
+    assert_portable_events(events, %w[recovery.reclaimed])
     assert_equal 2, message.reload.attempt_count
     assert message.completed?
   ensure

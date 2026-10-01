@@ -49,7 +49,7 @@ module SolidObjects
       end
       refresh_outdated_components(snapshot)
       transmit_state_payloads(snapshot)
-      SolidObjects.instrument(:"realtime.connected", actor_type: reference.actor_type, actor_id: reference.actor_id, instance_id: snapshot.instance_id, revision: snapshot.revision)
+      SolidObjects.instrument(:"realtime.connected", actor_type: reference.actor_type, actor_id: reference.actor_id)
     rescue KeyError,
       JSON::ParserError,
       InvalidStreamToken,
@@ -149,7 +149,7 @@ module SolidObjects
       true
     rescue => error
       SolidObjects.instrument(
-        :payload_broadcast_failed,
+        :"payload_broadcast.failed",
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
         payload_name: name,

@@ -1,0 +1,378 @@
+{
+  "attributes": [
+    "activationGeneration",
+    "activationOwnerId",
+    "actorId",
+    "actorType",
+    "ageMilliseconds",
+    "attempt",
+    "broadcastId",
+    "broadcastWorkers",
+    "byteCount",
+    "code",
+    "commitAction",
+    "component",
+    "componentCount",
+    "count",
+    "currentIntervalMilliseconds",
+    "deliveryMode",
+    "depth",
+    "durationMilliseconds",
+    "effectId",
+    "effectName",
+    "effectWorkers",
+    "errorName",
+    "failureCount",
+    "generation",
+    "idlePollingIntervalMilliseconds",
+    "incarnation",
+    "instanceId",
+    "intervalMilliseconds",
+    "latenessMilliseconds",
+    "messageId",
+    "name",
+    "nextRunAt",
+    "occurrence",
+    "operation",
+    "outboxKind",
+    "outcome",
+    "ownerId",
+    "payload",
+    "phase",
+    "pollingIntervalMilliseconds",
+    "previousIntervalMilliseconds",
+    "previousRunAt",
+    "processId",
+    "processKind",
+    "reason",
+    "reminderId",
+    "reminderSchedulers",
+    "requestId",
+    "retryable",
+    "revision",
+    "role",
+    "sequence",
+    "status",
+    "thresholdBytes",
+    "timeoutMilliseconds",
+    "truncated",
+    "waitingOn",
+    "workers"
+  ],
+  "events": [
+    {
+      "name": "activation.completed",
+      "attributes": ["actorId", "actorType", "generation", "instanceId", "ownerId"],
+      "javascriptAttributes": [
+        "attempt",
+        "deliveryMode",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "activation.failed",
+      "attributes": ["actorId", "actorType", "errorName", "generation", "instanceId", "ownerId"],
+      "javascriptAttributes": [
+        "attempt",
+        "deliveryMode",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "activation.started",
+      "attributes": ["actorId", "actorType", "generation", "instanceId", "ownerId"],
+      "javascriptAttributes": [
+        "attempt",
+        "deliveryMode",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "commit_action.completed",
+      "attributes": [
+        "activationGeneration",
+        "actorId",
+        "actorType",
+        "attempt",
+        "commitAction",
+        "deliveryMode",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "commit_action.failed",
+      "attributes": [
+        "activationGeneration",
+        "actorId",
+        "actorType",
+        "attempt",
+        "commitAction",
+        "deliveryMode",
+        "errorName",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "commit_action.started",
+      "attributes": [
+        "activationGeneration",
+        "actorId",
+        "actorType",
+        "attempt",
+        "commitAction",
+        "deliveryMode",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "dead_letter.created",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "deliveryMode",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "mailbox.depth",
+      "attributes": ["actorId", "actorType", "count", "depth", "instanceId", "truncated"]
+    },
+    {
+      "name": "message.completed",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "deliveryMode",
+        "durationMilliseconds",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "revision",
+        "sequence"
+      ]
+    },
+    {
+      "name": "message.enqueued",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "deliveryMode",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "message.failed",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "deliveryMode",
+        "durationMilliseconds",
+        "errorName",
+        "instanceId",
+        "messageId",
+        "operation",
+        "outcome",
+        "requestId",
+        "retryable",
+        "sequence"
+      ]
+    },
+    {
+      "name": "message.rejected",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "code",
+        "deliveryMode",
+        "durationMilliseconds",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "message.retry",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "deliveryMode",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "message.started",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "deliveryMode",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "outbox.age",
+      "match": {
+        "outboxKind": "broadcast"
+      },
+      "attributes": [
+        "actorId",
+        "actorType",
+        "ageMilliseconds",
+        "attempt",
+        "broadcastId",
+        "instanceId",
+        "messageId",
+        "outboxKind",
+        "revision"
+      ]
+    },
+    {
+      "name": "outbox.age",
+      "match": {
+        "outboxKind": "effect"
+      },
+      "attributes": [
+        "actorId",
+        "actorType",
+        "ageMilliseconds",
+        "attempt",
+        "effectId",
+        "effectName",
+        "instanceId",
+        "messageId",
+        "outboxKind"
+      ]
+    },
+    {
+      "name": "payload_broadcast.failed",
+      "attributes": ["actorId", "actorType", "errorName", "payload"]
+    },
+    {
+      "name": "polling.interval_changed",
+      "attributes": [
+        "currentIntervalMilliseconds",
+        "previousIntervalMilliseconds",
+        "reason",
+        "role"
+      ]
+    },
+    {
+      "name": "realtime.connected",
+      "attributes": ["actorId", "actorType"]
+    },
+    {
+      "name": "realtime.disconnected",
+      "attributes": ["actorId", "actorType"]
+    },
+    {
+      "name": "recovery.completed",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "deliveryMode",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "recovery.failed",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "deliveryMode",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "recovery.reclaimed",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "deliveryMode",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
+      "name": "reminder.enqueued",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "instanceId",
+        "latenessMilliseconds",
+        "messageId",
+        "occurrence",
+        "operation",
+        "reminderId"
+      ]
+    },
+    {
+      "name": "snapshot.read",
+      "attributes": ["actorId", "actorType", "instanceId", "revision"]
+    },
+    {
+      "name": "sync.enqueue_timeout",
+      "attributes": ["actorId", "actorType", "operation", "timeoutMilliseconds"]
+    }
+  ]
+}

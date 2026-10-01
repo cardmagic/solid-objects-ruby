@@ -82,7 +82,7 @@
         "actorType": "transmit-counters",
         "actorId": "fixture-counter",
         "operation": "increment",
-        "arguments": [ 1 ]
+        "arguments": [1]
       }
     },
     {

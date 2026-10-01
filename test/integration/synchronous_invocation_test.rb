@@ -4,8 +4,11 @@ require "database_test_helper"
 require "solid_objects/mailbox"
 require "solid_objects/synchronous_invocation"
 require "timeout"
+require "portable_telemetry_assertions"
 
 class SynchronousInvocationTest < ActiveSupport::TestCase
+  include PortableTelemetryAssertions
+
   class CounterActor < SolidObjects::Actor
     actor_type "synchronous-counter"
 
@@ -451,6 +454,8 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync bounds database lock waits while durably enqueueing" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
     reference = CounterActor.ref("enqueue-locked")
     reference.increment
     instance = actor_instance("enqueue-locked")
@@ -478,6 +483,9 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     assert_equal "synchronous-counter", error.actor_type
     assert_equal "enqueue-locked", error.actor_id
     assert_equal "increment", error.operation
+    assert_portable_events(events, %w[sync.enqueue_timeout])
+    timeout = events.find { |event| event.fetch("name") == "solid_objects.sync.enqueue_timeout" }
+    assert_equal 250, timeout.fetch("attributes").fetch("timeoutMilliseconds")
     release_lock.push(true)
     blocker.join
     release_lock = nil

@@ -1,8 +1,39 @@
 # frozen_string_literal: true
 
 require "database_test_helper"
+require "portable_telemetry_assertions"
 
 class TelemetryTest < ActiveSupport::TestCase
+  include PortableTelemetryAssertions
+
+  class RecordingLogger
+    attr_reader :errors
+
+    def initialize
+      @errors = []
+    end
+
+    def error(entry)
+      errors << entry
+    end
+
+    def info(_entry)
+    end
+
+    def warn(_entry)
+    end
+  end
+
+  class ActivationFailure < SolidObjects::Actor
+    actor_type "telemetry-activation-failure"
+
+    on_activate { raise "private activation failure" }
+
+    def run
+      nil
+    end
+  end
+
   class Counter < SolidObjects::Actor
     actor_type "telemetry-counter"
     attribute :count, default: 0
@@ -17,6 +48,20 @@ class TelemetryTest < ActiveSupport::TestCase
       raise "private failure"
     end
 
+    def refuse
+      reject :refused, "private rejection"
+    end
+
+    def commit
+      commit_action :telemetry_action
+      nil
+    end
+
+    def commit_badly
+      commit_action :telemetry_failure
+      nil
+    end
+
     def increment
       self.count += 1
     end
@@ -28,6 +73,120 @@ class TelemetryTest < ActiveSupport::TestCase
     backoff = SolidObjects::PollingBackoff.new(minimum_interval: 0.1, maximum_interval: 1, on_change: ->(transition) { SolidObjects.instrument(:"polling.interval_changed", role: "actors", **transition) })
     backoff.record_idle
     assert_equal({ "role" => "actors", "previousIntervalMilliseconds" => 100, "currentIntervalMilliseconds" => 200, "reason" => "idle" }, events.last.fetch("attributes"))
+    assert_equal %({"role":"actors","previousIntervalMilliseconds":100,"currentIntervalMilliseconds":200,"reason":"idle"}), JSON.generate(events.last.fetch("attributes"))
+    assert_portable_attributes(events.last)
+  end
+
+  test "the portable attribute allowlist matches the shared contract" do
+    assert_equal TELEMETRY_CONTRACT.fetch("attributes").sort, SolidObjects::Telemetry::FIELDS.sort
+  end
+
+  test "portable SQL lifecycle events match the shared attribute contract" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
+    SolidObjects.configuration.max_attempts = 2
+    SolidObjects.configuration.retry_delay = ->(_) { 0 }
+    SolidObjects.configuration.authorize_administration = ->(**) { true }
+    SolidObjects.register_effect(:telemetry_effect) { "delivered" }
+    SolidObjects.register_commit_action(:telemetry_action) { |_arguments, _context| nil }
+    SolidObjects.register_commit_action(:telemetry_failure) { |_arguments, _context| raise "private commit failure" }
+    reference = Counter.ref("contract")
+    reference.increment
+    reference.async.refuse
+    reference.async.fail_operation
+    reference.async.commit
+    reference.async.commit_badly
+    reference.async.arrange
+    SolidObjects::Mailbox.new.enqueue(reference:, operation: "increment", arguments: {}, delivery_mode: "internal", idempotency_key: "effect:contract:recovery")
+    reference.diagnostics(limit: 1)
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    ActivationFailure.ref("contract").async.run
+    assert_raises(RuntimeError) { worker.run_once }
+    worker.stop
+    effect_executor = SolidObjects::EffectExecutor.new
+    effect_executor.run_once
+    scheduler = SolidObjects::ReminderScheduler.new
+    scheduler.run_once
+    reference.snapshot
+
+    assert_portable_events(events, %w[
+      activation.started activation.completed activation.failed
+      message.enqueued message.started message.completed message.rejected message.failed message.retry dead_letter.created
+      commit_action.started commit_action.completed commit_action.failed
+      recovery.completed mailbox.depth outbox.age reminder.enqueued snapshot.read
+    ])
+    failures = events.select { |event| event.fetch("name") == "solid_objects.message.failed" }.map { |event| event.fetch("attributes").slice("retryable", "outcome") }
+    assert_includes failures, { "retryable" => true, "outcome" => "retrying" }
+    assert_includes failures, { "retryable" => true, "outcome" => "dead" }
+    depth = events.find { |event| event.fetch("name") == "solid_objects.mailbox.depth" }.fetch("attributes")
+    assert depth.fetch("truncated")
+    assert_nil depth.fetch("depth")
+    refute_includes events.to_json, "private"
+  ensure
+    worker&.stop
+    effect_executor&.stop
+    scheduler&.stop
+  end
+
+  test "a failing exporter is logged and cannot fail a turn" do
+    logger = RecordingLogger.new
+    SolidObjects.configuration.logger = logger
+    SolidObjects.configuration.instrumentation = ->(_) { raise "private exporter failure" }
+
+    assert_equal 1, Counter.ref("logged-exporter").increment
+
+    assert_includes logger.errors, { event: "solid_objects.instrumentation.failed", instrumentation_event: "solid_objects.message.completed", error_class: "RuntimeError" }
+    refute_includes logger.errors.to_s, "private"
+  end
+
+  test "a failing observer is logged and cannot fail a turn" do
+    logger = RecordingLogger.new
+    SolidObjects.configuration.logger = logger
+    SolidObjects.configuration.authorize_administration = ->(**) { true }
+    reference = Counter.ref("logged-observer")
+    stop = reference.observe { raise "private observer failure" }
+
+    assert_equal 1, reference.increment
+
+    assert_includes logger.errors, { event: "solid_objects.instrumentation.failed", instrumentation_event: "solid_objects.message.completed", error_class: "RuntimeError" }
+    refute_includes logger.errors.to_s, "private"
+  ensure
+    stop&.call
+  end
+
+  test "observers require a block" do
+    SolidObjects.configuration.authorize_administration = ->(**) { true }
+    reference = Counter.ref("blockless")
+
+    assert_raises(ArgumentError) { reference.observe }
+    assert_raises(ArgumentError) { reference.on("message.completed") }
+  end
+
+  test "a process accepts at most 1000 local observers" do
+    SolidObjects.configuration.authorize_administration = ->(**) { true }
+    reference = Counter.ref("observer-limit")
+    stops = Array.new(1000) { reference.observe { nil } }
+
+    error = assert_raises(ArgumentError) { reference.observe { nil } }
+
+    assert_equal "at most 1000 local observers may be registered", error.message
+    stops.pop.call
+    stops << reference.observe { nil }
+  ensure
+    stops&.each(&:call)
+  end
+
+  test "reset removes registered observers" do
+    SolidObjects.configuration.authorize_administration = ->(**) { true }
+    events = []
+    Counter.ref("reset-observer").observe { |event| events << event }
+
+    SolidObjects.reset!
+    SolidObjects.configuration.authorize_message = ->(**) { true }
+    Counter.ref("reset-observer").increment
+
+    assert_empty events
   end
 
   JSON.parse(File.read(File.expand_path("../../compatibility/sync-timeout.json", __dir__))).each do |fixture|
@@ -151,7 +310,7 @@ class TelemetryTest < ActiveSupport::TestCase
     worker = SolidObjects::Worker.new
     worker.run_once
     assert_equal 1, reference.diagnostics.fetch("recoveryFailures").fetch("sampled")
-    assert events.any? { |event| event.fetch("name") == "solid_objects.recovery.failed" }
+    assert_portable_events(events, %w[recovery.failed])
   ensure
     worker&.stop
   end
@@ -191,6 +350,7 @@ class TelemetryTest < ActiveSupport::TestCase
     assert executor.run_once
     event = events.find { |entry| entry.fetch("name") == "solid_objects.outbox.age" && entry.fetch("attributes")["outboxKind"] == "broadcast" }
     assert event
+    assert_portable_attributes(event)
     assert_operator event.fetch("metrics").last.fetch("value"), :>=, 0
   ensure
     executor&.stop
