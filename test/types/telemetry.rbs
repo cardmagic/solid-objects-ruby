@@ -1,0 +1,7 @@
+class TelemetryConsumer
+  def event_name: (SolidObjects::portable_event) -> String
+  def wait_reason: (SolidObjects::portable_event) -> SolidObjects::telemetry_value
+  def metric_names: (SolidObjects::portable_event) -> Array[String]
+  def oldest_mailbox_age: (SolidObjects::actor_diagnostics) -> Integer?
+  def observed_names: (SolidObjects::Reference) -> Array[String]
+end

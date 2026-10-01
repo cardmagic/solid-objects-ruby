@@ -8,7 +8,7 @@ module SolidObjects
       @reference = reference
     end
 
-    # @rbs (?limit: Integer, ?authorization_context: untyped) -> Hash[String, untyped]
+    # @rbs (?limit: Integer, ?authorization_context: untyped) -> actor_diagnostics
     def summary(limit: 100, authorization_context: nil)
       authorize!(:inspect, authorization_context:)
       raise ArgumentError, "diagnostic limit must be an integer between 1 and 100" unless limit.is_a?(Integer) && limit.between?(1, 100)
@@ -42,7 +42,7 @@ module SolidObjects
       Serialization.readonly_copy(result)
     end
 
-    # @rbs (?authorization_context: untyped) { (Hash[String, untyped]) -> untyped } -> Proc
+    # @rbs (?authorization_context: untyped) { (portable_event) -> void } -> Proc
     def observe(authorization_context: nil, &block)
       raise ArgumentError, "an actor observer requires a block" unless block
 
@@ -57,7 +57,7 @@ module SolidObjects
 
     private
 
-    attr_reader :reference
+    attr_reader :reference #: Reference
 
     # @rbs (Symbol, ?authorization_context: untyped) -> void
     def authorize!(action, authorization_context: nil)
@@ -70,7 +70,7 @@ module SolidObjects
       raise Unauthorized, "actor diagnostics are not authorized" unless allowed
     end
 
-    # @rbs (Array[Time?], now: Time, limit: Integer) -> Hash[String, untyped]
+    # @rbs (Array[Time?], now: Time, limit: Integer) -> diagnostic_summary
     def summarize(timestamps, now:, limit:)
       oldest = timestamps.compact.min
       {

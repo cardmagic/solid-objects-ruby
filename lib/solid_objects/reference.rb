@@ -16,17 +16,17 @@ module SolidObjects
       freeze
     end
 
-    # @rbs (?limit: Integer, ?authorization_context: untyped) -> Hash[String, untyped]
+    # @rbs (?limit: Integer, ?authorization_context: untyped) -> actor_diagnostics
     def diagnostics(limit: 100, authorization_context: nil)
       Diagnostics.new(self).summary(limit:, authorization_context:)
     end
 
-    # @rbs (?authorization_context: untyped) { (Hash[String, untyped]) -> untyped } -> Proc
+    # @rbs (?authorization_context: untyped) { (portable_event) -> void } -> Proc
     def observe(authorization_context: nil, &block)
       Diagnostics.new(self).observe(authorization_context:, &block)
     end
 
-    # @rbs (String, ?authorization_context: untyped) { (Hash[String, untyped]) -> untyped } -> Proc
+    # @rbs (String, ?authorization_context: untyped) { (portable_event) -> void } -> Proc
     def on(name, authorization_context: nil, &block)
       raise ArgumentError, "an actor observer requires a block" unless block
 

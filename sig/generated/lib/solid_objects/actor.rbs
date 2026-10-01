@@ -351,8 +351,8 @@ module SolidObjects
     # @rbs () -> Integer
     def intent_count: () -> Integer
 
-    # @rbs (String) { () -> untyped } -> untyped
-    def read_projection: (String) { () -> untyped } -> untyped
+    # @rbs [Result] (String) { () -> Result } -> Result
+    def read_projection: [Result] (String) { () -> Result } -> Result
 
     private
 
@@ -366,8 +366,8 @@ module SolidObjects
 
     attr_reader outbound_message_intents: untyped
 
-    # @rbs () -> Array[Array[Hash[Symbol, untyped]]]
-    def intent_snapshot: () -> Array[Array[Hash[Symbol, untyped]]]
+    # @rbs () -> Array[Array[Hash[Symbol, Object]]]
+    def intent_snapshot: () -> Array[Array[Hash[Symbol, Object]]]
 
     # @rbs (String) { () -> untyped } -> untyped
     def guard_application_writes: (String) { () -> untyped } -> untyped

@@ -11,14 +11,14 @@ module SolidObjects
       phase pollingIntervalMilliseconds previousIntervalMilliseconds previousRunAt processId processKind
       reason reminderId reminderSchedulers requestId retryable revision role sequence status thresholdBytes
       timeoutMilliseconds truncated waitingOn workers
-    ].freeze
+    ].freeze #: Array[String]
     ALIASES = {
       "errorClass" => "errorName",
       "stateRevision" => "revision",
       "durationMs" => "durationMilliseconds",
       "commitActionName" => "commitAction",
       "payloadName" => "payload"
-    }.freeze
+    }.freeze #: Hash[String, String]
 
     class << self
       # @rbs (Effect | Broadcast) -> void
@@ -41,7 +41,7 @@ module SolidObjects
         nil
       end
 
-      # @rbs (Symbol, Hash[Symbol, untyped]) -> void
+      # @rbs (Symbol, Hash[Symbol, Object]) -> void
       def emit(name, payload)
         observer = SolidObjects.configuration.instrumentation
         return unless observer
@@ -51,14 +51,14 @@ module SolidObjects
         nil
       end
 
-      # @rbs (^(Hash[String, untyped]) -> void, Hash[String, untyped]) -> void
+      # @rbs (event_observer, portable_event) -> void
       def deliver(observer, event)
         observer.call(event)
       rescue => error
         log_delivery_failure(event.fetch("name"), error)
       end
 
-      # @rbs (Symbol, Hash[Symbol, untyped]) -> Hash[String, untyped]
+      # @rbs (Symbol, Hash[Symbol, Object]) -> portable_event
       def event(name, payload)
         attributes = safe_attributes(payload)
         adapter = DatabaseAdapter.family(Record.connection).to_s
@@ -92,7 +92,7 @@ module SolidObjects
         )
       end
 
-      # @rbs (Hash[Symbol, untyped]) -> Hash[String, untyped]
+      # @rbs (Hash[Symbol, Object]) -> Hash[String, telemetry_value]
       def safe_attributes(payload)
         payload.each_with_object({}) do |(key, value), attributes|
           value = value.to_s if key == :reason && value.is_a?(Symbol)

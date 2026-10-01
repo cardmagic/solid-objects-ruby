@@ -545,7 +545,7 @@ module SolidObjects
         reminder_intents.length + outbound_message_intents.length
     end
 
-    # @rbs (String) { () -> untyped } -> untyped
+    # @rbs [Result] (String) { () -> Result } -> Result
     def read_projection(operation)
       state_before = state.to_h
       intents_before = intent_snapshot
@@ -565,7 +565,7 @@ module SolidObjects
       :reminder_intents,
       :outbound_message_intents
 
-    # @rbs () -> Array[Array[Hash[Symbol, untyped]]]
+    # @rbs () -> Array[Array[Hash[Symbol, Object]]]
     def intent_snapshot
       [ effect_intents, effect_recovery_intents, commit_action_intents, reminder_intents, outbound_message_intents ].map do |intents|
         intents.map { |intent| intent.to_h.deep_dup }

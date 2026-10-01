@@ -47,7 +47,7 @@ module SolidObjects
       dead_letter.present?
     end
 
-    # @rbs () -> untyped
+    # @rbs () -> json_value
     def result!
       if rejected?
         raise Rejected.new(

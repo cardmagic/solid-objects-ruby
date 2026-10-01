@@ -38,7 +38,7 @@ module SolidObjects
       status_of(SolidObjects.client.read_message(self, authorization_context:))
     end
 
-    # @rbs (?authorization_context: untyped) -> untyped
+    # @rbs (?authorization_context: untyped) -> json_value
     def result(authorization_context: nil)
       SolidObjects.client.read_message(self, authorization_context:).result!
     end

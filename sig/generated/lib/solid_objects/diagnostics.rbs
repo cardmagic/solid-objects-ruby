@@ -6,20 +6,20 @@ module SolidObjects
     # @rbs (Reference) -> void
     def initialize: (Reference) -> void
 
-    # @rbs (?limit: Integer, ?authorization_context: untyped) -> Hash[String, untyped]
-    def summary: (?limit: Integer, ?authorization_context: untyped) -> Hash[String, untyped]
+    # @rbs (?limit: Integer, ?authorization_context: untyped) -> actor_diagnostics
+    def summary: (?limit: Integer, ?authorization_context: untyped) -> actor_diagnostics
 
-    # @rbs (?authorization_context: untyped) { (Hash[String, untyped]) -> untyped } -> Proc
-    def observe: (?authorization_context: untyped) { (Hash[String, untyped]) -> untyped } -> Proc
+    # @rbs (?authorization_context: untyped) { (portable_event) -> void } -> Proc
+    def observe: (?authorization_context: untyped) { (portable_event) -> void } -> Proc
 
     private
 
-    attr_reader reference: untyped
+    attr_reader reference: Reference
 
     # @rbs (Symbol, ?authorization_context: untyped) -> void
     def authorize!: (Symbol, ?authorization_context: untyped) -> void
 
-    # @rbs (Array[Time?], now: Time, limit: Integer) -> Hash[String, untyped]
-    def summarize: (Array[Time?], now: Time, limit: Integer) -> Hash[String, untyped]
+    # @rbs (Array[Time?], now: Time, limit: Integer) -> diagnostic_summary
+    def summarize: (Array[Time?], now: Time, limit: Integer) -> diagnostic_summary
   end
 end

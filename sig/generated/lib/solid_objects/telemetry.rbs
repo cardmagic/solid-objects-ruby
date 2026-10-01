@@ -2,24 +2,24 @@
 
 module SolidObjects
   module Telemetry
-    FIELDS: untyped
+    FIELDS: Array[String]
 
-    ALIASES: untyped
+    ALIASES: Hash[String, String]
 
     # @rbs (Effect | Broadcast) -> void
     def self.outbox: (Effect | Broadcast) -> void
 
-    # @rbs (Symbol, Hash[Symbol, untyped]) -> void
-    def self.emit: (Symbol, Hash[Symbol, untyped]) -> void
+    # @rbs (Symbol, Hash[Symbol, Object]) -> void
+    def self.emit: (Symbol, Hash[Symbol, Object]) -> void
 
-    # @rbs (^(Hash[String, untyped]) -> void, Hash[String, untyped]) -> void
-    def self.deliver: (^(Hash[String, untyped]) -> void, Hash[String, untyped]) -> void
+    # @rbs (event_observer, portable_event) -> void
+    def self.deliver: (event_observer, portable_event) -> void
 
-    # @rbs (Symbol, Hash[Symbol, untyped]) -> Hash[String, untyped]
-    def self.event: (Symbol, Hash[Symbol, untyped]) -> Hash[String, untyped]
+    # @rbs (Symbol, Hash[Symbol, Object]) -> portable_event
+    def self.event: (Symbol, Hash[Symbol, Object]) -> portable_event
 
-    # @rbs (Hash[Symbol, untyped]) -> Hash[String, untyped]
-    def self.safe_attributes: (Hash[Symbol, untyped]) -> Hash[String, untyped]
+    # @rbs (Hash[Symbol, Object]) -> Hash[String, telemetry_value]
+    def self.safe_attributes: (Hash[Symbol, Object]) -> Hash[String, telemetry_value]
 
     # @rbs (Effect | Broadcast) -> Hash[Symbol, String | Integer]
     private def self.outbox_identity: (Effect | Broadcast) -> Hash[Symbol, String | Integer]

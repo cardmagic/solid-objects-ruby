@@ -7,7 +7,7 @@ module SolidObjects
     # @rbs @actor: Actor
     # @rbs @instance_id: Integer
     # @rbs @revision: Integer
-    # @rbs @state_data: Hash[String, untyped]
+    # @rbs @state_data: Hash[String, json_value]
     # @rbs @observable_values: Hash[String, untyped]?
     # @rbs @observable_value_cache: Hash[String, untyped]
 
@@ -58,7 +58,7 @@ module SolidObjects
 
     attr_reader :instance
 
-    # @rbs () -> Hash[String, untyped]
+    # @rbs () -> Hash[String, json_value]
     def migrated_state
       state_version = instance&.state_version || actor_class.state_version
       ApplicationWriteGuard.call(

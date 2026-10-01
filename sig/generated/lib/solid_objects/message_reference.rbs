@@ -31,8 +31,8 @@ module SolidObjects
     # @rbs (?authorization_context: untyped) -> String
     def status: (?authorization_context: untyped) -> String
 
-    # @rbs (?authorization_context: untyped) -> untyped
-    def result: (?authorization_context: untyped) -> untyped
+    # @rbs (?authorization_context: untyped) -> json_value
+    def result: (?authorization_context: untyped) -> json_value
 
     # @rbs (?authorization_context: untyped) -> Outcome
     def outcome: (?authorization_context: untyped) -> Outcome

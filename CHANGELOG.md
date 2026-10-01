@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Publish RBS types for portable events, metric samples, actor diagnostics, and
+  event observers in `sig/public/telemetry.rbs`, and a `json_value` type for
+  message results and actor state. Observer blocks, diagnostics, and results now
+  type-check against these contracts instead of `untyped`.
 - `solid_objects.activation.started` now fires before the actor's `activate`
   hook. Before, it fired after a successful hook. The new
   `solid_objects.activation.completed` event takes that meaning, and

@@ -40,7 +40,7 @@ module SolidObjects
     # @rbs @broadcast_worker_count: Integer
     # @rbs @reminder_scheduler_count: Integer
     # @rbs @connects_to: Hash[Symbol, untyped]?
-    # @rbs @instrumentation: Proc?
+    # @rbs @instrumentation: event_observer?
     # @rbs @logger: untyped
     # @rbs @stream_signing_secret: String?
     # @rbs @broadcast_adapter: Proc?
@@ -96,7 +96,6 @@ module SolidObjects
       :reminder_scheduler_count,
       :connects_to,
       :logger,
-      :instrumentation,
       :stream_signing_secret,
       :broadcast_adapter,
       :wake_up_adapter,
@@ -111,6 +110,8 @@ module SolidObjects
       :authorize_transmission,
       :administration_identity,
       :transmission_actor_type_resolver
+
+    attr_accessor :instrumentation #: event_observer?
 
     # @rbs @additional_components: Array[untyped]
     attr_reader :additional_components

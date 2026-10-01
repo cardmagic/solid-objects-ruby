@@ -71,7 +71,7 @@ module SolidObjects
     # Distinguishes a block that relied on the old class-level receiver from an
     # ordinary typo, so the one behaviour change reports itself instead of
     # surfacing as an unexplained NameError.
-    # @rbs (NameError[untyped], Actor?) -> bool
+    # @rbs (NameError[BasicObject], Actor?) -> bool
     def class_level_receiver?(error, actor)
       error.receiver.equal?(actor) &&
         snapshot.actor_class.respond_to?(error.name)

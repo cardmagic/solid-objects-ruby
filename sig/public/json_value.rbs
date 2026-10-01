@@ -1,0 +1,3 @@
+module SolidObjects
+  type json_value = String | Integer | Float | bool | nil | Array[json_value] | Hash[String, json_value]
+end

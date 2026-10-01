@@ -69,7 +69,7 @@ module SolidObjects
       end
     end
 
-    # @rbs (Hash[String, untyped], Hash[String, untyped]) -> void
+    # @rbs (Hash[String, json_value], Hash[String, json_value]) -> void
     def ensure_query_is_read_only!(state_before, state_after)
       return unless actor.class.definition.queries.key?(message.operation.to_sym)
 

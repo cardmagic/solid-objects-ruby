@@ -12,7 +12,7 @@ module SolidObjects
 
     @revision: Integer
 
-    @state_data: Hash[String, untyped]
+    @state_data: Hash[String, json_value]
 
     @observable_values: Hash[String, untyped]?
 
@@ -44,7 +44,7 @@ module SolidObjects
 
     attr_reader instance: untyped
 
-    # @rbs () -> Hash[String, untyped]
-    def migrated_state: () -> Hash[String, untyped]
+    # @rbs () -> Hash[String, json_value]
+    def migrated_state: () -> Hash[String, json_value]
   end
 end

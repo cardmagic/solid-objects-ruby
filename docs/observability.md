@@ -23,6 +23,9 @@ Every event has `schemaVersion`, `name` (prefixed with `solid_objects.`),
 `occurredAt` (UTC ISO 8601), `adapter`, `actorType`, `actorId`, `incarnation`,
 `revision`, `messageId`, `attempt`, `attributes`, and `metrics`.
 Unavailable identifiers are null; `attempt` is zero outside a message attempt.
+Ruby publishes the RBS types `SolidObjects::portable_event`,
+`SolidObjects::actor_diagnostics`, and `SolidObjects::event_observer`. JavaScript
+exports `InstrumentationEvent`, `ActorDiagnostics`, and `EventObserver`.
 An incarnation identifies a persisted actor instance, independently of its lease
 generation. Revisions and IDs are strings. Process-wide events have null actor
 identity. A message ID or revision correlates actor work where applicable.

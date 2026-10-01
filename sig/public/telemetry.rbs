@@ -1,0 +1,49 @@
+module SolidObjects
+  type telemetry_value = String | Integer | Float | bool | nil
+
+  type metric_sample = {
+    "name" => String,
+    "kind" => "counter" | "gauge" | "histogram",
+    "unit" => "1" | "ms",
+    "value" => Integer | Float,
+    "labels" => Hash[String, String]
+  }
+
+  type portable_event = {
+    "schemaVersion" => Integer,
+    "name" => String,
+    "occurredAt" => String,
+    "adapter" => String,
+    "actorType" => String?,
+    "actorId" => String?,
+    "incarnation" => String?,
+    "revision" => String?,
+    "messageId" => String?,
+    "attempt" => Integer,
+    "attributes" => Hash[String, telemetry_value],
+    "metrics" => Array[metric_sample]
+  }
+
+  type event_observer = ^(portable_event) -> void
+
+  type diagnostic_summary = {
+    "sampled" => Integer,
+    "truncated" => bool,
+    "oldestAgeMilliseconds" => Integer?
+  }
+
+  type actor_diagnostics = {
+    "actorType" => String,
+    "actorId" => String,
+    "incarnation" => String?,
+    "revision" => String?,
+    "adapter" => String,
+    "occurredAt" => String,
+    "limit" => Integer,
+    "mailbox" => diagnostic_summary,
+    "outbox" => diagnostic_summary,
+    "reminders" => diagnostic_summary,
+    "retries" => diagnostic_summary,
+    "recoveryFailures" => diagnostic_summary
+  }
+end

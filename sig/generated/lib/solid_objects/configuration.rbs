@@ -2,8 +2,6 @@
 
 module SolidObjects
   class Configuration
-    @transmission_actor_type_resolver: Proc
-
     @reminder_scheduler_count: Integer
 
     @broadcast_worker_count: Integer
@@ -36,6 +34,10 @@ module SolidObjects
 
     @supervisor_monitor_interval: Float
 
+    @table_name_prefix: String
+
+    @transmission_actor_type_resolver: Proc
+
     @administration_identity: Proc
 
     @authorize_transmission: Proc
@@ -64,11 +66,9 @@ module SolidObjects
 
     @logger: untyped
 
-    @instrumentation: Proc?
+    @instrumentation: event_observer?
 
     @connects_to: Hash[Symbol, untyped]?
-
-    @table_name_prefix: String
 
     @polling_interval: Float
 
@@ -188,8 +188,6 @@ module SolidObjects
 
     attr_accessor logger: untyped
 
-    attr_accessor instrumentation: untyped
-
     attr_accessor stream_signing_secret: untyped
 
     attr_accessor broadcast_adapter: untyped
@@ -217,6 +215,8 @@ module SolidObjects
     attr_accessor administration_identity: untyped
 
     attr_accessor transmission_actor_type_resolver: untyped
+
+    attr_accessor instrumentation: event_observer?
 
     # @rbs @additional_components: Array[untyped]
     attr_reader additional_components: untyped
