@@ -38,23 +38,22 @@ class ActivationCandidatesTest < ActiveSupport::TestCase
     skip "requires a SQLite query plan" unless database_family == :sqlite
 
     now = SolidObjects.database_adapter.database_now
-    SolidObjects::Instance.insert_all!(Array.new(3_000) { |index|
-      { actor_type: "activation-candidates", actor_id: "idle-#{index}", state: {}, created_at: now, updated_at: now }
-    })
     connection = SolidObjects::Record.connection
-    connection.execute("ANALYZE")
-    analyzed_tables = connection.select_values("SELECT DISTINCT tbl FROM sqlite_stat1")
+    restoring_sqlite_statistics(connection) do
+      SolidObjects::Instance.insert_all!(Array.new(3_000) { |index|
+        { actor_type: "activation-candidates", actor_id: "idle-#{index}", state: {}, created_at: now, updated_at: now }
+      })
+      connection.execute("ANALYZE")
+      analyzed_tables = connection.select_values("SELECT DISTINCT tbl FROM sqlite_stat1")
 
-    assert_includes analyzed_tables, SolidObjects::Instance.table_name
-    refute_includes analyzed_tables, SolidObjects::ClaimedMessage.table_name
+      assert_includes analyzed_tables, SolidObjects::Instance.table_name
+      refute_includes analyzed_tables, SolidObjects::ClaimedMessage.table_name
 
-    plan = sqlite_query_plan(connection, SolidObjects::ClaimedMessage.table_name) { claimed_instance_ids(now) }
+      plan = sqlite_query_plan(connection, SolidObjects::ClaimedMessage.table_name) { claimed_instance_ids(now) }
 
-    assert_match(/\A(SCAN|SEARCH) #{SolidObjects::ClaimedMessage.table_name}\b/, plan.first, plan.join("\n"))
-    assert plan.none? { |step| step.start_with?("SCAN #{SolidObjects::Instance.table_name}") }, plan.join("\n")
-  ensure
-    connection&.execute("DELETE FROM sqlite_stat1")
-    connection&.execute("ANALYZE sqlite_schema")
+      assert_match(/\A(SCAN|SEARCH) #{SolidObjects::ClaimedMessage.table_name}\b/, plan.first, plan.join("\n"))
+      assert plan.none? { |step| step.start_with?("SCAN #{SolidObjects::Instance.table_name}") }, plan.join("\n")
+    end
   end
 
   private

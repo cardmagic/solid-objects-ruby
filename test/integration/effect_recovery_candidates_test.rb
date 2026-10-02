@@ -44,27 +44,26 @@ class EffectRecoveryCandidatesTest < ActiveSupport::TestCase
 
     now = Time.current
     effect_ids = Array.new(3_000) { SecureRandom.uuid }
-    SolidObjects::Effect.insert_all!(effect_ids.map { |effect_id|
-      { message_id: @message.id, instance_id: @message.instance_id, effect_id:, name: "work", arguments: {},
-        status: "completed", max_attempts: 3, available_at: now, completed_at: now, created_at: now, updated_at: now }
-    })
-    SolidObjects::EffectRecovery.insert_all!(effect_ids.last(300).map { |effect_id|
-      { effect_id:, instance_id: @message.instance_id, recovery_operation: "recover", status_operation: "status",
-        created_at: now, updated_at: now }
-    })
     connection = SolidObjects::Record.connection
-    connection.execute("ANALYZE")
-    poll_statistics = connection.select_value("SELECT stat FROM sqlite_stat1 WHERE idx = 'idx_so_effects_poll'")
+    restoring_sqlite_statistics(connection) do
+      SolidObjects::Effect.insert_all!(effect_ids.map { |effect_id|
+        { message_id: @message.id, instance_id: @message.instance_id, effect_id:, name: "work", arguments: {},
+          status: "completed", max_attempts: 3, available_at: now, completed_at: now, created_at: now, updated_at: now }
+      })
+      SolidObjects::EffectRecovery.insert_all!(effect_ids.last(300).map { |effect_id|
+        { effect_id:, instance_id: @message.instance_id, recovery_operation: "recover", status_operation: "status",
+          created_at: now, updated_at: now }
+      })
+      connection.execute("ANALYZE")
+      poll_statistics = connection.select_value("SELECT stat FROM sqlite_stat1 WHERE idx = 'idx_so_effects_poll'")
 
-    assert_equal 3_000, poll_statistics.split[1].to_i
+      assert_equal 3_000, poll_statistics.split[1].to_i
 
-    plan = connection.select_all("EXPLAIN QUERY PLAN #{recovery_candidates.to_sql}").map { |row| row["detail"] }
+      plan = connection.select_all("EXPLAIN QUERY PLAN #{recovery_candidates.to_sql}").map { |row| row["detail"] }
 
-    assert_match(/\ASEARCH #{SolidObjects::Effect.table_name} USING INDEX idx_so_effects_poll \(status=\?\)/, plan.first, plan.join("\n"))
-    assert plan.none? { |step| step.start_with?("SCAN ") }, plan.join("\n")
-  ensure
-    connection&.execute("DELETE FROM sqlite_stat1")
-    connection&.execute("ANALYZE sqlite_schema")
+      assert_match(/\ASEARCH #{SolidObjects::Effect.table_name} USING INDEX idx_so_effects_poll \(status=\?\)/, plan.first, plan.join("\n"))
+      assert plan.none? { |step| step.start_with?("SCAN ") }, plan.join("\n")
+    end
   end
 
   private
