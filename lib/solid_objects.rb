@@ -16,6 +16,8 @@ require "solid_objects/sync_deadline"
 require "solid_objects/callable_keywords"
 require "solid_objects/configuration"
 require "solid_objects/instrumentation"
+require "solid_objects/telemetry"
+require "solid_objects/diagnostics"
 require "solid_objects/log_subscriber"
 require "solid_objects/serialization"
 require "solid_objects/context"
@@ -67,6 +69,7 @@ require "solid_objects/effect_payload"
 require "solid_objects/effect_recovery_coordinator"
 require "solid_objects/process_heartbeat"
 require "solid_objects/commit_action_registry"
+require "solid_objects/observer_registry"
 require "solid_objects/lease"
 require "solid_objects/lease_renewer"
 # The reminder scheduler and the effect executor enqueue through the mailbox,
@@ -139,6 +142,11 @@ module SolidObjects
       commit_action_registry.register(name, handler)
     end
 
+    # @rbs () -> ObserverRegistry
+    def observer_registry
+      @observer_registry ||= ObserverRegistry.new
+    end
+
     # @rbs () -> Client
     def client
       require "solid_objects/client"
@@ -203,6 +211,8 @@ module SolidObjects
       @caller_process = nil
       @effect_registry = EffectRegistry.new
       @commit_action_registry = CommitActionRegistry.new
+      @observer_registry&.clear
+      @observer_registry = ObserverRegistry.new
       @dead_letters = nil
       @redrives = nil
       @administration = nil

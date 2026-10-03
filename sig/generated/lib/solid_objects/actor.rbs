@@ -348,6 +348,12 @@ module SolidObjects
     # @rbs () -> void
     def discard_intents: () -> void
 
+    # @rbs () -> Integer
+    def intent_count: () -> Integer
+
+    # @rbs [Result] (String) { () -> Result } -> Result
+    def read_projection: [Result] (String) { () -> Result } -> Result
+
     private
 
     attr_reader effect_intents: untyped
@@ -359,6 +365,9 @@ module SolidObjects
     attr_reader reminder_intents: untyped
 
     attr_reader outbound_message_intents: untyped
+
+    # @rbs () -> Array[Array[Hash[Symbol, Object]]]
+    def intent_snapshot: () -> Array[Array[Hash[Symbol, Object]]]
 
     # @rbs (String) { () -> untyped } -> untyped
     def guard_application_writes: (String) { () -> untyped } -> untyped

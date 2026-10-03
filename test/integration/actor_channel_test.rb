@@ -7,11 +7,13 @@ require "action_view/test_case"
 require "action_view/testing/resolvers"
 require "cgi/escape"
 require_relative "../../app/helpers/solid_objects/actor_helper"
+require "portable_telemetry_assertions"
 
 ActionCable.server.config.cable = { "adapter" => "test" }
 
 class ActorChannelTest < ActionCable::Channel::TestCase
   tests SolidObjects::ActorChannel
+  include PortableTelemetryAssertions
 
   class ChannelActor < SolidObjects::Actor
     actor_type "channel-actor"
@@ -68,6 +70,8 @@ class ActorChannelTest < ActionCable::Channel::TestCase
   end
 
   test "subscribes to scalar updates through rendered Turbo data" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
     reference = ChannelActor.ref("actor-1")
     SolidObjects.configuration.authorize_subscription = ->(**) { true }
     parameters = rendered_subscription_parameters(reference) do |actor|
@@ -96,6 +100,8 @@ class ActorChannelTest < ActionCable::Channel::TestCase
     updates = transmissions.select { |transmission| transmission.include?(target) }
     assert_equal 2, updates.length
     assert_includes updates.last, ">1</span>"
+    unsubscribe
+    assert_portable_events(events, %w[realtime.connected realtime.disconnected])
   ensure
     worker&.stop
   end

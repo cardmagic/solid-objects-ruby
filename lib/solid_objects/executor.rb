@@ -4,12 +4,14 @@ module SolidObjects
   class Executor
     # @rbs @activation: Activation
     # @rbs @message: Message
+    # @rbs @started_at: Float
     # @rbs @completion_transaction: untyped
 
     # @rbs (activation: Activation, message: Message) -> void
     def initialize(activation:, message:)
       @activation = activation
       @message = message
+      @started_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
     end
 
     # @rbs () -> bool
@@ -24,11 +26,12 @@ module SolidObjects
         request_id: message.request_id
       )
 
+      SolidObjects.instrument(:"recovery.reclaimed", **instrumentation_payload) if message.attempt_count > 1 && message.error.nil?
       SolidObjects.instrument(:"message.started", **instrumentation_payload)
       result = invoke_actor(message_context)
       observable_changes = changed_observables(observables_before, actor.observable_values)
       state_after = actor.state.to_h_with_byte_size
-      ensure_query_did_not_mutate_state!(state_before, state_after.value)
+      ensure_query_is_read_only!(state_before, state_after.value)
       complete(
         result,
         observable_changes,
@@ -66,13 +69,12 @@ module SolidObjects
       end
     end
 
-    # @rbs (Hash[String, untyped], Hash[String, untyped]) -> void
-    def ensure_query_did_not_mutate_state!(state_before, state_after)
-      return unless message.delivery_mode == "sync"
+    # @rbs (Hash[String, json_value], Hash[String, json_value]) -> void
+    def ensure_query_is_read_only!(state_before, state_after)
       return unless actor.class.definition.queries.key?(message.operation.to_sym)
-      return if state_after == state_before
 
-      raise InvalidActor, "query #{message.operation.inspect} mutated actor state"
+      raise QueryMutatedState, "query #{message.operation.inspect} mutated actor state" if state_after != state_before
+      raise QueryMutatedState, "query #{message.operation.inspect} staged durable work" if actor.intent_count.positive?
     end
 
     # @rbs (Hash[String, untyped], Hash[String, untyped]) -> Hash[String, untyped]
@@ -86,7 +88,7 @@ module SolidObjects
     def complete(result, observable_changes, state_after:, state_changed:)
       ensure_state_fits!(state_after.byte_size)
       serialized_result = Serialization.dump(
-        (message.delivery_mode == "sync") ? result : nil,
+        result,
         max_bytes: SolidObjects.configuration.max_result_bytes
       )
       effect_intents = actor.drain_effect_intents
@@ -156,8 +158,9 @@ module SolidObjects
           actor_id: message.actor_id
         )
       end
+      SolidObjects.instrument_after_commit(:"recovery.completed", **instrumentation_payload) if recovery_message?
       report_large_state(state_after.byte_size)
-      SolidObjects.instrument_after_commit(:"message.completed", **instrumentation_payload)
+      SolidObjects.instrument_after_commit(:"message.completed", **instrumentation_payload, revision: message.sequence, duration_milliseconds: elapsed_milliseconds)
       SolidObjects.wake_up.signal
     rescue CommittedTransactionError
       raise
@@ -209,11 +212,8 @@ module SolidObjects
     # @rbs (intent: Actor::CommitActionIntent, handler: Proc, context: CommitActionContext) -> untyped
     def execute_commit_action(intent:, handler:, context:)
       payload = {
+        **instrumentation_payload,
         commit_action_name: intent.name,
-        message_id: message.id,
-        request_id: message.request_id,
-        actor_type: message.actor_type,
-        actor_id: message.actor_id,
         activation_generation: activation.lease.generation
       }
       SolidObjects.instrument(:"commit_action.started", **payload)
@@ -224,8 +224,7 @@ module SolidObjects
       SolidObjects.instrument(
         :"commit_action.failed",
         **payload,
-        error_class: error.class.name,
-        error_message: error.message
+        error_class: error.class.name
       )
       raise
     end
@@ -421,8 +420,13 @@ module SolidObjects
         :"message.failed",
         **instrumentation_payload,
         error_class: error.class.name,
+        duration_milliseconds: elapsed_milliseconds,
+        retryable: !error.is_a?(NonRetryableError),
+        outcome: dead ? "dead" : "retrying",
         dead:
       )
+      SolidObjects.instrument_after_commit(:"recovery.failed", **instrumentation_payload) if dead && recovery_message?
+      SolidObjects.instrument_after_commit(dead ? :"dead_letter.created" : :"message.retry", **instrumentation_payload)
       SolidObjects.wake_up.signal
     end
 
@@ -458,7 +462,8 @@ module SolidObjects
       SolidObjects.instrument_after_commit(
         :"message.rejected",
         **instrumentation_payload,
-        code: rejection.code
+        code: rejection.code,
+        duration_milliseconds: elapsed_milliseconds
       )
       SolidObjects.wake_up.signal
     end
@@ -520,15 +525,28 @@ module SolidObjects
       )
     end
 
+    # @rbs () -> bool
+    def recovery_message?
+      message.delivery_mode == "internal" && message.idempotency_key.to_s.start_with?("effect:") && message.idempotency_key.to_s.end_with?(":recovery")
+    end
+
+    # @rbs () -> (Integer | Float)
+    def elapsed_milliseconds
+      ((::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - @started_at) * 1000).round(3)
+    end
+
     # @rbs () -> Hash[Symbol, untyped]
     def instrumentation_payload
       {
+        instance_id: message.instance_id,
         message_id: message.id,
         actor_type: message.actor_type,
         actor_id: message.actor_id,
         sequence: message.sequence,
         attempt: message.attempt_count,
-        request_id: message.request_id
+        request_id: message.request_id,
+        operation: message.operation,
+        delivery_mode: message.delivery_mode
       }
     end
   end

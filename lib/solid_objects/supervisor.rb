@@ -97,8 +97,7 @@ module SolidObjects
         rescue => error
           SolidObjects.instrument(
             :"supervisor.monitor_failed",
-            error_class: error.class.name,
-            error_message: error.message
+            error_class: error.class.name
           )
         end
         sleep SolidObjects.configuration.supervisor_monitor_interval
@@ -161,8 +160,7 @@ module SolidObjects
           failures += 1
           SolidObjects.instrument(
             :"supervisor.retention_failed",
-            error_class: error.class.name,
-            error_message: error.message
+            error_class: error.class.name
           )
         end
         wait_for_next_retention(failures)
@@ -220,8 +218,7 @@ module SolidObjects
     rescue => error
       SolidObjects.instrument(
         :"supervisor.redrive_failed",
-        error_class: error.class.name,
-        error_message: error.message
+        error_class: error.class.name
       )
       false
     end

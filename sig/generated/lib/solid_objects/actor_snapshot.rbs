@@ -12,6 +12,8 @@ module SolidObjects
 
     @revision: Integer
 
+    @state_data: Hash[String, json_value]
+
     @observable_values: Hash[String, untyped]?
 
     @observable_value_cache: Hash[String, untyped]
@@ -35,11 +37,14 @@ module SolidObjects
     # @rbs (Symbol | String) -> untyped
     def observable_value: (Symbol | String) -> untyped
 
+    # @rbs () -> Actor
+    def build_actor: () -> Actor
+
     private
 
     attr_reader instance: untyped
 
-    # @rbs () -> Actor
-    def build_actor: () -> Actor
+    # @rbs () -> Hash[String, json_value]
+    def migrated_state: () -> Hash[String, json_value]
   end
 end

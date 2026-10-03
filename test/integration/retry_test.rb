@@ -44,7 +44,7 @@ class RetryTest < ActiveSupport::TestCase
     message = SolidObjects::Message.find(message_reference.id)
     assert_equal 2, message.attempt_count
     assert message.completed?
-    assert_nil message.result
+    assert_equal 1, message.result
     assert_equal({ "executions" => 1 }, message.instance.state)
   ensure
     worker&.stop

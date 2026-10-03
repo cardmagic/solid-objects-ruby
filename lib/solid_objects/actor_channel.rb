@@ -49,12 +49,20 @@ module SolidObjects
       end
       refresh_outdated_components(snapshot)
       transmit_state_payloads(snapshot)
+      SolidObjects.instrument(:"realtime.connected", actor_type: reference.actor_type, actor_id: reference.actor_id)
     rescue KeyError,
       JSON::ParserError,
       InvalidStreamToken,
       InvalidComponentToken,
       UnknownActorType => error
       reject_and_report(reject_reason(error), actor_type:, actor_id:, error:)
+    end
+
+    # @rbs () -> void
+    def unsubscribed
+      return unless reference
+
+      SolidObjects.instrument(:"realtime.disconnected", actor_type: reference.actor_type, actor_id: reference.actor_id)
     end
 
     private
@@ -141,7 +149,7 @@ module SolidObjects
       true
     rescue => error
       SolidObjects.instrument(
-        :payload_broadcast_failed,
+        :"payload_broadcast.failed",
         actor_type: reference.actor_type,
         actor_id: reference.actor_id,
         payload_name: name,

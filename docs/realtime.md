@@ -347,8 +347,9 @@ object or array so the wire format stays inspectable.
 A payload is one subscriber's view of one name, so a failure is confined to it.
 A raising block does not reject the subscription, stop the other payload names,
 or stop component refreshes on the same connection. The failure is reported as
-`solid_objects.payload_broadcast_failed` carrying the actor type, actor id,
-payload name, and exception class. The exception message is deliberately not
+`solid_objects.payload_broadcast.failed` carrying the actor type, actor id,
+payload name, and exception class. The Active Support payload names the payload
+`payload_name`; the portable instrumentation event names it `payload`. The exception message is deliberately not
 included: a payload block reads subscriber state, so its message is the one
 place that state could leak into logs.
 
@@ -356,7 +357,7 @@ A revision with a failed payload does not advance the delivery watermark, so a
 transient failure is retried on the next broadcast rather than being recorded as
 delivered. Retries are driven by broadcasts rather than a timer, so a payload
 that fails persistently retries once per actor mutation and reports each
-attempt. A repeating stream of `payload_broadcast_failed` for one `payload_name`
+attempt. A repeating stream of `payload_broadcast.failed` for one `payload_name`
 therefore means a persistent fault in that block, not a one-off; a single event
 that does not recur was transient and has already been recovered.
 

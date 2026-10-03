@@ -16,6 +16,25 @@ module SolidObjects
       freeze
     end
 
+    # @rbs (?limit: Integer, ?authorization_context: untyped) -> actor_diagnostics
+    def diagnostics(limit: 100, authorization_context: nil)
+      Diagnostics.new(self).summary(limit:, authorization_context:)
+    end
+
+    # @rbs (?authorization_context: untyped) { (portable_event) -> void } -> Proc
+    def observe(authorization_context: nil, &block)
+      Diagnostics.new(self).observe(authorization_context:, &block)
+    end
+
+    # @rbs (String, ?authorization_context: untyped) { (portable_event) -> void } -> Proc
+    def on(name, authorization_context: nil, &block)
+      raise ArgumentError, "an actor observer requires a block" unless block
+
+      observe(authorization_context:) do |event|
+        block.call(event) if event.fetch("name") == "solid_objects.#{name}"
+      end
+    end
+
     # @rbs (?available_at: Time?, ?idempotency_key: String?, ?authorization_context: untyped) -> OperationDispatcher
     def async(available_at: nil, idempotency_key: nil, authorization_context: nil)
       OperationDispatcher.new(

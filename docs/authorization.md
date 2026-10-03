@@ -13,12 +13,19 @@ answers nothing until the host application defines its trust boundary.
 | `authorize_query` | Attribute reads, declared queries, committed snapshots, scalar observable reads, initial component rendering, and every component refresh dependency | Explicit call context, the context passed to `solid_object`, or the request context resolved for a component refresh | Actor state or personalized projections can leak across users or tenants |
 | `authorize_destroy` | `reference.destroy` | Value passed as `authorization_context:` | Complete actor state, mailbox, reminders, and pending outboxes can be deleted |
 | `authorize_subscription` | Action Cable subscription to one actor stream | The `ActionCable::Connection` object | Clients can receive future observable updates for other actors |
-| `authorize_administration` | Engine administration controllers, every `SolidObjects::Web` page, process inspection/cleanup/pruning, message pruning, and dead-letter inspection/retry | Rails controller, a `SolidObjects::Web` request that answers `request`/`session`/`env`, or `{ source: "cli" }` | Operational metadata, arguments, errors, deletion, and retries become exposed or mutable |
+| `authorize_administration` | Engine administration controllers, every `SolidObjects::Web` page, process inspection/cleanup/pruning, message pruning, dead-letter inspection/retry, and actor diagnostics and observers | Rails controller, a `SolidObjects::Web` request that answers `request`/`session`/`env`, or `{ source: "cli" }` | Operational metadata, arguments, errors, deletion, and retries become exposed or mutable |
 
-Waiting again through `MessageReference#wait` reauthorizes the stored
-invocation as a message or query. Internal reminder, effect-callback, and
+Every `MessageReference#status`, `#result`, `#outcome`, and `#wait` call
+reauthorizes the stored operation and arguments as a message or query. Supply
+`authorization_context:` on each call, including after `find_by`; the reference
+does not retain the original caller's context. Internal reminder, effect-callback, and
 actor-to-actor deliveries come from
 already committed runtime rows and do not re-enter the public client policy.
+
+Actor diagnostics and actor observers call `authorize_administration` with the
+resource `actor_diagnostics` and the resource ID `[actor_type, actor_id].to_json`.
+`diagnostics` uses the action `:inspect`. `observe` and `on` use the action
+`:observe`. The check runs before any queue read or observer registration.
 
 ## Realtime authorization contexts
 

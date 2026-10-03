@@ -82,7 +82,17 @@
         "actorType": "transmit-counters",
         "actorId": "fixture-counter",
         "operation": "increment",
-        "arguments": [ 1 ]
+        "arguments": [1]
+      }
+    },
+    {
+      "name": "null arguments",
+      "envelope": {
+        "effectId": "fixture-effect-0008",
+        "actorType": "transmit-counters",
+        "actorId": "fixture-counter",
+        "operation": "increment",
+        "arguments": null
       }
     }
   ]

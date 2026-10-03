@@ -459,7 +459,9 @@ module SolidObjects
 
     # @rbs () -> Hash[String, untyped]
     def observable_values
-      guard_application_writes("observables") do
+      return {} if self.class.definition.observables.empty?
+
+      read_projection("observables") do
         self.class.definition.observables.each_with_object({}) do |(name, handler), values|
           values[name.to_s] = Serialization.dump(instance_exec(&handler.block))
         end
@@ -472,7 +474,7 @@ module SolidObjects
       handler = self.class.definition.observables[observable_name]
       raise UnknownMessage, "unknown observable #{name.inspect}" unless handler
 
-      guard_application_writes("observable.#{observable_name}") do
+      read_projection("observable.#{observable_name}") do
         Serialization.dump(instance_exec(&handler.block))
       end
     end
@@ -537,6 +539,24 @@ module SolidObjects
       outbound_message_intents.clear
     end
 
+    # @rbs () -> Integer
+    def intent_count
+      effect_intents.length + effect_recovery_intents.length + commit_action_intents.length +
+        reminder_intents.length + outbound_message_intents.length
+    end
+
+    # @rbs [Result] (String) { () -> Result } -> Result
+    def read_projection(operation)
+      state_before = state.to_h
+      intents_before = intent_snapshot
+      result = guard_application_writes(operation) { yield }
+      unless state.to_h == state_before && intent_snapshot == intents_before
+        raise QueryMutatedState, "projections must not mutate actor state or stage durable work"
+      end
+
+      result
+    end
+
     private
 
     attr_reader :effect_intents,
@@ -544,6 +564,13 @@ module SolidObjects
       :commit_action_intents,
       :reminder_intents,
       :outbound_message_intents
+
+    # @rbs () -> Array[Array[Hash[Symbol, Object]]]
+    def intent_snapshot
+      [ effect_intents, effect_recovery_intents, commit_action_intents, reminder_intents, outbound_message_intents ].map do |intents|
+        intents.map { |intent| intent.to_h.deep_dup }
+      end
+    end
 
     # @rbs (String) { () -> untyped } -> untyped
     def guard_application_writes(operation, &block)

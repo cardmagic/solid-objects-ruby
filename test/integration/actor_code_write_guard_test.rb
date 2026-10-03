@@ -68,10 +68,13 @@ class ActorCodeWriteGuardTest < ActiveSupport::TestCase
   end
 
   test "activation hook writes fail before actor code runs" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
     error = assert_raises(SolidObjects::ApplicationWriteForbidden) do
       ActivatingActor.ref("one").run
     end
 
+    assert events.any? { |event| event.fetch("name") == "solid_objects.activation.failed" }
     assert_equal "on_activate", error.operation
     assert_empty SolidObjectsTestDomainRecord.all
     assert_equal "ready", SolidObjects::MessageReference.from_message(SolidObjects::Message.last).status

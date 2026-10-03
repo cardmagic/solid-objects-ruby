@@ -1,5 +1,72 @@
 # Changelog
 
+## 0.17.0 - 2026-10-03
+
+- Publish RBS types for portable events, metric samples, actor diagnostics, and
+  event observers in `sig/public/telemetry.rbs`, and a `json_value` type for
+  message results and actor state. Observer blocks, diagnostics, and results now
+  type-check against these contracts instead of `untyped`.
+- **Breaking:** `solid_objects.activation.started` now fires before the actor's
+  `activate` hook. Before, it fired after a successful hook. The new
+  `solid_objects.activation.completed` event takes that meaning, and
+  `solid_objects.activation.failed` reports a failed hook. JavaScript changes
+  the same events. Move a subscriber that reads `activation.started` as a
+  finished activation to `activation.completed`.
+- **Breaking:** Active Support payloads no longer carry `error_message`. This
+  applies to `commit_action.failed`, `activation.deactivation_failed`,
+  `supervisor.monitor_failed`, `supervisor.retention_failed`,
+  `supervisor.redrive_failed`, and `wake_up.failed`. The
+  `solid_objects.worker.error` log entry also omits it. Each keeps
+  `error_class`. Exception text can contain actor state, so JavaScript already
+  reports only the error name.
+
+- **Breaking:** rename `solid_objects.payload_broadcast_failed` to
+  `solid_objects.payload_broadcast.failed`, the dotted form that every other
+  event uses. Update Active Support subscribers to the new name. The portable
+  event names the payload `payload`.
+- Match portable event attributes to JavaScript through the shared
+  `compatibility/telemetry-events.json` contract. Message events carry
+  `operation` and `deliveryMode`, `message.failed` carries `retryable` and
+  `outcome`, commit action events carry the message fields and `commitAction`,
+  and `reminder.enqueued` carries `operation`. `outbox.age` carries the effect or
+  broadcast identity, `sync.enqueue_timeout` carries `timeoutMilliseconds`, and
+  polling intervals are integers. `realtime.connected` carries only actor fields.
+- Log `solid_objects.instrumentation.failed` when an exporter or observer raises.
+  Observers require a block, a process accepts at most 1,000 observers, and
+  `SolidObjects.reset!` removes them. Pin reserved JSON keys through actor
+  arguments, state, and retained results.
+
+- Guard personalized payload projections against state changes, staged work,
+  and application database writes. Each payload gets an isolated actor from
+  the committed snapshot and honors `max_payload_bytes`, matching JavaScript.
+- Preserve timeout wait reasons, activation owner IDs, and activation generations
+  in portable telemetry using the shared camelCase fields and reason values.
+- Use a yielding SQLite busy handler for background transactions so concurrent
+  writers can finish on Rails 7.1 and 7.2. Preserve configured wait limits and
+  synchronous deadlines; cover contention with a coordinated lock regression.
+
+- **Breaking:** reject query and observable state mutation and staged durable
+  work with terminal `QueryMutatedState` errors. Cover individual snapshot
+  projections and preserve ordinary operations' already-staged work while
+  reading projections, including replacements that leave the intent count
+  unchanged.
+- Pin reserved JSON property names with shared Ruby/JS fixtures. Document the
+  reminder-name limit difference and the authorized dead-transmit retry API.
+
+- **Breaking:** reauthorize every message-reference status, result, and outcome
+  read against the original invocation. Pass `authorization_context:` on every
+  read.
+- **Breaking:** retain immutable JSON results for background and internal
+  messages as well as synchronous calls. All operations now enforce result
+  serialization and size limits; return `nil` explicitly when an operation does
+  not need a result. `result` raises terminal rejection/failure errors;
+  `outcome` exposes them as data.
+- Preserve polling transition intervals in milliseconds and string reasons in
+  portable telemetry. Pin transmit staging order and null-argument validation
+  against the shared JavaScript contract.
+
+- Add portable telemetry, isolated observer hooks, metric definitions, and bounded authorized actor diagnostics matching JavaScript.
+
 ## 0.16.1 - 2026-10-02
 
 - Fix the SQLite join order of the claimed-message scan. The query in

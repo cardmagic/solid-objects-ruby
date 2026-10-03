@@ -2,8 +2,19 @@
 
 ## Implemented and tested
 
+- Portable telemetry with a shared JSON schema, metric samples, isolated observer
+  callbacks, bounded authorized actor diagnostics, and matching timeout wait
+  reasons and activation metadata. Both test suites check the attribute keys of
+  each core SQL event against `compatibility/telemetry-events.json`. See
+  [observability](observability.md).
+
 - Rails engine, install generator, migration, and CLI
 - Explicit actor registry, references, JSON state, and state migrations
+- Queries, observable projections, and personalized payloads reject state mutation
+  and staged durable work with `QueryMutatedState`, matching JavaScript. Query
+  and observable violations fail terminally; a payload violation is confined to
+  that payload. Shared JSON fixtures preserve reserved property names as ordinary
+  data in both runtimes.
 - Fluent direct synchronous RPC, configured `sync`, and durable `async`
 - Durable message history plus ready/claimed membership tables
 - Concurrent sequence allocation and actor creation. An enqueue finds the
@@ -55,7 +66,9 @@
   subscriber's authorization context, fenced by actor revision, resolved through
   `payload_authorization_context` so the block and `authorize_query` see the
   same subject a controller render passes, and confined so one failing payload
-  cannot reject the subscription or stop its siblings
+  cannot reject the subscription or stop its siblings. Each payload uses an
+  isolated actor from the same committed snapshot, prevents application database
+  writes, and enforces the configured `max_payload_bytes` limit
 - Reconciliation read APIs
 - Installation doctor, authorization reference, fit guide, and legacy-state
   migration cookbook. The doctor names every column that a migration after the
@@ -119,6 +132,9 @@
   batched and unbatched components, an inert replay of an applied revision,
   cancellation of the request left in flight by the drop, incarnation ordering
   after a destroy and recreate, and payload delivery exactly once per revision
+- Authorized message-reference reads recheck the original operation and arguments,
+  return immutable JSON results for every delivery mode, and raise terminal errors
+  from `result` while `outcome` exposes them as data.
 - Result lookup by request ID and by idempotency key, authorized with the hook
   the original call ran and against the stored operation and arguments. An
   actor remembers the idempotency keys of its own last `retained_idempotency_keys`

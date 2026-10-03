@@ -162,6 +162,7 @@ Exactly once is not hiding in a more advanced configuration. Read the
 - [Five-minute Rails guide](https://solidobjects.dev/5min/rails)
 - [Choosing Solid Objects](docs/fit.md)
 - [Operations and recovery](docs/operations.md)
+- [Observability and diagnostics](docs/observability.md)
 - [Reminders](docs/reminders.md)
 - [Reactive ERB](docs/realtime.md)
 - [Detailed architecture](docs/architecture.md)

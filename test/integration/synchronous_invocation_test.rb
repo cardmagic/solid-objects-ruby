@@ -4,8 +4,11 @@ require "database_test_helper"
 require "solid_objects/mailbox"
 require "solid_objects/synchronous_invocation"
 require "timeout"
+require "portable_telemetry_assertions"
 
 class SynchronousInvocationTest < ActiveSupport::TestCase
+  include PortableTelemetryAssertions
+
   class CounterActor < SolidObjects::Actor
     actor_type "synchronous-counter"
 
@@ -338,6 +341,8 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync does not steal an unexpired activation" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
     reference = CounterActor.ref("leased")
     reference.async.increment
     instance = SolidObjects::Instance.find_by!(
@@ -363,6 +368,10 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     assert_equal timed_out_message.sequence, error.sequence
     assert_equal "ready", error.status
     assert_equal "activation_held", error.waiting_on
+    attributes = events.find { |event| event.fetch("name") == "solid_objects.sync.timeout" }.fetch("attributes")
+    assert_equal "activationHeld", attributes.fetch("waitingOn")
+    assert_equal process_record.id, attributes.fetch("activationOwnerId")
+    assert_equal lease.generation.to_s, attributes.fetch("activationGeneration")
     assert_equal process_record.id, error.activation.fetch("owner_id")
     assert_equal "worker", error.activation.fetch("process").fetch("kind")
     assert_equal "test-host", error.activation.fetch("process").fetch("hostname")
@@ -391,7 +400,8 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     assert_raises(SolidObjects::Unauthorized) do
       message_reference.wait(timeout: 1)
     end
-    assert_equal "ready", message_reference.status
+    assert_raises(SolidObjects::Unauthorized) { message_reference.status }
+    assert SolidObjects::Message.find(message_reference.id).ready?
   end
 
   test "sync database lock waits are bounded by the invocation deadline" do
@@ -405,7 +415,7 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     result = Queue.new
     invocation = Thread.new do
       result << capture_exception do
-        SolidObjects::SynchronousInvocation.new.call(message_reference, timeout: 0.25)
+        SolidObjects::SynchronousInvocation.new.call(message_reference, timeout: 1)
       end
     end
 
@@ -430,11 +440,11 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
 
     started_at = monotonic_now
     DeadlineActor.continue << true
-    error = Timeout.timeout(2) { result.pop }
+    error = Timeout.timeout(3) { result.pop }
     elapsed = monotonic_now - started_at
 
     assert_instance_of SolidObjects::SyncTimeout, error
-    assert_operator elapsed, :<, 1.5
+    assert_operator elapsed, :<, 2
     assert_equal message_reference.id, error.message_id
   ensure
     DeadlineActor.continue << true if invocation&.alive?
@@ -444,6 +454,8 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
   end
 
   test "sync bounds database lock waits while durably enqueueing" do
+    events = []
+    SolidObjects.configuration.instrumentation = ->(event) { events << event }
     reference = CounterActor.ref("enqueue-locked")
     reference.increment
     instance = actor_instance("enqueue-locked")
@@ -471,6 +483,9 @@ class SynchronousInvocationTest < ActiveSupport::TestCase
     assert_equal "synchronous-counter", error.actor_type
     assert_equal "enqueue-locked", error.actor_id
     assert_equal "increment", error.operation
+    assert_portable_events(events, %w[sync.enqueue_timeout])
+    timeout = events.find { |event| event.fetch("name") == "solid_objects.sync.enqueue_timeout" }
+    assert_equal 250, timeout.fetch("attributes").fetch("timeoutMilliseconds")
     release_lock.push(true)
     blocker.join
     release_lock = nil

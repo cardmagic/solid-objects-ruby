@@ -21,6 +21,11 @@ class TransmitStagingTest < ActiveSupport::TestCase
         actorId: "mirror-1"
     end
 
+    def stage_pair
+      transmit.increment(amount: 1)
+      transmit.increment(amount: 2)
+    end
+
     def stage_invalid
       emit "solid-objects.transmit", arguments: { amount: 1 }
     end
@@ -156,6 +161,22 @@ class TransmitStagingTest < ActiveSupport::TestCase
     worker.run_until_idle
 
     assert_equal({ "count" => 3, "applied" => [ 1, 2 ] }, mirror_state)
+  end
+
+  test "keeps staging order within one turn across a failed delivery" do
+    failures_remaining = 1
+    SolidObjects.register_transmit do |envelope|
+      if envelope.dig("arguments", "amount") == 1 && failures_remaining.positive?
+        failures_remaining -= 1
+        raise "network down"
+      end
+      deliver_to_mirror(envelope)
+    end
+    CounterActor.ref("alice").async.stage_pair
+    worker.run_until_idle
+    drain_effects
+    worker.run_until_idle
+    assert_equal [ 1, 2 ], mirror_state.fetch("applied")
   end
 
   test "a later claimed effect delivers an undelivered earlier sibling first" do

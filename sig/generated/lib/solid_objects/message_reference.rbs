@@ -28,14 +28,14 @@ module SolidObjects
     # @rbs (id: Integer, request_id: String, actor_type: String, actor_id: String, sequence: Integer) -> void
     def initialize: (id: Integer, request_id: String, actor_type: String, actor_id: String, sequence: Integer) -> void
 
-    # @rbs () -> String
-    def status: () -> String
+    # @rbs (?authorization_context: untyped) -> String
+    def status: (?authorization_context: untyped) -> String
 
-    # @rbs () -> untyped
-    def result: () -> untyped
+    # @rbs (?authorization_context: untyped) -> json_value
+    def result: (?authorization_context: untyped) -> json_value
 
-    # @rbs () -> Outcome
-    def outcome: () -> Outcome
+    # @rbs (?authorization_context: untyped) -> Outcome
+    def outcome: (?authorization_context: untyped) -> Outcome
 
     # @rbs (?timeout: Numeric, ?authorization_context: untyped) -> untyped
     def wait: (?timeout: Numeric, ?authorization_context: untyped) -> untyped

@@ -17,6 +17,9 @@ module SolidObjects
     # @rbs () -> bool
     def dead?: () -> bool
 
+    # @rbs () -> json_value
+    def result!: () -> json_value
+
     private
 
     # @rbs () -> void

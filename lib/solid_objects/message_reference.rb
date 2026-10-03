@@ -33,20 +33,20 @@ module SolidObjects
       freeze
     end
 
-    # @rbs () -> String
-    def status
-      Message.uncached { status_of(Message.find(id)) }
+    # @rbs (?authorization_context: untyped) -> String
+    def status(authorization_context: nil)
+      status_of(SolidObjects.client.read_message(self, authorization_context:))
     end
 
-    # @rbs () -> untyped
-    def result
-      Message.uncached { Message.find(id).result }
+    # @rbs (?authorization_context: untyped) -> json_value
+    def result(authorization_context: nil)
+      SolidObjects.client.read_message(self, authorization_context:).result!
     end
 
-    # @rbs () -> Outcome
-    def outcome
+    # @rbs (?authorization_context: untyped) -> Outcome
+    def outcome(authorization_context: nil)
       Message.uncached do
-        message = Message.find(id)
+        message = SolidObjects.client.read_message(self, authorization_context:)
         Outcome.new(
           status: status_of(message),
           result: Serialization.readonly_copy(message.result),

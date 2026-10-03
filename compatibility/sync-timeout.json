@@ -1,0 +1,10 @@
+[
+  { "rubyReason": "actor_paused", "waitingOn": "actorPaused" },
+  { "rubyReason": "activation_held", "waitingOn": "activationHeld" },
+  { "rubyReason": "earlier_message", "waitingOn": "earlierMessage" },
+  { "rubyReason": "message_claimed", "waitingOn": "messageClaimed" },
+  { "rubyReason": "not_yet_available", "waitingOn": "notYetAvailable" },
+  { "rubyReason": "ready_unclaimed", "waitingOn": "readyUnclaimed" },
+  { "rubyReason": "database_contention", "waitingOn": "databaseContention" },
+  { "rubyReason": "unknown", "waitingOn": "unknown" }
+]

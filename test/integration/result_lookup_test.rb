@@ -19,6 +19,11 @@ class ResultLookupTest < ActiveSupport::TestCase
       { "order_id" => order_id }
     end
 
+    def oversized_result
+      self.items += 1
+      "x" * 128
+    end
+
     def reject_checkout
       reject("closed", "the cart is closed")
     end
@@ -32,6 +37,68 @@ class ResultLookupTest < ActiveSupport::TestCase
     SolidObjects.configuration.retry_delay = ->(_attempt) { 0 }
     SolidObjects.configuration.max_attempts = 1
     CartActor.fail = false
+  end
+
+  test "reauthorizes every message read with the original operation and arguments" do
+    reference = CartActor.ref("alice")
+    reference.sync(idempotency_key: "protected").checkout(order_id: 42)
+    message = reference.find_by(idempotency_key: "protected")
+    reads = []
+    SolidObjects.configuration.authorize_message = ->(operation:, arguments:, authorization_context:, **) do
+      reads << [ operation, arguments, authorization_context ]
+      authorization_context == "operator"
+    end
+
+    %i[status result outcome].each do |method|
+      assert_raises(SolidObjects::Unauthorized) { message.public_send(method) }
+      assert message.public_send(method, authorization_context: "operator")
+    end
+    assert_equal 6, reads.length
+    assert reads.all? { |operation, arguments, _| operation == "checkout" && arguments == { "order_id" => 42 } }
+    SolidObjects.configuration.authorize_message = ->(**) { false }
+    %i[status result outcome].each do |method|
+      assert_raises(SolidObjects::Unauthorized) { message.public_send(method, authorization_context: "operator") }
+    end
+  end
+
+  test "query result reads use the query policy" do
+    CartActor.ref("alice").sync(idempotency_key: "query").total
+    message = CartActor.ref("alice").find_by(idempotency_key: "query")
+    SolidObjects.configuration.authorize_query = ->(**) { false }
+    %i[status result outcome].each do |method|
+      assert_raises(SolidObjects::Unauthorized) { message.public_send(method) }
+    end
+  end
+
+  test "message reads refuse forged invocation identity" do
+    CartActor.ref("alice").sync.checkout(order_id: 42)
+    stored = SolidObjects::Message.sole
+    forged = SolidObjects::MessageReference.new(id: stored.id, request_id: "wrong", actor_type: stored.actor_type, actor_id: stored.actor_id, sequence: stored.sequence)
+    %i[status result outcome].each do |method|
+      assert_raises(SolidObjects::Unauthorized) { forged.public_send(method) }
+    end
+  end
+
+  test "result raises terminal failures while outcome remains inspectable" do
+    CartActor.fail = true
+    message = CartActor.ref("alice").async.checkout(order_id: 1)
+    run_actors
+    assert_raises(SolidObjects::MessageFailed) { message.result }
+    assert_equal "dead", message.outcome.status
+    rejected = CartActor.ref("alice").async.reject_checkout
+    run_actors
+    assert_raises(SolidObjects::Rejected) { rejected.result }
+    assert_equal "rejected", rejected.outcome.status
+  end
+
+  test "background result size limits roll back the actor state" do
+    SolidObjects.configuration.max_result_bytes = 32
+    reference = CartActor.ref("size-limit")
+    message = reference.async.oversized_result
+    run_actors
+    assert_raises(SolidObjects::MessageFailed) { message.result }
+    assert_equal "SolidObjects::PayloadTooLarge", message.outcome.error.class_name
+    assert_equal 0, reference.snapshot.items
   end
 
   test "finds a completed message by request id and reads its result" do
@@ -48,14 +115,15 @@ class ResultLookupTest < ActiveSupport::TestCase
     assert_equal({ "order_id" => 4210 }, found.result)
   end
 
-  test "reports no result for a message that was enqueued asynchronously" do
+  test "retains the result of a message that was enqueued asynchronously" do
     original = CartActor.ref("alice").async.checkout(order_id: 4210)
     run_actors
 
     found = SolidObjects.client.find_by(request_id: original.request_id)
 
     assert_equal "completed", found.status
-    assert_nil found.result
+    assert_equal({ "order_id" => 4210 }, found.result)
+    assert found.result.frozen?
   end
 
   test "finds a completed message by idempotency key on its reference" do

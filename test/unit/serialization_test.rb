@@ -3,6 +3,21 @@
 require "test_helper"
 
 class SerializationTest < ActiveSupport::TestCase
+  JSON.parse(File.read(File.expand_path("../../compatibility/json-values.json", __dir__))).each do |fixture|
+    test "preserves #{fixture.fetch("name")} as JSON data" do
+      value = fixture.fetch("value")
+
+      assert_equal value, SolidObjects::Serialization.dump(value)
+      assert_equal value, SolidObjects::Serialization.readonly_copy(value)
+    end
+  end
+
+  test "includes reserved keys in the encoded byte limit" do
+    assert_raises(SolidObjects::PayloadTooLarge) do
+      SolidObjects::Serialization.dump({ "__proto__" => "long payload" }, max_bytes: 2)
+    end
+  end
+
   test "normalizes symbol keys and nested values" do
     value = SolidObjects::Serialization.dump({
       product_id: "shirt",

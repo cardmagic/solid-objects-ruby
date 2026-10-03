@@ -78,27 +78,7 @@ module SolidObjects
 
     # @rbs (Message) -> untyped
     def completed_result(message)
-      raise_rejection(message) if message.rejected?
-      if message.dead?
-        raise MessageFailed.new(
-          "actor message failed permanently",
-          message_id: message.id,
-          details: message.error || {}
-        )
-      end
-
-      Serialization.readonly_copy(message.result)
-    end
-
-    # @rbs (Message) -> bot
-    def raise_rejection(message)
-      rejection = message.rejection
-      raise Rejected.new(
-        code: rejection.fetch("code"),
-        message: rejection.fetch("message"),
-        details: rejection.fetch("details"),
-        message_id: message.id
-      )
+      message.result!
     end
 
     # @rbs () -> ProcessRegistry

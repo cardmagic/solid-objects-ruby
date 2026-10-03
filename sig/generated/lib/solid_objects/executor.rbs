@@ -4,6 +4,8 @@ module SolidObjects
   class Executor
     @completion_transaction: untyped
 
+    @started_at: Float
+
     @message: Message
 
     @activation: Activation
@@ -26,8 +28,8 @@ module SolidObjects
     # @rbs (MessageContext) -> untyped
     def invoke_actor: (MessageContext) -> untyped
 
-    # @rbs (Hash[String, untyped], Hash[String, untyped]) -> void
-    def ensure_query_did_not_mutate_state!: (Hash[String, untyped], Hash[String, untyped]) -> void
+    # @rbs (Hash[String, json_value], Hash[String, json_value]) -> void
+    def ensure_query_is_read_only!: (Hash[String, json_value], Hash[String, json_value]) -> void
 
     # @rbs (Hash[String, untyped], Hash[String, untyped]) -> Hash[String, untyped]
     def changed_observables: (Hash[String, untyped], Hash[String, untyped]) -> Hash[String, untyped]
@@ -102,6 +104,12 @@ module SolidObjects
 
     # @rbs (message: Message, error_details: Hash[String, untyped], now: Time) -> DeadLetter
     def create_dead_letter: (message: Message, error_details: Hash[String, untyped], now: Time) -> DeadLetter
+
+    # @rbs () -> bool
+    def recovery_message?: () -> bool
+
+    # @rbs () -> (Integer | Float)
+    def elapsed_milliseconds: () -> (Integer | Float)
 
     # @rbs () -> Hash[Symbol, untyped]
     def instrumentation_payload: () -> Hash[Symbol, untyped]

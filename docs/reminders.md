@@ -65,7 +65,9 @@ key only decides which alarm is which.
 
 A key must be non-empty, and the name it becomes must fit the 191-character
 column, which is checked on the composed name rather than the key alone so a
-long operation and a short key are caught too.
+long operation and a short key are caught too. JavaScript allows 255 UTF-16 code
+units for the same combined name. These existing schema limits remain different;
+use at most 191 ASCII characters for names shared across runtimes.
 
 The key is separated from the operation by a colon, so an operation may not hold
 one. Otherwise an unkeyed `deliver:item` and a `deliver` keyed `item` would be

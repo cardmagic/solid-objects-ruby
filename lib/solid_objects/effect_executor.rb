@@ -137,6 +137,7 @@ module SolidObjects
 
     # @rbs (Effect) -> untyped
     def deliver(effect)
+      Telemetry.outbox(effect)
       return deliver_actor_message(effect) if effect.name == ACTOR_MESSAGE_EFFECT
 
       handler = SolidObjects.effect_registry.fetch(effect.name)
@@ -208,6 +209,9 @@ module SolidObjects
       Mailbox.new.announce(result_message) if result_message
       SolidObjects.instrument(
         :"effect.completed",
+        instance_id: effect.instance_id,
+        actor_type: effect.instance.actor_type,
+        actor_id: effect.instance.actor_id,
         effect_id: effect.effect_id,
         effect_name: effect.name,
         message_id: effect.message_id,

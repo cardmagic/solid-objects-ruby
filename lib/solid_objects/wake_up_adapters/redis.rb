@@ -208,8 +208,7 @@ module SolidObjects
           :"wake_up.failed",
           adapter: "redis",
           operation: operation.to_s,
-          error_class: error.class.name,
-          error_message: error.message
+          error_class: error.class.name
         )
       end
     end

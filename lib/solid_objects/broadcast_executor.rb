@@ -41,6 +41,7 @@ module SolidObjects
       broadcast = claim_next
       return false unless broadcast
 
+      Telemetry.outbox(broadcast)
       broadcast_adapter.call(broadcast)
       complete(broadcast)
       true

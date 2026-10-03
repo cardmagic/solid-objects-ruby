@@ -18,6 +18,9 @@ actor does the same with `transmit.increment(amount:)`. Either ingest
 accepts either sender, so Rails-to-Rails, Rails-to-Node, Node-to-Rails,
 and browser-to-Rails replication all ride one contract.
 
+An omitted `arguments` field defaults to `{}`. Explicit `null` and arrays are
+rejected by both runtimes. Shared fixtures cover this distinction.
+
 ## The sending side
 
 ```ruby
@@ -57,7 +60,7 @@ retries with backoff and dead-letters on exhaustion, like any other effect.
 
 The drain keeps per-actor order across failures: a claimed transmit effect
 delivers every undelivered sibling for its actor up to its own mailbox
-sequence, oldest first. The receiving side dedups on `transmit:<effectId>`,
+sequence, oldest first, preserving staging order within each turn. The receiving side dedups on `transmit:<effectId>`,
 so a redelivered envelope applies once.
 
 Delivery is at-least-once by design, and the drain accepts redundant sends
@@ -84,11 +87,19 @@ SolidObjects.configure do |configuration|
 end
 ```
 
-These settings apply to every effect, not only transmits. A dead transmit
-effect has no retry API; the dashboard lists it, and recovery means
-returning its row to `pending` with a cleared `attempt_count`. Order
-survives that recovery, because the drain orders by mailbox sequence, not
-by retry time.
+These settings apply to every effect, including transmits. Retry a dead transmit
+through the authorized administration API:
+
+```ruby
+SolidObjects.dead_letters.effects.retry(effect_id, authorization_context: operator)
+```
+
+Retry resets attempts and returns the effect to pending with its stable identity,
+so the receiver still deduplicates replays. The administration policy must allow
+`retry` on `effect_dead_letters`; the action is recorded in the audit log. Use
+`SolidObjects.dead_letters.effects.redrive(authorization_context: operator)` to
+recover a scope in bounded batches. Order survives recovery because the drain
+orders by source sequence and staging order.
 
 ## Wire contract
 

@@ -22,7 +22,13 @@ module SolidObjects
       def transaction(&block)
         return with_lock_retry { super } if SyncDeadline.active?
 
-        with_busy_retry { super }
+        with_busy_retry do
+          with_connection do |connection|
+            timeout = configured_busy_handler_timeout(connection)
+            connection.raw_connection.busy_handler_timeout = timeout if timeout
+            super
+          end
+        end
       end
 
       # A write outside a synchronous deadline has no Ruby-level budget, so it
