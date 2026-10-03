@@ -1,26 +1,26 @@
 # Changelog
 
-## Unreleased
+## 0.17.0 - 2026-10-03
 
 - Publish RBS types for portable events, metric samples, actor diagnostics, and
   event observers in `sig/public/telemetry.rbs`, and a `json_value` type for
   message results and actor state. Observer blocks, diagnostics, and results now
   type-check against these contracts instead of `untyped`.
-- `solid_objects.activation.started` now fires before the actor's `activate`
-  hook. Before, it fired after a successful hook. The new
+- **Breaking:** `solid_objects.activation.started` now fires before the actor's
+  `activate` hook. Before, it fired after a successful hook. The new
   `solid_objects.activation.completed` event takes that meaning, and
   `solid_objects.activation.failed` reports a failed hook. JavaScript changes
   the same events. Move a subscriber that reads `activation.started` as a
   finished activation to `activation.completed`.
-- Active Support payloads no longer carry `error_message`. This applies to
-  `commit_action.failed`, `activation.deactivation_failed`,
+- **Breaking:** Active Support payloads no longer carry `error_message`. This
+  applies to `commit_action.failed`, `activation.deactivation_failed`,
   `supervisor.monitor_failed`, `supervisor.retention_failed`,
   `supervisor.redrive_failed`, and `wake_up.failed`. The
   `solid_objects.worker.error` log entry also omits it. Each keeps
   `error_class`. Exception text can contain actor state, so JavaScript already
   reports only the error name.
 
-- Rename `solid_objects.payload_broadcast_failed` to
+- **Breaking:** rename `solid_objects.payload_broadcast_failed` to
   `solid_objects.payload_broadcast.failed`, the dotted form that every other
   event uses. Update Active Support subscribers to the new name. The portable
   event names the payload `payload`.
@@ -45,19 +45,22 @@
   writers can finish on Rails 7.1 and 7.2. Preserve configured wait limits and
   synchronous deadlines; cover contention with a coordinated lock regression.
 
-- Reject query and observable state mutation and staged durable work with
-  terminal `QueryMutatedState` errors. Cover individual snapshot projections and
-  preserve ordinary operations' already-staged work while reading projections,
-  including replacements that leave the intent count unchanged.
+- **Breaking:** reject query and observable state mutation and staged durable
+  work with terminal `QueryMutatedState` errors. Cover individual snapshot
+  projections and preserve ordinary operations' already-staged work while
+  reading projections, including replacements that leave the intent count
+  unchanged.
 - Pin reserved JSON property names with shared Ruby/JS fixtures. Document the
   reminder-name limit difference and the authorized dead-transmit retry API.
 
-- Reauthorize every message-reference status, result, and outcome read against
-  the original invocation. Pass `authorization_context:` on every read.
-- Retain immutable JSON results for background and internal messages as well as
-  synchronous calls. All operations now enforce result serialization and size
-  limits; return `nil` explicitly when an operation does not need a result.
-  `result` raises terminal rejection/failure errors; `outcome` exposes them as data.
+- **Breaking:** reauthorize every message-reference status, result, and outcome
+  read against the original invocation. Pass `authorization_context:` on every
+  read.
+- **Breaking:** retain immutable JSON results for background and internal
+  messages as well as synchronous calls. All operations now enforce result
+  serialization and size limits; return `nil` explicitly when an operation does
+  not need a result. `result` raises terminal rejection/failure errors;
+  `outcome` exposes them as data.
 - Preserve polling transition intervals in milliseconds and string reasons in
   portable telemetry. Pin transmit staging order and null-argument validation
   against the shared JavaScript contract.
