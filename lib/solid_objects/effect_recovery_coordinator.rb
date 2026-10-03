@@ -63,17 +63,22 @@ module SolidObjects
       effects = Effect.table_name
       owners = Process.table_name
       bindings = EffectRecovery.table_name
-      heartbeat = case DatabaseAdapter.family(Record.connection)
+      family = DatabaseAdapter.family(Record.connection)
+      heartbeat = case family
       when :postgresql then "EXTRACT(EPOCH FROM #{owners}.last_heartbeat_at)"
       when :mysql then "UNIX_TIMESTAMP(#{owners}.last_heartbeat_at)"
       else "CAST(STRFTIME('%s', #{owners}.last_heartbeat_at) AS REAL)"
+      end
+      processing = case family
+      when :postgresql, :mysql then "#{effects}.status = ?"
+      else "likelihood(#{effects}.status = ?, 0.000001)"
       end
       now = SolidObjects.database_adapter.database_clock_now.to_f
       threshold = SolidObjects.configuration.process_alive_threshold
       EffectRecovery.joins("INNER JOIN #{effects} ON #{effects}.effect_id = #{bindings}.effect_id")
         .joins("LEFT JOIN #{owners} ON #{owners}.id = #{effects}.claimed_by")
         .where(retired_at: nil).where.not(recovery_operation: nil)
-        .where("#{effects}.status = ?", "processing")
+        .where(processing, "processing")
         .where("#{owners}.id IS NULL OR #{heartbeat} <= ? - CASE WHEN #{bindings}.recovery_timeout > ? THEN #{bindings}.recovery_timeout ELSE ? END", now, threshold, threshold)
         .order(:effect_id).limit(SolidObjects.configuration.claim_scan_limit)
     end

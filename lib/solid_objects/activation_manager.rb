@@ -86,7 +86,8 @@ module SolidObjects
     # @rbs (Time) -> Array[Integer]
     def claimed_instance_ids(now)
       ClaimedMessage
-        .joins(:instance)
+        .joins("CROSS JOIN #{Instance.table_name}")
+        .where("#{Instance.table_name}.id = #{ClaimedMessage.table_name}.instance_id")
         .where("#{Instance.table_name}.paused_at IS NULL")
         .where(available_lease_sql, now)
         .group(:instance_id)
