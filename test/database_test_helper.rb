@@ -83,6 +83,30 @@ class ActiveSupport::TestCase
     connection.raw_connection.busy_handler_timeout = configured_sqlite_busy_handler_timeout
   end
 
+  def restoring_sqlite_statistics(connection)
+    saved = sqlite_statistics_tables(connection).to_h { |table| [ table, connection.select_all("SELECT * FROM #{table}") ] }
+    yield
+  ensure
+    restore_sqlite_statistics(connection, saved) if saved
+  end
+
+  def restore_sqlite_statistics(connection, saved)
+    database = connection.raw_connection
+    saved.each do |table, statistics|
+      placeholders = Array.new(statistics.columns.length, "?").join(", ")
+      database.execute("DELETE FROM #{table}")
+      statistics.rows.each do |row|
+        database.execute("INSERT INTO #{table} (#{statistics.columns.join(", ")}) VALUES (#{placeholders})", row)
+      end
+    end
+    database.execute("ANALYZE sqlite_schema")
+    (sqlite_statistics_tables(connection) - saved.keys).each { |table| database.execute("DROP TABLE #{table}") }
+  end
+
+  def sqlite_statistics_tables(connection)
+    connection.select_values("SELECT name FROM sqlite_schema WHERE type = 'table' AND name LIKE 'sqlite\\_stat%' ESCAPE '\\'")
+  end
+
   def configured_sqlite_busy_handler_timeout
     SolidObjects::Record
       .connection_pool

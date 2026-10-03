@@ -64,6 +64,26 @@
 
 - Add portable telemetry, isolated observer hooks, metric definitions, and bounded authorized actor diagnostics matching JavaScript.
 
+## 0.16.1 - 2026-10-02
+
+- Fix the SQLite join order of the claimed-message scan. The query in
+  `ActivationManager#claimed_instance_ids` has no condition on a
+  claimed-message column. The claimed-messages table is a short queue, so it is
+  often empty when `ANALYZE` or `PRAGMA optimize` runs, and `sqlite_stat1` then
+  has no row for it. Without statistics, SQLite assumed that the table was
+  large, and it scanned every instance on each worker poll. The scan now uses
+  `CROSS JOIN`, which SQLite keeps as a fixed join order, so it starts from the
+  claimed messages. PostgreSQL and MySQL treat `CROSS JOIN` with an equality as
+  an inner join and keep their plans. The ids and their order do not change.
+- Find SQLite effect recovery candidates through the processing effects.
+  `sqlite_stat1` records only the average row count for each effect status.
+  When most effects are complete, SQLite estimated that `status = 'processing'`
+  matched most of the effects table. It then read every recovery row in key
+  order to skip a sort, on each effect poll. An index on the recovery filter
+  does not help, because a recovery row keeps `retired_at` empty after a normal
+  completion. On SQLite the status test now carries
+  `likelihood(..., 0.000001)`, so the plan starts from `idx_so_effects_poll`.
+  The PostgreSQL and MySQL queries do not change.
 
 ## 0.16.0 - 2026-09-23
 
