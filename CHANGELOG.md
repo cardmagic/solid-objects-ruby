@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.17.2 - 2026-10-08
 
 - The README names the agent guide at the start of Installation, and the agent
   guide says that a reminder changes state only when it runs under
