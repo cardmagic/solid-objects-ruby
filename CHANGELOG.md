@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased
+
+- Name the category in the gem metadata and the README: Solid Objects is a
+  SQL-backed virtual actor library for Ruby on Rails. The gem homepage now
+  links to `https://solidobjects.dev/ruby` instead of the site root, which
+  redirects to the Node page.
+- Add `docs/virtual-actors.md`, a category guide with the definition, a small
+  example, fit and poor-fit criteria, comparisons, and an Orleans concept map.
+- Add `docs/agents.md`, a consumer guide for coding agents with setup,
+  authorization, effect idempotency, verification, and troubleshooting steps.
+  Both guides ship in the gem.
+- Add `context7.json` so that Context7 indexes the consumer documentation and
+  skips maintainer files.
+- Add a Rails quickstart in `examples/quickstart/` and a `rake quickstart`
+  check that runs it against the built gem. The check builds the gem, creates
+  a new SQLite Rails application, installs the gem from `vendor/cache` with
+  `bundle install --local`, and confirms by checksum and load path that the
+  application loads the built gem. It runs the install generator, the
+  migrations, and the doctor, and grants only the message and query policies.
+  It sends eight concurrent holds from separate processes to the README's
+  `TicketSale` actor and confirms that exactly one hold commits. It stops the
+  runtime, waits until a reminder is past due, confirms that the reminder did
+  not run, restarts the runtime, and confirms that the reminder released the
+  hold once. The check also fails when a `TicketSale` sample in the README or
+  in `docs/` differs from the actor that it runs. A new `quickstart` CI job runs
+  the check, and the release job waits for it.
+- Correct the `json` 3.0.2 note in `docs/operations.md`. Only Active Support
+  8.1.3.1 and earlier 8.1 releases fail with it; Active Support 8.1.4 decodes
+  correctly. Upgrade Rails, or pin `json` to 2.x when an upgrade is not
+  possible.
+
 ## 0.17.0 - 2026-10-03
 
 - Publish RBS types for portable events, metric samples, actor diagnostics, and

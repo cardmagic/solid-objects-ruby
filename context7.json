@@ -1,0 +1,17 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Solid Objects for Rails (solid_objects)",
+  "description": "SQL-backed virtual actor library for Ruby on Rails. Actors have stable identities, durable JSON state in SQLite, PostgreSQL, or MySQL, ordered per-identity mailboxes, fenced activation, durable reminders, and transactional effects. Requires Ruby 3.3+ and Rails 7.1+.",
+  "folders": ["docs", "examples"],
+  "excludeFolders": ["./docs/adr", "./docs/research"],
+  "excludeFiles": ["AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md", "implementation-plan.md"],
+  "rules": [
+    "Solid Objects requires Rails 7.1 or newer and Ruby 3.3 or newer. It is a Rails engine, not a framework-independent Ruby library.",
+    "Install with bundle add solid_objects, bin/rails generate solid_objects:install, bin/rails db:migrate, and bin/rails solid_objects:doctor.",
+    "The generated authorization policies deny every operation. Production policies must bind the actor type and ID to the authenticated user or tenant, and callers pass authorization_context:.",
+    "Run bundle exec solid_objects start for reminders, async calls, effects, and broadcasts. Direct synchronous calls do not need it.",
+    "Delivery is at least once. Effect handlers registered with SolidObjects.register_effect must use context.id as the idempotency key.",
+    "Actor handlers must not write Active Record models directly. Use commit_action for a short same-database write and emit for external I/O.",
+    "There are no transactions across actor identities. One hot identity is sequential."
+  ]
+}
