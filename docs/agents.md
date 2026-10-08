@@ -166,6 +166,9 @@ Obey these rules in actor code:
   write in the same database.
 - Do not call an external API in a handler. Use `emit` and an effect handler.
 - Write each handler so that it can run again. Delivery is at least once.
+- A reminder changes state only when it runs, and it runs only while
+  `solid_objects start` runs. Do not compute expiry from the clock in a query;
+  read the state that the reminder committed.
 
 Avoid these mistakes:
 

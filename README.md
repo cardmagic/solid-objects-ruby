@@ -44,7 +44,8 @@ And so much more.
 
 ## Installation
 
-Solid Objects requires Ruby 3.3 or newer and Rails 7.1 or newer.
+Solid Objects requires Ruby 3.3 or newer and Rails 7.1 or newer. Coding agents
+should follow the [agent guide](docs/agents.md), which gives each step in order.
 
 ```bash
 bundle add solid_objects
