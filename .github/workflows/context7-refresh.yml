@@ -1,0 +1,30 @@
+name: Context7 refresh
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "README.md"
+      - "context7.json"
+      - "docs/**"
+      - "examples/**"
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger a Context7 refresh
+        env:
+          CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
+          LIBRARY_NAME: /${{ github.repository }}
+        run: |
+          curl --fail --silent --show-error --max-time 60 \
+            -X POST https://context7.com/api/v1/refresh \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $CONTEXT7_API_KEY" \
+            -d "{\"libraryName\": \"$LIBRARY_NAME\"}"
