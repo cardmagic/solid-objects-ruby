@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.17.1 - 2026-10-08
 
 - Name the category in the gem metadata and the README: Solid Objects is a
   SQL-backed virtual actor library for Ruby on Rails. The gem homepage now
