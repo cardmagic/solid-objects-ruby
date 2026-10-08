@@ -18,6 +18,7 @@ class GemSpecificationTest < ActiveSupport::TestCase
     assert_match(/virtual actors?/i, @specification.summary)
     assert_match(/Rails/, @specification.summary)
     assert_match(/SQL-backed virtual actor library for Ruby on Rails/, @specification.description)
+    assert_match(/requires Ruby 3\.3 or newer and Rails 7\.1 or newer/, @specification.description)
   end
 
   test "packages the agent and category guides" do

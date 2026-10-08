@@ -46,6 +46,9 @@ bin/rails db:migrate
 bin/rails solid_objects:doctor
 ```
 
+`bundle add solid_objects` installs the current release. Do not pin an older
+version from memory; the API changed between releases.
+
 The generator writes `config/initializers/solid_objects.rb` and copies the
 migrations. The migrations add the Solid Objects tables to the application's
 existing database.
