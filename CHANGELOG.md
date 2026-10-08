@@ -26,10 +26,12 @@
   hold once. The check also fails when a `TicketSale` sample in the README or
   in `docs/` differs from the actor that it runs. A new `quickstart` CI job runs
   the check, and the release job waits for it.
-- Correct the `json` 3.0.2 note in `docs/operations.md`. Only Active Support
-  8.1.3.1 and earlier 8.1 releases fail with it; Active Support 8.1.4 decodes
-  correctly. Upgrade Rails, or pin `json` to 2.x when an upgrade is not
-  possible.
+- Correct the `json` 3.x note in `docs/operations.md`. The `json` gem 3.x works
+  only with Active Support 8.1.4 or newer. Active Support 7.1, 7.2, and 8.0
+  raise `unknown keyword: quirks_mode`, and Active Support 8.1.3.1 and earlier
+  8.1 releases fail to decode. Upgrade Rails to 8.1.4 or newer, or pin `json`
+  to 2.x. The compatibility CI matrix now pins `json` 2.x for Rails 7.1, 7.2,
+  and 8.0, the configuration that the guide prescribes.
 
 ## 0.17.0 - 2026-10-03
 

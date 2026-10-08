@@ -64,11 +64,10 @@ bin/rails solid_objects:doctor
 The generator adds an initializer and copies migrations into the application.
 The doctor checks the configuration, the tables, and one real actor round trip.
 
-If the doctor or an actor call fails with
-`ArgumentError: wrong number of arguments (given 2, expected 1)` from
-`ActiveSupport::JSON.decode`, the application has Active Support 8.1.3.1 or
-earlier with `json` 3.0.2. Upgrade Rails to 8.1.4 or newer. If you cannot
-upgrade, pin `gem "json", "~> 2"` in the `Gemfile`.
+The `json` gem 3.x works only with Active Support 8.1.4 or newer. On Rails
+7.1, 7.2, 8.0, or 8.1 before 8.1.4, pin `gem "json", "~> 2"` in the
+`Gemfile`. Without the pin, Active Support raises an `ArgumentError`, such as
+`unknown keyword: quirks_mode`, for every JSON column.
 
 [Installing and upgrading](operations.md#installing-and-upgrading) has the
 details.
@@ -238,7 +237,7 @@ runs checks 2 and 4 against a new Rails application.
 | `SolidObjects::SyncTimeout` | The call did not finish in time. The message is still durable. Use its `message_reference` to wait for the result |
 | `SolidObjects::ApplicationWriteForbidden` | A handler wrote a model directly. Use `commit_action` or `emit` |
 | `SolidObjects::Rejected` | The actor called `reject`. This is a business result, not a retry |
-| `ArgumentError` from `ActiveSupport::JSON.decode` | Upgrade Rails to 8.1.4 or newer, or pin `gem "json", "~> 2"` |
+| `ArgumentError` from `ActiveSupport::JSON`, such as `unknown keyword: quirks_mode` | `json` 3.x with Active Support before 8.1.4. Upgrade Rails to 8.1.4 or newer, or pin `gem "json", "~> 2"` |
 
 ## 11. Guarantees to state correctly
 

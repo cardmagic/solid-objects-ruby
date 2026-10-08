@@ -30,10 +30,10 @@ rails new ticket_demo
 cd ticket_demo
 ```
 
-Active Support 8.1.3.1 and the `json` gem 3.0.2 do not work together:
-`ActiveSupport::JSON.decode` raises an `ArgumentError`, and Solid Objects
-decodes its JSON columns with it. Active Support 8.1.4 does not have this
-problem. If `Gemfile.lock` shows both of the incompatible versions, read
+The `json` gem 3.x works only with Active Support 8.1.4 or newer. Solid
+Objects stores its state in JSON columns, so an older Active Support with
+`json` 3.x fails on every actor call. A new Rails application resolves Rails
+8.1.4 or newer, which works. For an older Rails application, read
 [Installing and upgrading](../../docs/operations.md#installing-and-upgrading)
 before you continue.
 
