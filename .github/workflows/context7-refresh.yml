@@ -33,7 +33,7 @@ jobs:
           if [ "$status" = "200" ]; then
             exit 0
           fi
-          if [ "$status" = "400" ] && grep -q '"error":"too-early"' response.json; then
+          if [ "$status" = "400" ] && jq -e '.error == "too-early"' response.json > /dev/null; then
             echo "::notice::Context7 refreshed $LIBRARY_NAME recently, so it skipped this refresh."
             exit 0
           fi
