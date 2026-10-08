@@ -15,7 +15,7 @@ class QuickstartSmoke
   HoldProcess = Data.define(:buyer, :pid, :input, :output)
 
   REPOSITORY_ROOT = File.expand_path("../..", __dir__)
-  QUICKSTART_ROOT = __dir__ || raise(Failure, "the quickstart directory is unknown")
+  QUICKSTART_ROOT = __dir__
   ACTOR_PATH = File.join(QUICKSTART_ROOT, "app/actors/ticket_sale.rb")
   RECIPE_PATH = File.join(QUICKSTART_ROOT, "README.md")
   INITIALIZER = "config/initializers/solid_objects.rb"
@@ -23,7 +23,7 @@ class QuickstartSmoke
     "configuration.authorize_message = ->(**) { false }" => "configuration.authorize_message = ->(**) { true }",
     "configuration.authorize_query = ->(**) { false }" => "configuration.authorize_query = ->(**) { true }"
   }.freeze
-  DENIED_POLICIES = %w[authorize_destroy authorize_subscription authorize_administration].freeze
+  DENIED_POLICIES = %w[authorize_destroy authorize_subscription authorize_administration authorize_transmission].freeze
   CONCURRENT_BUYERS = 8
   RESTART_DEADLINE_SECONDS = 8
   COMMAND_TIMEOUT_SECONDS = 600
@@ -107,7 +107,7 @@ class QuickstartSmoke
     )
   ensure
     stop_children
-    FileUtils.remove_entry(@root) if @root && File.exist?(@root)
+    FileUtils.remove_entry(@root) if File.exist?(@root)
   end
 
   private
@@ -217,7 +217,7 @@ class QuickstartSmoke
     File.write(path, initializer)
   end
 
-  # @rbs () -> Hash[Symbol, untyped]
+  # @rbs () -> Hash[Symbol, Integer]
   def prove_concurrent_holds
     runtime = start_runtime("runtime-concurrency")
     buyers = (1..CONCURRENT_BUYERS).map { |number| "buyer-#{number}" }
@@ -239,7 +239,7 @@ class QuickstartSmoke
     { calls: buyers.length, held: winners.length, available: state.fetch("available") }
   end
 
-  # @rbs () -> Hash[Symbol, untyped]
+  # @rbs () -> Hash[Symbol, Integer]
   def prove_restart_recovery
     hold = JSON.parse(
       rails_runner("shifted-hold", SHIFTED_CLOCK_HOLD_PROGRAM, "matinee", "ada", RESTART_DEADLINE_SECONDS.to_s).lines.last
