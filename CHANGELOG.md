@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Claim the Context7 library: `context7.json` now carries the library `url` and
+  the maintainer `public_key`.
+- Add the Context7 refresh workflow. A push to `main` that changes the README,
+  `context7.json`, `docs/`, or `examples/` asks Context7 to refresh the index.
+  It uses the `CONTEXT7_API_KEY` repository secret.
+
 ## 0.17.1 - 2026-10-08
 
 - Name the category in the gem metadata and the README: Solid Objects is a

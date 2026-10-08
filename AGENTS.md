@@ -57,8 +57,9 @@ Before you tag, read `docs/virtual-actors.md` and `docs/agents.md` against the
 release and correct any requirement, compatibility, or guarantee statement that
 changed. After the tag publishes, refresh the solidobjects.dev documentation
 snapshot from the tag and redeploy the site; its `check:release` step refuses a
-snapshot that is not the latest published tag. Then trigger a Context7 refresh
-for this repository.
+snapshot that is not the latest published tag. The Context7 refresh workflow
+refreshes the index after each push to `main` that changes the documentation.
+Confirm that its run succeeded.
 
 ## Security & Configuration
 
