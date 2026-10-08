@@ -37,6 +37,11 @@ task :at_least_once do
   sh "bundle exec ruby examples/at_least_once/demo.rb"
 end
 
+desc "Install the built gem into a new Rails app and prove ordering and restart recovery"
+task :quickstart do
+  sh "bundle exec ruby examples/quickstart/smoke.rb"
+end
+
 desc "Scan the Rails engine for security warnings"
 task :security do
   sh "bundle exec brakeman --force --no-pager -q ."

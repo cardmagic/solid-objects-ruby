@@ -10,6 +10,7 @@ if rails_version
   %w[actioncable actionpack actionview activerecord activesupport railties].each do |library|
     gem library, constraint
   end
+  gem "json", "~> 2" if Gem::Version.new(rails_version) < Gem::Version.new("8.1")
 end
 
 group :development, :test do

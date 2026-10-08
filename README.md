@@ -5,6 +5,12 @@
 
 **Open Source Durable Objects in your Rails app.**
 
+Solid Objects is a SQL-backed virtual actor library for Ruby on Rails, with
+durable state, ordered operations, and automatic activation. Each actor has a
+stable identity, and its state lives in the SQL database that your app already
+uses. [Virtual actors in Ruby on Rails](docs/virtual-actors.md) explains the
+model and when to use it.
+
 In a shopping cart, paying twice at the same time is a big problem. The payment provider might time out, and your Rails site could be restarting before recovery finishes.
 
 To deal with this safely, you often need logic scattered between 7-10 files like database row locks, Redis locks, delayed jobs, retries, and cleanup code to keep that process straight. They are not all large, but they must agree about the same payment state and failure rules. That coordination is the difficult part.
@@ -160,6 +166,8 @@ Exactly once is not hiding in a more advanced configuration. Read the
 ## Read more
 
 - [Five-minute Rails guide](https://solidobjects.dev/5min/rails)
+- [Virtual actors in Ruby on Rails](docs/virtual-actors.md)
+- [Guide for coding agents](docs/agents.md)
 - [Choosing Solid Objects](docs/fit.md)
 - [Operations and recovery](docs/operations.md)
 - [Observability and diagnostics](docs/observability.md)

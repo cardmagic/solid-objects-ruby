@@ -26,22 +26,24 @@ reports a failed or warned check rather than raising out of the command.
 ## Installing and upgrading
 
 Solid Objects keeps actor state, message arguments, results, and the remembered
-idempotency keys in JSON columns. Active Support decodes every one of them, and
-`ActiveSupport::JSON.decode` raises with the `json` gem at 3.0.2:
+idempotency keys in JSON columns. Active Support encodes and decodes every one
+of them. The `json` gem 3.x works only with Active Support 8.1.4 or newer:
 
-```
-ArgumentError: wrong number of arguments (given 2, expected 1)
-```
+- Active Support 7.1, 7.2, and 8.0 raise
+  `ArgumentError: unknown keyword: quirks_mode` when they encode or decode.
+- Active Support 8.1.3.1 and earlier 8.1 releases raise
+  `ArgumentError: wrong number of arguments (given 2, expected 1)` when they
+  decode.
 
 The failure is in Active Support rather than in Solid Objects, and it reaches
-every JSON column in a Rails application. A new Rails 8.1 application resolves
-`json` 3.0.2 today, so pin the 2.x series until Rails ships a fix:
+every JSON column in a Rails application. Upgrade Rails to 8.1.4 or newer. On
+an older Rails release, pin the 2.x series of `json`:
 
 ```ruby
 gem "json", "~> 2"
 ```
 
-Review [CHANGELOG.md](CHANGELOG.md) for compatibility and deployment-order
+Review [CHANGELOG.md](../CHANGELOG.md) for compatibility and deployment-order
 notes, then update the gem:
 
 ```bash

@@ -53,6 +53,13 @@ git push origin v0.5.0
 
 CI validates the tag and publishes through RubyGems trusted publishing.
 
+Before you tag, read `docs/virtual-actors.md` and `docs/agents.md` against the
+release and correct any requirement, compatibility, or guarantee statement that
+changed. After the tag publishes, refresh the solidobjects.dev documentation
+snapshot from the tag and redeploy the site; its `check:release` step refuses a
+snapshot that is not the latest published tag. Then trigger a Context7 refresh
+for this repository.
+
 ## Security & Configuration
 
 Preserve deny-by-default authorization. Never treat actor IDs, stream names, or signed tokens as authorization, and never commit secrets or unsafe deserialization paths.
