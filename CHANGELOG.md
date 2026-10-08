@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `docs/agents.md` now tells agents to install the current release instead of
+  a remembered version, says that step 5 is required before the first call,
+  shows the two arguments of `reject`, and lists four API mistakes from
+  agent-written code with the correct form. The gem description now states
+  the Ruby 3.3 and Rails 7.1 requirement, because agents in the discovery
+  evaluation claimed Rails 8.0.
 - Claim the Context7 library: `context7.json` now carries the library `url` and
   the maintainer `public_key`.
 - Add the Context7 refresh workflow. A push to `main` that changes the README,

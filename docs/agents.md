@@ -64,6 +64,12 @@ bin/rails solid_objects:doctor
 The generator adds an initializer and copies migrations into the application.
 The doctor checks the configuration, the tables, and one real actor round trip.
 
+Install the current release. `bundle add solid_objects` selects it. Do not pin
+a version that you remember from earlier work; the API changed between
+releases. The current version is on <https://rubygems.org/gems/solid_objects>.
+
+The generated policies deny every call. Do step 5 before you call an actor.
+
 The `json` gem 3.x works only with Active Support 8.1.4 or newer. On Rails
 7.1, 7.2, 8.0, or 8.1 before 8.1.4, pin `gem "json", "~> 2"` in the
 `Gemfile`. Without the pin, Active Support raises an `ArgumentError`, such as
@@ -153,11 +159,22 @@ Obey these rules in actor code:
 - Use `schedule(at:, key:)` for delayed work. A reminder is one named alarm
   for each actor and key. A new `schedule` with the same key moves the alarm.
 - Use `reject(code, message)` for a business rule failure that must not retry.
+  It takes a code and a message, for example
+  `reject(:room_full, "The room is full")`.
 - Do not write Active Record models directly in a handler. The runtime raises
   `SolidObjects::ApplicationWriteForbidden`. Use `commit_action` for a short
   write in the same database.
 - Do not call an external API in a handler. Use `emit` and an effect handler.
 - Write each handler so that it can run again. Delivery is at least once.
+
+Avoid these mistakes:
+
+| Mistake | Correct form |
+| --- | --- |
+| `schedule(at: deadline)` with no operation after it | `schedule(at: deadline, key: buyer).expire(buyer:)`. `schedule` stages a reminder only when you call an operation on its result |
+| `reject "room full"` | `reject(:room_full, "The room is full")` |
+| `id` inside an actor | `actor_id`. An actor has no `id` method |
+| `register_effect(:name) { \|context, arguments\| ... }` | `register_effect(:name) { \|arguments, context\| ... }`. The arguments come first |
 
 [Reminders](reminders.md) and the [architecture guide](architecture.md) give
 the full actor API.
