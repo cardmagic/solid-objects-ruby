@@ -19,7 +19,8 @@ class SeatInventory < SolidObjects::Actor
   end
 
   def hold(hold_id:, buyer:, seats:)
-    return hold_result(hold_id) if holds.key?(hold_id)
+    reject(:invalid_seats, "Hold at least one seat") unless seats.is_a?(Integer) && seats.positive?
+    return hold_result(hold_id) if active_hold?(hold_id)
     return { status: "confirmed" } if confirmed.key?(hold_id)
     reject(:not_enough_seats, "Only #{seats_available} seats are left") if seats > seats_available
 
@@ -32,8 +33,9 @@ class SeatInventory < SolidObjects::Actor
   end
 
   def extend_hold(hold_id:)
-    hold = holds[hold_id]
-    reject(:no_hold, "The hold expired or does not exist") unless hold
+    reject(:no_hold, "The hold expired or does not exist") unless active_hold?(hold_id)
+
+    hold = holds.fetch(hold_id)
     reject(:extension_limit, "The hold cannot be extended again") if hold.fetch("extensions") >= MAX_EXTENSIONS
 
     deadline = Time.at(hold.fetch("expires_at")) + EXTENSION
@@ -46,10 +48,9 @@ class SeatInventory < SolidObjects::Actor
 
   def confirm(hold_id:)
     return { status: "confirmed" } if confirmed.key?(hold_id)
+    reject(:no_hold, "The hold expired or does not exist") unless active_hold?(hold_id)
 
-    hold = holds[hold_id]
-    reject(:no_hold, "The hold expired or does not exist") unless hold
-
+    hold = holds.fetch(hold_id)
     self.holds = holds.except(hold_id)
     self.confirmed = confirmed.merge(hold_id => hold.fetch("seats"))
     unschedule(:expire, key: hold_id)
@@ -65,8 +66,13 @@ class SeatInventory < SolidObjects::Actor
 
   private
 
+  def active_hold?(hold_id)
+    holds.key?(hold_id) && holds.dig(hold_id, "expires_at") > Time.current.to_i
+  end
+
   def seats_available
-    capacity - holds.values.sum { |hold| hold.fetch("seats") } - confirmed.values.sum
+    held_seats = holds.each_key.select { |hold_id| active_hold?(hold_id) }.sum { |hold_id| holds.dig(hold_id, "seats") }
+    capacity - held_seats - confirmed.values.sum
   end
 
   def hold_result(hold_id)

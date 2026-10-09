@@ -3,6 +3,7 @@
 require "database_test_helper"
 require "active_job"
 require "solid_objects/test_helper"
+require_relative "../../examples/guides/ordered_jobs/create_ledger_entries"
 
 ActiveJob::Base.queue_adapter = :test
 ActiveJob::Base.logger = Logger.new(nil)
@@ -27,6 +28,8 @@ module GuideSchema
       table.integer :next_sequence, null: false, default: 1
     end
 
+    CreateLedgerEntries.new.migrate(:up) unless connection.table_exists?(:ledger_entries)
+
     connection.create_table(:orders, if_not_exists: true) do |table|
       table.string :reference, null: false
       table.integer :total_cents, null: false
@@ -40,7 +43,7 @@ module GuideSchema
   end
 
   def self.reset
-    [ "events", "accounts", "orders", "outbox_messages" ].each do |table|
+    [ "events", "accounts", "ledger_entries", "orders", "outbox_messages" ].each do |table|
       ActiveRecord::Base.connection.execute("DELETE FROM #{table}")
     end
   end

@@ -109,18 +109,22 @@ class EventTickets < SolidObjects::Actor
   end
 
   def hold(buyer:, hold_id:)
+    release_expired_holds
     return { held: true, hold_id: } if holds.dig(buyer, "hold_id") == hold_id
     return { held: false, reason: "already_held" } if holds.key?(buyer)
     return { held: false, reason: "sold_out" } if seats_available.zero?
 
+    deadline = HOLD_DURATION.from_now
     self.seats_available -= 1
-    self.holds = holds.merge(buyer => { "hold_id" => hold_id })
-    schedule(at: HOLD_DURATION.from_now, key: buyer).expire(buyer:, hold_id:)
+    self.holds = holds.merge(buyer => { "hold_id" => hold_id, "expires_at" => deadline.to_i })
+    schedule(at: deadline, key: buyer).expire(buyer:, hold_id:)
     { held: true, hold_id: }
   end
 
   def confirm(buyer:, hold_id:)
     return { confirmed: true } if sold.include?(hold_id)
+
+    release_expired_holds
     reject(:no_hold, "The hold expired or does not exist") unless holds.dig(buyer, "hold_id") == hold_id
 
     self.holds = holds.except(buyer)
@@ -142,14 +146,24 @@ class EventTickets < SolidObjects::Actor
     self.title = title
     self.revision += 1
   end
+
+  private
+
+  def release_expired_holds
+    expired_buyers = holds.select { |_buyer, hold| hold.fetch("expires_at") <= Time.current.to_i }.keys
+    self.holds = holds.except(*expired_buyers)
+    self.seats_available += expired_buyers.length
+  end
 end
 ```
 
 The actor owns the lifecycle:
 
-- The `hold` method takes a seat and schedules a reminder with `schedule(at:, key: buyer)`. The database stores the reminder.
+- The `hold` method takes a seat and stores the deadline, `expires_at`, beside `hold_id` in the hold. It schedules a reminder with `schedule(at:, key: buyer)`. The database stores the reminder.
+- The `hold` and `confirm` methods first call the private `release_expired_holds` method. This method removes each hold at or past its deadline and returns its seat.
+- The stored deadline is the rule. After the deadline, the actor rejects confirmation, even before the reminder runs. A stopped or slow runtime process does not extend a hold.
 - The `confirm` method moves the hold to `sold` and cancels the reminder with `unschedule`.
-- The `expire` method releases the seat only when the `hold_id` still matches. An expiry for an old hold does nothing.
+- The `expire` method releases the seat only when the `hold_id` still matches. An expiry for an old hold does nothing. The reminder cleans up the hold if no other call releases it first.
 - A retry of `hold` with the same IDs returns the same result while that hold exists. A retry of `confirm` with the same IDs returns the same result after the confirmation. These retries make no further changes.
 - The `reject` method ends the call with a business result. The caller receives `SolidObjects::Rejected`. The runtime does not retry a rejection.
 
@@ -170,6 +184,7 @@ result = EventTickets.ref(event.id.to_s).hold(
 - **Stale expiry:** The first hold expires. The buyer holds again with a new hold ID. The old expiry arrives again, and the new hold stays.
 - **Retries:** Two identical holds and two identical confirmations sell one seat.
 - **Confirmation after expiry:** The actor rejects the confirmation with the code `no_hold`.
+- **Past the deadline, before the reminder runs:** The test moves the clock 11 minutes forward and delivers no reminder. The actor rejects the confirmation with `no_hold`, and another buyer holds the seat.
 - **Stale form:** The actor rejects the update with the code `stale_revision`. The next section explains this check.
 
 ## Serial execution does not stop a stale form

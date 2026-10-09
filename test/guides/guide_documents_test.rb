@@ -13,6 +13,8 @@ class GuideDocumentsTest < ActiveSupport::TestCase
       "examples/guides/ordered_jobs/account.rb",
       "examples/guides/ordered_jobs/apply_entry_unordered_job.rb",
       "examples/guides/ordered_jobs/apply_entry_job.rb",
+      "examples/guides/ordered_jobs/create_ledger_entries.rb",
+      "examples/guides/ordered_jobs/solid_objects.rb",
       "examples/guides/ordered_jobs/ledger_account.rb"
     ],
     "docs/guides/expiring-reservations.md" => [

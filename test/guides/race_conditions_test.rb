@@ -102,6 +102,19 @@ class RaceConditionsGuideTest < ActiveSupport::TestCase
     assert_equal 1, tickets.snapshot.seats_available
   end
 
+  test "a hold past its deadline cannot be confirmed and frees its seat before the reminder runs" do
+    tickets = EventTickets.ref("event-deadline")
+    tickets.open_sales(seats: 1)
+    tickets.hold(buyer: "ada", hold_id: "hold-1")
+
+    travel 11.minutes do
+      error = assert_raises(SolidObjects::Rejected) { tickets.confirm(buyer: "ada", hold_id: "hold-1") }
+
+      assert_equal "no_hold", error.code
+      assert tickets.hold(buyer: "grace", hold_id: "hold-2").fetch("held")
+    end
+  end
+
   test "serial execution alone does not stop a stale form, so a revision check does" do
     tickets = EventTickets.ref("event-details")
     tickets.update_details(title: "Spring show", base_revision: 0)

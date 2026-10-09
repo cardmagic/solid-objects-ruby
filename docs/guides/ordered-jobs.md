@@ -65,10 +65,11 @@ Sidekiq.configure_server do |config|
   config.capsule("unsafe") do |cap|
     cap.concurrency = 1
     cap.queues = %w[queue_a queue_b] # strict priority
-    # cap.queues = %w[queue_a,3 queue_b,1] # weighted
   end
 end
 ```
+
+This snippet comes from the Sidekiq wiki.
 
 Solid Queue accepts `key`, `to`, `duration`, and `on_conflict` for concurrency controls. It requires `key` and sets `to` to 1 by default. A blocked job stays blocked until another job finishes or the duration expires. These controls do not guarantee execution order. Solid Queue does not use queue order to unblock jobs ([checked October 9, 2026](https://github.com/rails/solid_queue#concurrency-controls)).
 
@@ -113,21 +114,50 @@ This approach has two costs:
 There is one `LedgerAccount` actor for each account ID.
 
 ```ruby
-class LedgerAccount < SolidObjects::Actor
-  RECENT_ENTRY_LIMIT = 100
+class CreateLedgerEntries < ActiveRecord::Migration[7.1]
+  def change
+    create_table :ledger_entries do |table|
+      table.string :account_id, null: false
+      table.string :entry_id, null: false
+      table.string :kind, null: false
+      table.integer :amount_cents, null: false
+      table.timestamps
+    end
+    add_index :ledger_entries, [ :account_id, :entry_id ], unique: true
+  end
+end
+```
 
+The migration creates a `ledger_entries` table with a unique index on the account ID and the entry ID. `LedgerEntry` is a plain Active Record model for this table.
+
+```ruby
+SolidObjects.register_commit_action(:record_ledger_entry) do |arguments, _context|
+  LedgerEntry.create!(
+    account_id: arguments.fetch("account_id"),
+    entry_id: arguments.fetch("entry_id"),
+    kind: arguments.fetch("kind"),
+    amount_cents: arguments.fetch("amount_cents")
+  )
+end
+```
+
+The initializer registers the commit action `record_ledger_entry`. A commit action writes application rows inside the actor transaction. The entry row and the new balance commit together or not at all. A commit action needs Solid Objects and `ActiveRecord::Base` to share one connection pool.
+
+Commit actions can run again after a database rollback. Keep them deterministic, bounded, and database-only. Actor handlers can read application records. They cannot write them directly.
+
+```ruby
+class LedgerAccount < SolidObjects::Actor
   attribute :balance_cents, default: 0
-  attribute :recent_entry_ids, default: -> { [] }
   attribute :statement_balance_cents, default: nil
 
   def apply(entry_id:, kind:, amount_cents:)
-    return balance_cents if recent_entry_ids.include?(entry_id)
+    return balance_cents if LedgerEntry.exists?(account_id: actor_id, entry_id:)
 
     change = (kind == "deposit") ? amount_cents : -amount_cents
     reject(:insufficient_funds, "The balance is too low for this withdrawal") if balance_cents + change < 0
 
     self.balance_cents += change
-    self.recent_entry_ids = (recent_entry_ids + [ entry_id ]).last(RECENT_ENTRY_LIMIT)
+    commit_action(:record_ledger_entry, account_id: actor_id, entry_id:, kind:, amount_cents:)
     schedule(at: 1.day.from_now, key: "daily").close_statement
     balance_cents
   end
@@ -137,6 +167,10 @@ class LedgerAccount < SolidObjects::Actor
   end
 end
 ```
+
+`apply` first checks `LedgerEntry.exists?` for the account and the entry. If the row exists, `apply` returns the balance and changes nothing. Calls for one account run one at a time, so this check and the insert cannot race.
+
+The unique index provides another check. A duplicate insert fails the turn. The actor does not apply the entry twice.
 
 The caller sends each entry with `async` and an idempotency key:
 
@@ -153,7 +187,7 @@ The actor treats a business rejection and an exception differently:
 - `reject` ends an entry with a business result, such as `insufficient_funds`. The runtime does not retry the rejection. The next entry runs.
 - An exception causes the runtime to retry that message. The message holds back later messages for that account until it succeeds or moves to dead letters.
 
-A repeated enqueue with the same idempotency key creates one message. A repeated delivery runs the method again. `apply` checks `recent_entry_ids` and returns without a change if the list contains the entry ID.
+A repeated enqueue with the same idempotency key creates one message while the first message row exists. A repeated delivery runs the method again. In both cases, the `ledger_entries` row stops a second change. This record does not expire.
 
 `schedule(at: 1.day.from_now, key: "daily")` keeps one statement reminder for each account. Each new entry moves the reminder. The database stores the reminder, and the reminder runs after a restart.
 
@@ -161,9 +195,10 @@ You do not assign sequence numbers. The actor mailbox gives the order.
 
 ## What the tests prove
 
-- The tests enqueue five entries for two accounts in one mixed order. Two workers process them. Each account applies its own entries in enqueue order. The balances are 25 and 0 cents.
+- The tests enqueue five entries for two accounts in one mixed order. Two workers process them. Each account applies its own entries in enqueue order. The tests read the order from the `ledger_entries` rows of each account. The balances are 25 and 0 cents.
 - The actor rejects a withdrawal that is too large. The deposit after it applies.
 - Two enqueues share the same idempotency key. One more direct delivery repeats the entry. The account applies the entry once.
+- The account applies 102 entries. Then the first entry arrives again. The balance does not change.
 - The statement reminder runs after the test resets the caller process.
 
 ## Choose
@@ -178,7 +213,7 @@ You do not assign sequence numbers. The actor mailbox gives the order.
 - Run `bundle exec solid_objects start`. Async messages and reminders run only while this process runs. The database keeps unfinished work in SQL while the process does not run.
 - The generated policies deny every call. Write a policy. Pass `authorization_context:` to `async`. See [authorization policies](../authorization.md).
 - A message that fails on every attempt moves to dead letters after five attempts by default. Later messages then run. An operator can retry a dead letter. See [dead letters, retry, and redrive](../operations.md#dead-letters-retry-and-redrive).
-- The actor remembers the idempotency keys of its last finished turns. It retains 64 keys by default. See [retention and backups](../operations.md#retention-and-backups).
+- The runtime remembers the idempotency keys of the last 64 finished turns for each actor. That window is not enough for money. The `ledger_entries` table is the durable record. See [retention and backups](../operations.md#retention-and-backups).
 
 ## Limits
 

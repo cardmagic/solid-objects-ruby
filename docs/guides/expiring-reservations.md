@@ -46,7 +46,8 @@ class SeatInventory < SolidObjects::Actor
   end
 
   def hold(hold_id:, buyer:, seats:)
-    return hold_result(hold_id) if holds.key?(hold_id)
+    reject(:invalid_seats, "Hold at least one seat") unless seats.is_a?(Integer) && seats.positive?
+    return hold_result(hold_id) if active_hold?(hold_id)
     return { status: "confirmed" } if confirmed.key?(hold_id)
     reject(:not_enough_seats, "Only #{seats_available} seats are left") if seats > seats_available
 
@@ -59,8 +60,9 @@ class SeatInventory < SolidObjects::Actor
   end
 
   def extend_hold(hold_id:)
-    hold = holds[hold_id]
-    reject(:no_hold, "The hold expired or does not exist") unless hold
+    reject(:no_hold, "The hold expired or does not exist") unless active_hold?(hold_id)
+
+    hold = holds.fetch(hold_id)
     reject(:extension_limit, "The hold cannot be extended again") if hold.fetch("extensions") >= MAX_EXTENSIONS
 
     deadline = Time.at(hold.fetch("expires_at")) + EXTENSION
@@ -73,10 +75,9 @@ class SeatInventory < SolidObjects::Actor
 
   def confirm(hold_id:)
     return { status: "confirmed" } if confirmed.key?(hold_id)
+    reject(:no_hold, "The hold expired or does not exist") unless active_hold?(hold_id)
 
-    hold = holds[hold_id]
-    reject(:no_hold, "The hold expired or does not exist") unless hold
-
+    hold = holds.fetch(hold_id)
     self.holds = holds.except(hold_id)
     self.confirmed = confirmed.merge(hold_id => hold.fetch("seats"))
     unschedule(:expire, key: hold_id)
@@ -92,8 +93,13 @@ class SeatInventory < SolidObjects::Actor
 
   private
 
+  def active_hold?(hold_id)
+    holds.key?(hold_id) && holds.dig(hold_id, "expires_at") > Time.current.to_i
+  end
+
   def seats_available
-    capacity - holds.values.sum { |hold| hold.fetch("seats") } - confirmed.values.sum
+    held_seats = holds.each_key.select { |hold_id| active_hold?(hold_id) }.sum { |hold_id| holds.dig(hold_id, "seats") }
+    capacity - held_seats - confirmed.values.sum
   end
 
   def hold_result(hold_id)
@@ -103,19 +109,19 @@ end
 ```
 
 - `open_show` sets the capacity once.
-- `hold` takes seats and records a deadline 15 minutes from now. It schedules one reminder with the hold ID as its key. A retry with the same hold ID returns the same hold and takes no more seats. When too few seats remain, `hold` rejects the request with the code `not_enough_seats`.
-- `extend_hold` adds 5 minutes, at most two times. It schedules the reminder again with the same key, which moves the alarm. It rejects a third extension with the code `extension_limit`.
-- `confirm` moves the hold to `confirmed` and cancels the reminder with `unschedule`. A confirmation retry returns the same result. After expiry, `confirm` rejects the request with the code `no_hold`.
-- `expire` releases the seats only if the deadline in the message still matches the hold. After an extension, an expiry for the old deadline does nothing.
-- `seats_left` is a query. A query runs as an ordered read in the actor mailbox. `reference.snapshot` reads the committed state without a message row.
+- `hold` takes seats and records a deadline 15 minutes from now. It schedules one reminder with the hold ID as its key. A retry with the same hold ID returns the same hold and takes no more seats. When too few seats remain, `hold` rejects the request with the code `not_enough_seats`. `hold` rejects a seat count that is not a positive integer with the code `invalid_seats`. Without this check, a hold for -5 seats adds seats to the show.
+- `extend_hold` adds 5 minutes, at most two times. It schedules the reminder again with the same key, which moves the alarm. It rejects a third extension with the code `extension_limit`. It accepts only an active hold: a hold whose stored deadline is still in the future. After the deadline, it rejects the request with the code `no_hold`, even before the expiry reminder runs. A stopped or slow runtime process does not extend a hold.
+- `confirm` moves the hold to `confirmed` and cancels the reminder with `unschedule`. A confirmation retry returns the same result. `confirm` accepts only an active hold whose stored deadline is still in the future. After the deadline, it rejects the request with the code `no_hold`, even before the expiry reminder runs.
+- The stored deadline is the rule. `expire` removes the old hold from the state only if the deadline in the message still matches the hold. After an extension, an expiry for the old deadline does nothing.
+- `seats_left` is a query. A query runs as an ordered read in the actor mailbox. `reference.snapshot` reads the committed state without a message row. A hold past its deadline no longer counts against the seats. `seats_left` and new holds see the seats again at the deadline.
 
-All state stays bounded by the show capacity.
+Active holds and confirmed seats are bounded by the show capacity. An expired hold stays in the state until its reminder runs.
 
 ## Deadlines that survive a restart
 
 Use durable reminders for persistent timers in Rails.
 
-`schedule(at:, key:)` stores the reminder in the database in the same commit as the state change. A reminder is one named alarm for each actor and key. A new schedule with the same key moves the alarm. `unschedule(:expire, key: hold_id)` cancels it.
+`schedule(at:, key:)` stores the reminder in the database in the same commit as the state change. A reminder is one named alarm for each actor and key. A new schedule with the same key moves the alarm. `unschedule(:expire, key: hold_id)` cancels it. The deadline check in `confirm` and `extend_hold` does not wait for the reminder.
 
 Reminders run only while `bundle exec solid_objects start` runs. A reminder that falls due while the process is stopped runs after the process starts again. A reminder runs an ordinary actor message, so it runs in order with the other calls for that show.
 
@@ -130,6 +136,8 @@ Delivery is at least once, so `expire` checks the deadline before it changes any
 - The actor rejects a third extension with the code `extension_limit`.
 - A confirmation retry returns the same result. The hold moves to `confirmed` once, and the confirmation cancels the reminder.
 - A confirmation after expiry receives the rejection code `no_hold`.
+- Past the deadline, before the reminder runs: the test moves the clock 16 minutes forward and delivers no reminder. The actor rejects the confirmation and the extension with `no_hold`, and both seats are free.
+- A hold for zero seats or for -5 seats is rejected with `invalid_seats`, and the free seats do not change.
 - A hold that falls due while the runtime is stopped expires after a restart.
 
 See [the tests for this guide](../../test/guides/expiring_reservations_test.rb).

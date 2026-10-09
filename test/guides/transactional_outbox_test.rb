@@ -38,16 +38,6 @@ class TransactionalOutboxGuideTest < ActiveSupport::TestCase
 
   class ProcessStopped < StandardError; end
 
-  class StoppedProcessAdapter
-    def enqueue(*)
-      raise ProcessStopped, "the process stopped before the job reached the queue"
-    end
-
-    def enqueue_at(*)
-      raise ProcessStopped, "the process stopped before the job reached the queue"
-    end
-  end
-
   setup do
     GuideSchema.reset
     ShippingProvider.reset
@@ -57,15 +47,15 @@ class TransactionalOutboxGuideTest < ActiveSupport::TestCase
   end
 
   test "an order commits but its job is lost when the process stops before the enqueue" do
-    test_adapter = ShipmentJob.queue_adapter
-    ShipmentJob.queue_adapter = StoppedProcessAdapter.new
+    ShipmentJob.define_singleton_method(:perform_later) { |**| raise ProcessStopped, "the process stopped before the enqueue" }
 
     assert_raises(ProcessStopped) { Order.place_and_enqueue!(reference: "order-1", total_cents: 1_500) }
+    ShipmentJob.singleton_class.remove_method(:perform_later)
 
     assert_equal 1, Order.count
-    assert_empty test_adapter.enqueued_jobs
+    assert_no_enqueued_jobs
   ensure
-    ShipmentJob.queue_adapter = test_adapter
+    ShipmentJob.singleton_class.remove_method(:perform_later) if ShipmentJob.singleton_class.method_defined?(:perform_later, false)
   end
 
   test "the outbox message commits with the order or not at all" do

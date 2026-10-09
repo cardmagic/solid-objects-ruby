@@ -4,6 +4,7 @@ require_relative "guide_test_helper"
 require_relative "../../examples/guides/ordered_jobs/account"
 require_relative "../../examples/guides/ordered_jobs/apply_entry_unordered_job"
 require_relative "../../examples/guides/ordered_jobs/apply_entry_job"
+require_relative "../../examples/guides/ordered_jobs/ledger_entry"
 require_relative "../../examples/guides/ordered_jobs/ledger_account"
 
 class OrderedJobsGuideTest < ActiveSupport::TestCase
@@ -13,7 +14,12 @@ class OrderedJobsGuideTest < ActiveSupport::TestCase
 
   setup do
     GuideSchema.reset
+    load File.expand_path("../../examples/guides/ordered_jobs/solid_objects.rb", __dir__)
     LedgerAccount.ensure_registered!
+  end
+
+  def applied_entry_ids(account_id)
+    LedgerEntry.where(account_id:).order(:id).pluck(:entry_id)
   end
 
   test "jobs that run in a different order than they were enqueued reject a valid withdrawal" do
@@ -62,11 +68,13 @@ class OrderedJobsGuideTest < ActiveSupport::TestCase
       LedgerAccount.ref(account_id).async(idempotency_key: entry_id).apply(entry_id:, kind:, amount_cents:)
     end
 
-    concurrently(2) { SolidObjects::Worker.new.tap(&:run_until_idle).stop }
+    workers = Array.new(2) { SolidObjects::Worker.new }
+    concurrently(2, prepare: ->(index) { workers.fetch(index) }) { |worker| worker.run_until_idle }
+    workers.each(&:stop)
 
-    assert_equal [ "alice-1", "alice-2", "alice-3" ], LedgerAccount.ref("alice").snapshot.recent_entry_ids
+    assert_equal [ "alice-1", "alice-2", "alice-3" ], applied_entry_ids("alice")
     assert_equal 25, LedgerAccount.ref("alice").snapshot.balance_cents
-    assert_equal [ "bob-1", "bob-2" ], LedgerAccount.ref("bob").snapshot.recent_entry_ids
+    assert_equal [ "bob-1", "bob-2" ], applied_entry_ids("bob")
     assert_equal 0, LedgerAccount.ref("bob").snapshot.balance_cents
   end
 
@@ -91,7 +99,16 @@ class OrderedJobsGuideTest < ActiveSupport::TestCase
     account.apply(entry_id: "dave-1", kind: "deposit", amount_cents: 40)
 
     assert_equal 40, account.snapshot.balance_cents
-    assert_equal [ "dave-1" ], account.snapshot.recent_entry_ids
+    assert_equal [ "dave-1" ], applied_entry_ids("dave")
+  end
+
+  test "a repeated entry after more than one hundred newer entries still applies once" do
+    account = LedgerAccount.ref("frank")
+    102.times { |index| account.apply(entry_id: "frank-#{index}", kind: "deposit", amount_cents: 1) }
+
+    account.apply(entry_id: "frank-0", kind: "deposit", amount_cents: 1)
+
+    assert_equal 102, account.snapshot.balance_cents
   end
 
   test "the statement reminder runs after a restart" do

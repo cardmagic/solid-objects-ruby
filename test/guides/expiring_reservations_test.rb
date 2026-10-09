@@ -99,6 +99,29 @@ class ExpiringReservationsGuideTest < ActiveSupport::TestCase
     assert_equal 1, show.seats_left
   end
 
+  test "a hold past its deadline cannot be confirmed or extended before the reminder runs" do
+    show = SeatInventory.ref("show-deadline")
+    show.open_show(capacity: 2)
+    show.hold(hold_id: "hold-1", buyer: "ada", seats: 2)
+
+    travel 16.minutes do
+      assert_equal "no_hold", assert_raises(SolidObjects::Rejected) { show.confirm(hold_id: "hold-1") }.code
+      assert_equal "no_hold", assert_raises(SolidObjects::Rejected) { show.extend_hold(hold_id: "hold-1") }.code
+      assert_equal 2, show.seats_left
+    end
+  end
+
+  test "a hold for zero seats or a negative number of seats is rejected" do
+    show = SeatInventory.ref("show-invalid")
+    show.open_show(capacity: 5)
+
+    [ 0, -5 ].each do |seats|
+      error = assert_raises(SolidObjects::Rejected) { show.hold(hold_id: "hold-#{seats}", buyer: "ada", seats:) }
+      assert_equal "invalid_seats", error.code
+    end
+    assert_equal 5, show.seats_left
+  end
+
   test "a hold that falls due while the runtime is stopped expires after a restart" do
     show = SeatInventory.ref("show-restart")
     show.open_show(capacity: 1)
