@@ -14,6 +14,7 @@ if rails_version
 end
 
 group :development, :test do
+  gem "activejob", rails_version ? "~> #{rails_version}.0" : ">= 7.1", require: false
   gem "mysql2", ">= 0.5", require: false
   gem "pg", ">= 1.5", require: false
   gem "redis", ">= 5.0", require: false

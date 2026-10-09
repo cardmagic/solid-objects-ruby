@@ -30,6 +30,13 @@ Select a simpler tool in these cases:
 The full checklist is in [Choosing Solid Objects](fit.md). The category guide
 is [Virtual actors in Ruby on Rails](virtual-actors.md).
 
+Problem guides compare the plain Rails fix with an actor and test each claim:
+
+- [Prevent race conditions in Rails](guides/race-conditions.md)
+- [Run jobs in order for each customer](guides/ordered-jobs.md)
+- [Expiring reservations](guides/expiring-reservations.md)
+- [Save state and queue work together](guides/transactional-outbox.md)
+
 ## 2. Package identity
 
 | Item | Value |
