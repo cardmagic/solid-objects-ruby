@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.17.3 - 2026-10-09
+
+- Add four problem guides in `docs/guides/`: preventing race conditions in
+  Rails, running jobs in order for each customer, expiring reservations, and
+  saving state and queuing work together. Each guide reproduces the failure,
+  shows the plain Rails fix first, and then shows a Solid Objects actor where
+  it adds value. The README and the agent guide list them.
+- Each guide embeds tested example files from `examples/guides/`. The tests in
+  `test/guides/` prove each claim: the race and its SQL fix, ordered entries
+  under two workers, a reminder that runs after a restart, a stale expiry that
+  changes nothing, an atomic actor turn, and an effect that runs twice with one
+  idempotency key. A document test fails when a guide does not embed the
+  current example files, contains an em dash or an en dash, or links to a
+  missing file.
+- Add `activejob` to the development and test bundle for the guide examples.
+  Compatibility runs pin it to the Rails line under test.
+
 ## 0.17.2 - 2026-10-08
 
 - The README names the agent guide at the start of Installation, and the agent
