@@ -65,11 +65,12 @@ class RaceConditionsGuideTest < ActiveSupport::TestCase
     tickets = EventTickets.ref("event-stale")
     tickets.open_sales(seats: 1)
     tickets.hold(buyer: "ada", hold_id: "hold-1")
+    first_deadline = tickets.snapshot.holds.dig("ada", "expires_at")
     run_due_reminders(now: 11.minutes.from_now)
     drain_solid_objects(roles: [ :actors ])
     tickets.hold(buyer: "ada", hold_id: "hold-2")
 
-    tickets.expire(buyer: "ada", hold_id: "hold-1")
+    tickets.expire(buyer: "ada", hold_id: "hold-1", expires_at: first_deadline)
 
     assert_equal 0, tickets.snapshot.seats_available
     assert_equal "hold-2", tickets.snapshot.holds.dig("ada", "hold_id")
@@ -112,6 +113,21 @@ class RaceConditionsGuideTest < ActiveSupport::TestCase
 
       assert_equal "no_hold", error.code
       assert tickets.hold(buyer: "grace", hold_id: "hold-2").fetch("held")
+    end
+  end
+
+  test "an old expiry queued after a retry with the same hold ID keeps the new hold" do
+    tickets = EventTickets.ref("event-retry-after-deadline")
+    tickets.open_sales(seats: 1)
+    tickets.hold(buyer: "ada", hold_id: "hold-1")
+    first_deadline = tickets.snapshot.holds.dig("ada", "expires_at")
+
+    travel 11.minutes do
+      assert tickets.hold(buyer: "ada", hold_id: "hold-1").fetch("held")
+      tickets.expire(buyer: "ada", hold_id: "hold-1", expires_at: first_deadline)
+
+      assert_equal 0, tickets.snapshot.seats_available
+      assert_equal "hold-1", tickets.snapshot.holds.dig("ada", "hold_id")
     end
   end
 

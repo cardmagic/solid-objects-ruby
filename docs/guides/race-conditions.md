@@ -117,7 +117,7 @@ class EventTickets < SolidObjects::Actor
     deadline = HOLD_DURATION.from_now
     self.seats_available -= 1
     self.holds = holds.merge(buyer => { "hold_id" => hold_id, "expires_at" => deadline.to_i })
-    schedule(at: deadline, key: buyer).expire(buyer:, hold_id:)
+    schedule(at: deadline, key: buyer).expire(buyer:, hold_id:, expires_at: deadline.to_i)
     { held: true, hold_id: }
   end
 
@@ -133,8 +133,8 @@ class EventTickets < SolidObjects::Actor
     { confirmed: true }
   end
 
-  def expire(buyer:, hold_id:)
-    return seats_available unless holds.dig(buyer, "hold_id") == hold_id
+  def expire(buyer:, hold_id:, expires_at:)
+    return seats_available unless holds[buyer] == { "hold_id" => hold_id, "expires_at" => expires_at }
 
     self.holds = holds.except(buyer)
     self.seats_available += 1
@@ -163,7 +163,7 @@ The actor owns the lifecycle:
 - The `hold` and `confirm` methods first call the private `release_expired_holds` method. This method removes each hold at or past its deadline and returns its seat.
 - The stored deadline is the rule. After the deadline, the actor rejects confirmation, even before the reminder runs. A stopped or slow runtime process does not extend a hold.
 - The `confirm` method moves the hold to `sold` and cancels the reminder with `unschedule`.
-- The `expire` method releases the seat only when the `hold_id` still matches. An expiry for an old hold does nothing. The reminder cleans up the hold if no other call releases it first.
+- The reminder passes the stored deadline: `expire(buyer:, hold_id:, expires_at:)`. The `expire` method releases the seat only when both the hold ID and the deadline still match the stored hold. An expiry for an old hold does nothing. An expiry that the scheduler queued before a retry created a fresh hold with the same hold ID also does nothing. The reminder cleans up the hold if no other call releases it first.
 - A retry of `hold` with the same IDs returns the same result while that hold exists. A retry of `confirm` with the same IDs returns the same result after the confirmation. These retries make no further changes.
 - The `reject` method ends the call with a business result. The caller receives `SolidObjects::Rejected`. The runtime does not retry a rejection.
 
@@ -185,6 +185,7 @@ result = EventTickets.ref(event.id.to_s).hold(
 - **Retries:** Two identical holds and two identical confirmations sell one seat.
 - **Confirmation after expiry:** The actor rejects the confirmation with the code `no_hold`.
 - **Past the deadline, before the reminder runs:** The test moves the clock 11 minutes forward and delivers no reminder. The actor rejects the confirmation with `no_hold`, and another buyer holds the seat.
+- **A retry with the same hold ID after the deadline:** the test moves the clock 11 minutes forward. The retry creates a fresh hold, and then the old expiry arrives. The fresh hold stays.
 - **Stale form:** The actor rejects the update with the code `stale_revision`. The next section explains this check.
 
 ## Serial execution does not stop a stale form

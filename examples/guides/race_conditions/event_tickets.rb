@@ -26,7 +26,7 @@ class EventTickets < SolidObjects::Actor
     deadline = HOLD_DURATION.from_now
     self.seats_available -= 1
     self.holds = holds.merge(buyer => { "hold_id" => hold_id, "expires_at" => deadline.to_i })
-    schedule(at: deadline, key: buyer).expire(buyer:, hold_id:)
+    schedule(at: deadline, key: buyer).expire(buyer:, hold_id:, expires_at: deadline.to_i)
     { held: true, hold_id: }
   end
 
@@ -42,8 +42,8 @@ class EventTickets < SolidObjects::Actor
     { confirmed: true }
   end
 
-  def expire(buyer:, hold_id:)
-    return seats_available unless holds.dig(buyer, "hold_id") == hold_id
+  def expire(buyer:, hold_id:, expires_at:)
+    return seats_available unless holds[buyer] == { "hold_id" => hold_id, "expires_at" => expires_at }
 
     self.holds = holds.except(buyer)
     self.seats_available += 1
