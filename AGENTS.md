@@ -44,22 +44,36 @@ fixes a defect, adjusts tooling, or edits prose does not need a roadmap edit.
 
 ## Release Workflow
 
-Update the version, `CHANGELOG.md`, and `Gemfile.lock`; run `bundle exec rake`; then commit and push `main`. Publish by pushing an annotated version tag:
+A release goes through a pull request and then a version tag. Do not push a
+release commit directly to `main`.
 
-```bash
-git tag -a v0.5.0 -m "Version 0.5.0"
-git push origin v0.5.0
-```
+1. In a pull request, add a commit with the subject
+   `chore: prepare version X.Y.Z`. The commit updates
+   `lib/solid_objects/version.rb`, the `CHANGELOG.md` section for the version,
+   and `Gemfile.lock`.
+2. Read `docs/virtual-actors.md` and `docs/agents.md` against the release.
+   Correct each requirement, compatibility, or guarantee statement that changed.
+3. Run `bundle exec rake` before you push.
+4. Get a Greptile 5/5 summary on the head commit, green CI, and the approval of
+   the maintainer. Then merge the pull request with a merge commit.
+5. Tag the merge commit on `main` and push the tag:
 
-CI validates the tag and publishes through RubyGems trusted publishing.
+   ```bash
+   git tag -a vX.Y.Z -m "Version X.Y.Z"
+   git push origin vX.Y.Z
+   ```
 
-Before you tag, read `docs/virtual-actors.md` and `docs/agents.md` against the
-release and correct any requirement, compatibility, or guarantee statement that
-changed. After the tag publishes, refresh the solidobjects.dev documentation
-snapshot from the tag and redeploy the site; its `check:release` step refuses a
-snapshot that is not the latest published tag. The Context7 refresh workflow
-refreshes the index after each push to `main` that changes the documentation.
-Confirm that its run succeeded.
+   CI validates the tag and publishes through RubyGems trusted publishing.
+6. After the gem is on RubyGems, update and deploy solidobjects.dev with the
+   workspace `solid-objects-tag-to-prod` skill. Refresh the documentation
+   snapshot from the tag. The `check:release` step of the site refuses a
+   snapshot that is not the latest published tag.
+
+Before 1.0, a feature or a behavior change gets a minor version, and a fix gets
+a patch version.
+
+The Context7 refresh workflow refreshes the index after each push to `main` that
+changes the documentation. Confirm that its run succeeded.
 
 ## Security & Configuration
 
