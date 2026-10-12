@@ -117,37 +117,74 @@ class ActivationRecoveryBackoffTest < ActiveSupport::TestCase
     end
   end
 
-  test "emits each lost message attempt and stops from its instrumentation callback" do
-    worker = new_worker
-    reference = Counter.ref("one").async.increment(label: "slow")
-    observed = []
-    SolidObjects.configuration.retry_delay = ->(_) { 0 }
-    SolidObjects.configuration.instrumentation = ->(event) do
-      next unless event.fetch("name") == "solid_objects.activation.lost"
+  %w[completion failure rejection].each do |outcome|
+    test "reports each lost #{outcome} and stops from its instrumentation callback" do
+      worker = new_worker
+      reference = Counter.ref("one").async.increment(label: "slow")
+      Counter.before_commit = ->(_) do
+        @clock[:now] += 0.201
+        raise SolidObjects::Rejected.new(code: "declined", message: "declined") if outcome == "rejection"
+        raise "handler failed" if outcome == "failure"
+      end
+      observed = []
+      SolidObjects.configuration.retry_delay = ->(_) { 0 }
+      SolidObjects.configuration.instrumentation = ->(event) do
+        next unless event.fetch("name") == "solid_objects.activation.lost"
 
-      observed << event
-      worker.request_shutdown if observed.length == 3
+        observed << event
+        worker.request_shutdown if observed.length == 3
+      end
+      forced_shutdown = false
+      guard = Thread.new do
+        sleep 2
+        forced_shutdown = true
+        worker.request_shutdown
+      end
+      begin
+        worker.run
+      ensure
+        guard.kill
+        guard.join
+      end
+      assert_not forced_shutdown
+      assert_predicate worker, :stopped?
+      assert_equal [ 1, 2, 3 ], observed.map { |event| event.fetch("attempt") }
+      assert observed.all? { |event| event.fetch("messageId") == reference.id.to_s }
+      observed.each { |event| assert_portable_attributes(event) }
+      assert worker.shutdown_requested?
+      assert_empty stored_message(reference).instance.state
+      assert_empty SolidObjects::DeadLetter.all
     end
-    forced_shutdown = false
-    guard = Thread.new do
-      sleep 2
-      forced_shutdown = true
-      worker.request_shutdown
+  end
+
+  %w[failure rejection].each do |outcome|
+    test "reports lease loss while saving a handler #{outcome} and recovers" do
+      worker = new_worker
+      reference = Counter.ref("one").async.increment(label: "slow")
+      Counter.before_commit = ->(_) do
+        @clock[:now] += 0.201
+        raise SolidObjects::Rejected.new(code: "declined", message: "declined") if outcome == "rejection"
+
+        raise "handler failed"
+      end
+      assert_equal 0, worker.run_once
+      losses = @events.select { |event| event.fetch("name") == "solid_objects.activation.lost" }
+      assert_equal [ 1 ], losses.map { |event| event.fetch("attempt") }
+      assert_equal [ reference.id.to_s ], losses.map { |event| event.fetch("messageId") }
+      losses.each { |event| assert_portable_attributes(event) }
+      assert_empty stored_message(reference).instance.state
+      assert_nil stored_message(reference).error
+      assert_nil stored_message(reference).rejection
+      assert_empty SolidObjects::DeadLetter.all
+      assert_empty SolidObjects::Effect.all
+      assert_not @events.any? { |event| %w[solid_objects.message.failed solid_objects.message.rejected].include?(event.fetch("name")) }
+
+      Counter.before_commit = nil
+      assert_equal 1, worker.run_once
+      assert_equal 1, stored_message(reference).result
+      assert_equal 2, stored_message(reference).attempt_count
+      assert_equal 1, SolidObjects::Effect.count
     end
-    begin
-      worker.run
-    ensure
-      guard.kill
-      guard.join
-    end
-    assert_not forced_shutdown
-    assert_predicate worker, :stopped?
-    assert_equal [ 1, 2, 3 ], observed.map { |event| event.fetch("attempt") }
-    assert observed.all? { |event| event.fetch("messageId") == reference.id.to_s }
-    observed.each { |event| assert_portable_attributes(event) }
-    assert worker.shutdown_requested?
-    assert_empty stored_message(reference).instance.state
-    assert_empty SolidObjects::DeadLetter.all
   end
 
   test "keeps a handler failure terminal with one allowed attempt" do

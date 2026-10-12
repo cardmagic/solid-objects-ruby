@@ -11,7 +11,8 @@
   can proceed. Lease loss alone still does not dead-letter a message; handler
   failure attempt limits, setting names, defaults, and schema stay unchanged.
 - Emit `activation.lost` with the message ID and total attempt count when a
-  turn loses its fence, matching JavaScript instrumentation. Shutdown requested
+  turn loses its fence, including while saving a handler failure or rejection,
+  matching JavaScript instrumentation. Shutdown requested
   by that callback stops the worker before another pass. Skip a cached actor
   whose first message is delayed so later ready messages cannot starve peers.
 
