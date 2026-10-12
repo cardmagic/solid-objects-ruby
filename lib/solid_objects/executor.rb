@@ -39,7 +39,10 @@ module SolidObjects
         state_changed: state_after.value != state_before
       )
       true
-    rescue CommittedTransactionError, LostActivation
+    rescue CommittedTransactionError
+      raise
+    rescue LostActivation
+      SolidObjects.instrument(:"activation.lost", **instrumentation_payload, duration_milliseconds: elapsed_milliseconds)
       raise
     rescue Rejected => rejection
       activation.restore_state(state_before) if state_before

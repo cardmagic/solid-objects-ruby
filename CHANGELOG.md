@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Back off repeated interrupted-message recovery using `retry_delay`.
+  The first claimed attempt recovers immediately; after attempts 2, 3, 4,
+  and onward, the delay callback receives 1, 2, 3, and onward (defaults:
+  1, 2, 4 seconds, capped at 60 seconds). Total persisted claim attempts,
+  including earlier handler failures, determine the delay. The ready timestamp
+  survives worker replacement and preserves mailbox order while other actors
+  can proceed. Lease loss alone still does not dead-letter a message; handler
+  failure attempt limits, setting names, defaults, and schema stay unchanged.
+- Emit `activation.lost` with the message ID and total attempt count when a
+  turn loses its fence, matching JavaScript instrumentation. Shutdown requested
+  by that callback stops the worker before another pass. Skip a cached actor
+  whose first message is delayed so later ready messages cannot starve peers.
+
 - Preserve caller lifecycle guarantees with regression tests for concurrent
   synchronous calls retaining their staged effects and for caller process
   re-registration after stale-process cleanup and retention. Both cases

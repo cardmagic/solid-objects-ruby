@@ -173,6 +173,9 @@ Obey these rules in actor code:
   write in the same database.
 - Do not call an external API in a handler. Use `emit` and an effect handler.
 - Write each handler so that it can run again. Delivery is at least once.
+- Repeated lease losses back off but do not become dead letters. Observe
+  `activation.lost` and set an application stopping policy if a hard bound is
+  required; increasing the handler-failure attempt limit does not bound lease loss.
 - A reminder changes state only when it runs, and it runs only while
   `solid_objects start` runs. Do not compute expiry from the clock in a query;
   read the state that the reminder committed.

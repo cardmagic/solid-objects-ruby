@@ -52,7 +52,8 @@ module SolidObjects
     # @rbs () -> bool
     def ready?
       now = SolidObjects.database_adapter.database_now
-      ReadyMessage.where(instance_id: lease.instance_id, available_at: ..now).exists? ||
+      ready_message = ReadyMessage.where(instance_id: lease.instance_id).order(:sequence).first
+      (ready_message && ready_message.available_at <= now) ||
         ClaimedMessage.where(
           instance_id: lease.instance_id,
           process_id: lease.owner_id,
@@ -227,11 +228,12 @@ module SolidObjects
       claimed_message.destroy!
       return if message.completed? || message.dead?
 
+      delay = (message.attempt_count <= 1) ? 0 : SolidObjects.configuration.retry_delay.call(message.attempt_count - 1)
       ReadyMessage.create!(
         message:,
         instance:,
         sequence: message.sequence,
-        available_at: SolidObjects.database_adapter.database_now
+        available_at: SolidObjects.database_adapter.database_now + delay
       )
     end
 

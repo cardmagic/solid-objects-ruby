@@ -85,6 +85,21 @@
       ]
     },
     {
+      "name": "activation.lost",
+      "attributes": [
+        "actorId",
+        "actorType",
+        "attempt",
+        "deliveryMode",
+        "durationMilliseconds",
+        "instanceId",
+        "messageId",
+        "operation",
+        "requestId",
+        "sequence"
+      ]
+    },
+    {
       "name": "activation.started",
       "attributes": ["actorId", "actorType", "generation", "instanceId", "ownerId"],
       "javascriptAttributes": [
