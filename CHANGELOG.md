@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.17.4 - 2026-10-12
 
 - Renew activations between turns in a drain pass when renewal is due,
   including when the renewal thread has not run.
