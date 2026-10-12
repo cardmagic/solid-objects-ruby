@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Preserve caller lifecycle guarantees with regression tests for concurrent
+  synchronous calls retaining their staged effects and for caller process
+  re-registration after stale-process cleanup and retention. Both cases
+  already work in Ruby; no runtime behavior or configuration changes.
+
 ## 0.17.4 - 2026-10-12
 
 - Renew activations between turns in a drain pass when renewal is due,
