@@ -123,6 +123,7 @@ module SolidObjects
         instance = Instance.lock.find_by(id: instance_id)
         next false unless instance
         next false unless owned_generation?(instance)
+        next false if ClaimedMessage.where(instance_id:).exists?
 
         instance.update!(
           activation_owner_id: nil,

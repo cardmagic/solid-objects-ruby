@@ -139,6 +139,7 @@ module SolidObjects
           break
         end
 
+        renew_lease if processed_count.positive? && lease_renewal_due?
         message = claim_next_message
         break unless message
 
