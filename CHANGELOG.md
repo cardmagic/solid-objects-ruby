@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.17.5 - 2026-10-12
 
 - Back off repeated interrupted-message recovery using `retry_delay`.
   The first claimed attempt recovers immediately; after attempts 2, 3, 4,
