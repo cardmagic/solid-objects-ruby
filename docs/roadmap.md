@@ -23,7 +23,8 @@
   instead of 12. Concurrent creation causes no deadlock on SQLite, PostgreSQL,
   or MySQL. MySQL needs a shared read after a duplicate key, because it uses
   repeatable read. The tests count statements, and do not measure latency.
-- Activation leases, renewal, unique activation tokens, generations, and
+- Activation leases, renewal between turns as well as in the renewal thread,
+  unique activation tokens, generations, and
   fenced commits
 - Bounded activation passes, idle cache, hot-actor yield, and process records
 - At-least-once retries, terminal domain rejection, strict poison ordering,

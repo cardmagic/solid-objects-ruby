@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.17.4 - 2026-10-12
+
+- Renew activations between turns in a drain pass when renewal is due,
+  including when the renewal thread has not run.
+- Keep the activation fence and expiry while an outstanding message claim
+  remains. The next worker pass recovers an expired turn in mailbox order,
+  including with `max_attempts: 1`. Reclaiming increments `attempt_count`;
+  lease loss alone does not create a dead letter.
+
 ## 0.17.3 - 2026-10-09
 
 - Add four problem guides in `docs/guides/`: preventing race conditions in
