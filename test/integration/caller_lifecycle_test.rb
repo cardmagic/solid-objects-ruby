@@ -4,6 +4,29 @@ require "database_test_helper"
 require "timeout"
 
 class CallerLifecycleTest < ActiveSupport::TestCase
+  class BlockingWakeUp
+    # @rbs @waiting: Thread::Queue
+    # @rbs @release: Thread::Queue
+
+    attr_reader :waiting, :release
+
+    # @rbs () -> void
+    def initialize
+      @waiting = Queue.new
+      @release = Queue.new
+    end
+
+    # @rbs () -> void
+    def signal
+    end
+
+    # @rbs (timeout: Numeric) -> void
+    def wait(timeout:)
+      waiting << timeout
+      release.pop
+    end
+  end
+
   class Counter < SolidObjects::Actor
     actor_type "caller-lifecycle-counter"
     attribute :count, default: 0
@@ -36,16 +59,21 @@ class CallerLifecycleTest < ActiveSupport::TestCase
   test "concurrent callers preserve staged effects and ordered state" do
     Counter.started = Queue.new
     Counter.release = Queue.new
-    enqueued = Queue.new
-    subscription = ActiveSupport::Notifications.subscribe("solid_objects.message.enqueued") { enqueued << true }
+    wake_up = BlockingWakeUp.new
+    SolidObjects.configuration.wake_up_adapter = wake_up
     reference = Counter.ref("concurrent")
 
     first = Thread.new { reference.increment(label: "first") }
     assert_equal "first", Timeout.timeout(10) { Counter.started.pop }
     second = Thread.new { reference.increment(label: "second") }
-    2.times { Timeout.timeout(10) { enqueued.pop } }
+    Timeout.timeout(10) { wake_up.waiting.pop }
+    assert_raises(ThreadError) { Counter.started.pop(true) }
+    assert_equal 1, SolidObjects::ClaimedMessage.count
+    assert_equal 1, SolidObjects::ReadyMessage.count
+    assert_empty SolidObjects::Effect.all
     Counter.release << true
     assert_equal 1, Timeout.timeout(10) { first.value }
+    wake_up.release << true
     assert_equal "second", Timeout.timeout(10) { Counter.started.pop }
     Counter.release << true
     assert_equal 2, Timeout.timeout(10) { second.value }
@@ -59,9 +87,9 @@ class CallerLifecycleTest < ActiveSupport::TestCase
   ensure
     Counter.release << true if first&.alive?
     Counter.release << true if second&.alive?
+    wake_up&.release&.push(true) if second&.alive?
     first&.join(10)
     second&.join(10)
-    ActiveSupport::Notifications.unsubscribe(subscription) if subscription
   end
 
   test "caller re-registers after stale cleanup and process retention" do

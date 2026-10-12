@@ -6,6 +6,8 @@
   synchronous calls retaining their staged effects and for caller process
   re-registration after stale-process cleanup and retention. Both cases
   already work in Ruby; no runtime behavior or configuration changes.
+  The concurrency test waits for the second caller's busy-actor wait before
+  allowing the first caller to commit its staged effect.
 
 ## 0.17.4 - 2026-10-12
 
