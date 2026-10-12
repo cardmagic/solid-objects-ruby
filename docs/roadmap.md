@@ -25,7 +25,12 @@
   repeatable read. The tests count statements, and do not measure latency.
 - Activation leases, renewal between turns as well as in the renewal thread,
   unique activation tokens, generations, and
-  fenced commits
+  fenced commits. Interrupted first attempts recover immediately; repeated
+  interruptions use durable retry delays from total claim attempts minus one,
+  preserving mailbox order and progress for other actors. Lease loss emits
+  `activation.lost` with the message ID and attempt, including losses while
+  saving a handler failure or rejection. There is no hard retry cap;
+  applications needing one must impose a stopping policy.
 - Bounded activation passes, idle cache, hot-actor yield, and process records
 - At-least-once retries, terminal domain rejection, strict poison ordering,
   dead letters, and tail retry

@@ -22,6 +22,9 @@ module SolidObjects
 
     attr_reader message: untyped
 
+    # @rbs () -> bool
+    def execute: () -> bool
+
     # @rbs () -> Actor
     def actor: () -> Actor
 

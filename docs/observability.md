@@ -45,6 +45,7 @@ JavaScript does not await exporters. Telemetry is not a durable audit trail.
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `activation.started/completed/failed`       | Local actor activation hook lifecycle                                        |
 | `message.started/completed/failed/rejected` | One attempt's execution outcome                                              |
+| `activation.lost`                         | A message turn lost its activation fence; includes message ID and total attempt count |
 | `message.retry`                             | Failed attempt durably queued for another attempt                            |
 | `dead_letter.created`                       | Message exhausted retries or failed permanently                              |
 | `commit_action.started/completed/failed`    | One registered commit action inside the commit transaction                   |

@@ -16,6 +16,18 @@ module SolidObjects
 
     # @rbs () -> bool
     def call
+      execute
+    rescue LostActivation
+      SolidObjects.instrument(:"activation.lost", **instrumentation_payload, duration_milliseconds: elapsed_milliseconds)
+      raise
+    end
+
+    private
+
+    attr_reader :activation, :message
+
+    # @rbs () -> bool
+    def execute
       state_before = actor.state.to_h
       observables_before = actor.observable_values
       message_context = MessageContext.new(
@@ -52,10 +64,6 @@ module SolidObjects
       fail_message(error)
       false
     end
-
-    private
-
-    attr_reader :activation, :message
 
     # @rbs () -> Actor
     def actor

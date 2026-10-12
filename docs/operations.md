@@ -606,3 +606,24 @@ heartbeat cleanup.
 Back up actor tables with the same consistency guarantees as application data.
 Restoring only instances without their mailboxes/outboxes, or vice versa, can
 violate application expectations.
+
+## Interrupted-message recovery
+
+An interrupted first claimed attempt recovers immediately. Recovery after
+persisted attempts 2, 3, 4, ... calls `retry_delay` with 1, 2, 3, ... . The
+callback returns seconds; defaults grow from 1 to 2 to 4 seconds up to 60 seconds.
+This uses total claim attempts, including earlier handler failures, not a
+separate lease-loss counter. The delay is stored in ready-message availability
+when a stale claim is recovered, survives worker replacement, and keeps later
+messages behind that message. Other actors can still run. Custom delays,
+including zero, remain authoritative.
+
+Lease loss alone does not create a dead letter, even with `max_attempts: 1`.
+Handler failures still use the full attempt count for `max_attempts` and
+`retry_delay`. An always-losing message remains pending indefinitely. Observe
+`activation.lost` (message ID and total attempt count) and impose an application
+stopping policy if a hard bound is required. Calling `request_shutdown` from
+instrumentation stops the worker before its next pass. Ruby uses a separate
+renewal thread and waits after lost turns; it does not have the JavaScript
+microtask starvation pattern. A handler must still return before its worker
+can finish shutting down.
