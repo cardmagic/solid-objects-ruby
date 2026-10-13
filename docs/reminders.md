@@ -16,6 +16,23 @@ end
 Use `missed: :latest` to coalesce missed occurrences or `missed: :all` to
 enqueue each one.
 
+## A schedule call needs an operation
+
+`schedule` returns an object, and the reminder exists only after you call an
+operation on that object. A turn that calls `schedule` and then calls no
+operation on the result fails with `SolidObjects::ScheduleWithoutOperation`.
+The runtime does not retry that turn, and the message becomes a dead letter.
+
+```ruby
+# Wrong. The turn fails.
+schedule(at: 10.minutes.from_now, key: buyer)
+
+# Correct.
+schedule(at: 10.minutes.from_now, key: buyer).expire(buyer:)
+```
+
+You can keep the result and call the operation later in the same turn.
+
 ## A reminder is one named alarm per actor
 
 The uniqueness key is `(actor, reminder name)`. Scheduling a name that is
