@@ -14,6 +14,15 @@ configuration options that `README.md` and the files in `docs/` describe.
 | Minor, for example 1.1.0 | New behavior. Code that uses the public API continues to work |
 | Major, for example 2.0.0 | A change that breaks code that uses the public API |
 
+## Supported versions
+
+A minor release can raise the minimum version of Ruby, Rails, SQLite,
+PostgreSQL, or MySQL. It does this only for a version that its own project no
+longer supports, and `CHANGELOG.md` names the change. A patch release does not
+raise a minimum version.
+[Compatibility and maturity](virtual-actors.md#compatibility-and-maturity)
+lists the current minimum versions.
+
 ## Outside the promise
 
 - Classes, methods, and constants that the documentation does not describe.
