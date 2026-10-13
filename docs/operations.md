@@ -43,6 +43,11 @@ an older Rails release, pin the 2.x series of `json`:
 gem "json", "~> 2"
 ```
 
+`bin/rails solid_objects:doctor` reports this problem as a failure of its
+`json` check, and the boot prints a warning that starts with
+`[solid_objects]`. Both decode one JSON document with Active Support. They do
+not compare version numbers.
+
 Review [CHANGELOG.md](../CHANGELOG.md) for compatibility and deployment-order
 notes, then update the gem:
 

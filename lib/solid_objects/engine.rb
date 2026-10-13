@@ -15,6 +15,10 @@ module SolidObjects
       SolidObjects::LogSubscriber.install
     end
 
+    initializer "solid_objects.json_compatibility" do
+      JsonCompatibility.new.warn_about_problem
+    end
+
     initializer "solid_objects.actors" do |application|
       application.config.to_prepare { ApplicationActorLoader.new.call }
     end
