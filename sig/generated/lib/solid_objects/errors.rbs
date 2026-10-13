@@ -10,6 +10,9 @@ module SolidObjects
   class QueryMutatedState < NonRetryableError
   end
 
+  class ScheduleWithoutOperation < NonRetryableError
+  end
+
   class UnsupportedDatabase < Error
   end
 

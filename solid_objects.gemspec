@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.name = "solid_objects"
   spec.version = SolidObjects::VERSION
   spec.authors = [ "Lucas Carlson" ]
-  spec.summary = "SQL-backed virtual actors for Ruby on Rails"
-  spec.description = "Solid Objects is a SQL-backed virtual actor library for Ruby on Rails, with durable state, ordered operations, and automatic activation. It brings the Cloudflare Durable Objects programming model to Rails: addressable objects with ordered mailboxes, fenced activation, per-object reminders, transactional effects, and reactive ERB. It runs on MySQL, PostgreSQL, and SQLite without Redis, and requires Ruby 3.3 or newer and Rails 7.1 or newer."
+  spec.summary = "Fix race conditions on one record in Rails with SQL-backed virtual actors"
+  spec.description = "Fix race conditions on one record in Rails: ordered operations, expiring holds, and durable state in your existing SQL database. Solid Objects is a SQL-backed virtual actor library for Ruby on Rails. It brings the Cloudflare Durable Objects programming model to Rails: addressable objects with ordered mailboxes, fenced activation, per-object reminders, transactional effects, and reactive ERB. It runs on MySQL, PostgreSQL, and SQLite without Redis, and requires Ruby 3.3 or newer and Rails 7.1 or newer."
   spec.homepage = "https://solidobjects.dev/ruby"
   spec.license = "MIT"
   spec.metadata = {

@@ -81,6 +81,19 @@ module SolidObjects
       def members: () -> [ :name, :operation, :at, :arguments, :interval_seconds, :missed_policy ]
     end
 
+    class ScheduleCall < Data
+      attr_reader at(): untyped
+
+      attr_reader key(): untyped
+
+      def self.new: (untyped at, untyped key) -> instance
+                  | (at: untyped, key: untyped) -> instance
+
+      def self.members: () -> [ :at, :key ]
+
+      def members: () -> [ :at, :key ]
+    end
+
     class UnscheduleIntent < Data
       attr_reader name(): untyped
 
@@ -206,6 +219,8 @@ module SolidObjects
     private def self.default_actor_type: () -> String
 
     @outbound_message_intents: Array[OutboundMessageIntent]
+
+    @open_schedule_calls: Array[ScheduleCall]
 
     @reminder_intents: Array[ReminderIntent]
 
@@ -348,6 +363,9 @@ module SolidObjects
     # @rbs () -> void
     def discard_intents: () -> void
 
+    # @rbs () -> void
+    def ensure_schedule_calls_have_operations!: () -> void
+
     # @rbs () -> Integer
     def intent_count: () -> Integer
 
@@ -365,6 +383,8 @@ module SolidObjects
     attr_reader reminder_intents: untyped
 
     attr_reader outbound_message_intents: untyped
+
+    attr_reader open_schedule_calls: untyped
 
     # @rbs () -> Array[Array[Hash[Symbol, Object]]]
     def intent_snapshot: () -> Array[Array[Hash[Symbol, Object]]]

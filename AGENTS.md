@@ -69,8 +69,9 @@ release commit directly to `main`.
    snapshot from the tag. The `check:release` step of the site refuses a
    snapshot that is not the latest published tag.
 
-Before 1.0, a feature or a behavior change gets a minor version, and a fix gets
-a patch version.
+From 1.0, versions follow `docs/versioning.md`. A fix gets a patch version. An
+addition gets a minor version. A change that breaks the public API gets a
+major version.
 
 The Context7 refresh workflow refreshes the index after each push to `main` that
 changes the documentation. Confirm that its run succeeded.

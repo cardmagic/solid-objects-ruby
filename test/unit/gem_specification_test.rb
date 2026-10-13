@@ -21,6 +21,16 @@ class GemSpecificationTest < ActiveSupport::TestCase
     assert_match(/requires Ruby 3\.3 or newer and Rails 7\.1 or newer/, @specification.description)
   end
 
+  test "leads with the problems that developers search for" do
+    assert_match(/\AFix race conditions on one record in Rails/, @specification.summary)
+    assert_match(/\AFix race conditions on one record in Rails: /, @specification.description)
+    assert_match(/expiring holds/, @specification.description)
+  end
+
+  test "packages the versioning promise" do
+    assert_includes @specification.files, "docs/versioning.md"
+  end
+
   test "packages the agent and category guides" do
     assert_includes @specification.files, "docs/agents.md"
     assert_includes @specification.files, "docs/virtual-actors.md"

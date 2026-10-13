@@ -12,7 +12,8 @@ State and mailboxes live in the SQLite, PostgreSQL, or MySQL database that the
 Rails application already uses. Redis and a separate actor service are not
 necessary.
 
-Solid Objects is a pre-1.0 release. It makes no production-ready claim. Read
+Solid Objects 1.0 promises a stable public API. It makes no claim of measured
+scale. Read
 [Compatibility and maturity](#compatibility-and-maturity) before you choose it.
 
 ## What a virtual actor is
@@ -198,9 +199,9 @@ matrix.
   InnoDB. MySQL works through `mysql2` or `trilogy`.
 - SQLite is correct for the same contract, but it is best for development and
   modest single-host workloads.
-- Pre-1.0. Expect changes that break compatibility. The correctness core has tests against all
-  three databases. The project has no production-ready claim and no measured
-  scale claim.
+- Version 1.0: the public API follows [semantic versioning](versioning.md). The
+  correctness core has tests against all three databases. The project makes no
+  claim of measured scale, and no production use by other people is known.
 
 The [roadmap](roadmap.md) records what is tested, what is partial, and what is
 next. For TypeScript and Node.js, use the

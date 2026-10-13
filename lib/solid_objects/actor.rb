@@ -13,6 +13,7 @@ module SolidObjects
     REMINDER_HANDLE_KEY = "reminder_name"
 
     ReminderIntent = Data.define(:name, :operation, :at, :arguments, :interval_seconds, :missed_policy)
+    ScheduleCall = Data.define(:at, :key)
     UnscheduleIntent = Data.define(:name)
     UnscheduleAllIntent = Data.define(:operation)
     ReminderStatus = Data.define(:name, :operation, :key, :next_run_at, :interval_seconds,
@@ -154,6 +155,7 @@ module SolidObjects
     # @rbs @effect_recovery_intents: Array[EffectRecoveryIntent]
     # @rbs @commit_action_intents: Array[CommitActionIntent]
     # @rbs @reminder_intents: Array[ReminderIntent]
+    # @rbs @open_schedule_calls: Array[ScheduleCall]
     # @rbs @outbound_message_intents: Array[OutboundMessageIntent]
 
     attr_reader :actor_id, :state
@@ -167,6 +169,7 @@ module SolidObjects
       @effect_recovery_intents = []
       @commit_action_intents = []
       @reminder_intents = []
+      @open_schedule_calls = []
       @outbound_message_intents = []
     end
 
@@ -257,11 +260,14 @@ module SolidObjects
         raise ArgumentError, "missed reminder policy must be all or latest"
       end
       reminder_key = validated_reminder_key(key)
+      call = ScheduleCall.new(at:, key: reminder_key)
+      open_schedule_calls << call
 
       OperationDispatcher.new(
         actor_type: self.class.actor_type,
         handlers: self.class.definition.messages
       ) do |operation, arguments|
+        open_schedule_calls.delete_if { |open_call| open_call.equal?(call) }
         name = reminder_name(operation:, key: reminder_key)
         reminder_intents << ReminderIntent.new(
           name:,
@@ -537,6 +543,18 @@ module SolidObjects
       commit_action_intents.clear
       reminder_intents.clear
       outbound_message_intents.clear
+      open_schedule_calls.clear
+    end
+
+    # @rbs () -> void
+    def ensure_schedule_calls_have_operations!
+      call = open_schedule_calls.first
+      return unless call
+
+      arguments = [ "at: #{call.at.inspect}", ("key: #{call.key.inspect}" if call.key) ].compact.join(", ")
+      raise ScheduleWithoutOperation,
+        "schedule(#{arguments}) has no operation after it, so it stores no reminder. " \
+        "Call an operation on the result, for example schedule(at: time).expire"
     end
 
     # @rbs () -> Integer
@@ -563,11 +581,19 @@ module SolidObjects
       :effect_recovery_intents,
       :commit_action_intents,
       :reminder_intents,
-      :outbound_message_intents
+      :outbound_message_intents,
+      :open_schedule_calls
 
     # @rbs () -> Array[Array[Hash[Symbol, Object]]]
     def intent_snapshot
-      [ effect_intents, effect_recovery_intents, commit_action_intents, reminder_intents, outbound_message_intents ].map do |intents|
+      [
+        effect_intents,
+        effect_recovery_intents,
+        commit_action_intents,
+        reminder_intents,
+        outbound_message_intents,
+        open_schedule_calls
+      ].map do |intents|
         intents.map { |intent| intent.to_h.deep_dup }
       end
     end

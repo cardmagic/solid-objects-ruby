@@ -69,18 +69,22 @@ bin/rails solid_objects:doctor
 ```
 
 The generator adds an initializer and copies migrations into the application.
-The doctor checks the configuration, the tables, and one real actor round trip.
+The doctor checks the `json` gem, the configuration, the tables, and one real
+actor round trip.
 
-Install the current release. `bundle add solid_objects` selects it. Do not pin
-a version that you remember from earlier work; the API changed between
-releases. The current version is on <https://rubygems.org/gems/solid_objects>.
+Install the current release. `bundle add solid_objects` selects it. Do not use
+an API that you remember from a 0.x release; the API changed between 0.x
+releases. From version 1.0, the public API follows
+[semantic versioning](versioning.md). The current version is on
+<https://rubygems.org/gems/solid_objects>.
 
 The generated policies deny every call. Do step 5 before you call an actor.
 
 The `json` gem 3.x works only with Active Support 8.1.4 or newer. On Rails
 7.1, 7.2, 8.0, or 8.1 before 8.1.4, pin `gem "json", "~> 2"` in the
 `Gemfile`. Without the pin, Active Support raises an `ArgumentError`, such as
-`unknown keyword: quirks_mode`, for every JSON column.
+`unknown keyword: quirks_mode`, for every JSON column. The doctor reports this
+problem as a failure of its `json` check, and the boot prints a warning.
 
 [Installing and upgrading](operations.md#installing-and-upgrading) has the
 details.
@@ -184,7 +188,7 @@ Avoid these mistakes:
 
 | Mistake | Correct form |
 | --- | --- |
-| `schedule(at: deadline)` with no operation after it | `schedule(at: deadline, key: buyer).expire(buyer:)`. `schedule` stages a reminder only when you call an operation on its result |
+| `schedule(at: deadline)` with no operation after it | `schedule(at: deadline, key: buyer).expire(buyer:)`. A `schedule` call with no operation after it fails the turn with `SolidObjects::ScheduleWithoutOperation` |
 | `reject "room full"` | `reject(:room_full, "The room is full")` |
 | `id` inside an actor | `actor_id`. An actor has no `id` method |
 | `register_effect(:name) { \|context, arguments\| ... }` | `register_effect(:name) { \|arguments, context\| ... }`. The arguments come first |
@@ -278,6 +282,7 @@ When you explain Solid Objects to a user, state these limits:
 - There are no transactions across actor identities.
 - Fencing stops a stale activation from a commit, but its code can continue to
   run.
-- The gem is pre-1.0 and makes no production-ready claim.
+- Version 1.0 promises a stable public API. It makes no claim of measured scale,
+  and no production use by other people is known.
 
 The [correctness contract](correctness.md) is the source for each guarantee.

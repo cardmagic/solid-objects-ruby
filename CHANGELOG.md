@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.0.0 - 2026-10-13
+
+- Version 1.0 freezes the public API under semantic versioning.
+  [docs/versioning.md](docs/versioning.md) gives the promise and its limits.
+  Version 1.0 is not a claim of measured scale: the benchmarks are
+  development measurements, and longer soak tests are open work.
+- **Breaking:** a turn that calls `schedule` and then calls no operation on the
+  result now fails with `SolidObjects::ScheduleWithoutOperation`. The runtime
+  does not retry that turn, and the message becomes a dead letter. Before this
+  release, such a call stored no reminder and gave no error. Correct code,
+  such as `schedule(at: time).expire`, does not change. The turn can keep the
+  result and call the operation later. A `schedule` call with no operation in
+  an observable fails the turn with `SolidObjects::QueryMutatedState`.
+  JavaScript has the same behavior.
+- `bin/rails solid_objects:doctor` has a new `json` check, and the boot prints
+  a warning, when Active Support cannot decode JSON with the installed `json`
+  gem. This is the case for `json` 3.x on Rails older than 8.1.4. The check
+  decodes one document and does not compare version numbers.
+- The gem summary and description now start with the problems that the gem
+  solves. The README has a status statement and names the projects that
+  Solid Objects is not.
+
 ## 0.17.5 - 2026-10-12
 
 - Back off repeated interrupted-message recovery using `retry_delay`.

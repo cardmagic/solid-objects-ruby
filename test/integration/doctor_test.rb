@@ -27,6 +27,25 @@ class DoctorTest < ActiveSupport::TestCase
     assert_empty SolidObjects::Process.where(kind: "caller")
   end
 
+  test "passes the json check when Active Support decodes JSON" do
+    report = SolidObjects::Doctor.new.call
+
+    assert_equal :pass, report.check(:json).status
+    assert_includes report.check(:json).message, JSON::VERSION
+  end
+
+  test "fails the json check and names the correction when Active Support cannot decode JSON" do
+    refused = SolidObjects::JsonCompatibility.new(
+      decode: ->(_text) { raise ArgumentError, "unknown keyword: :quirks_mode" }
+    )
+
+    report = SolidObjects::Doctor.new(json_compatibility: refused).call
+
+    assert_not report.healthy?
+    assert_equal :fail, report.check(:json).status
+    assert_includes report.check(:json).message, 'gem "json", "~> 2"'
+  end
+
   test "runs its probe on a caller process the application cannot adopt" do
     SolidObjects.caller_process.define_singleton_method(:process_registry) do
       raise "the doctor probe must not share the application caller process"

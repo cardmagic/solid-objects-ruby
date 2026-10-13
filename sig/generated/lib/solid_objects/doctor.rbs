@@ -47,12 +47,14 @@ module SolidObjects
       def ping: (value: String) -> String
     end
 
+    @json_compatibility: JsonCompatibility
+
     @configuration: Configuration
 
     @connection: untyped
 
-    # @rbs (?connection: untyped, ?configuration: Configuration) -> void
-    def initialize: (?connection: untyped, ?configuration: Configuration) -> void
+    # @rbs (?connection: untyped, ?configuration: Configuration, ?json_compatibility: JsonCompatibility) -> void
+    def initialize: (?connection: untyped, ?configuration: Configuration, ?json_compatibility: JsonCompatibility) -> void
 
     # @rbs () -> Report
     def call: () -> Report
@@ -62,6 +64,11 @@ module SolidObjects
     attr_reader connection: untyped
 
     attr_reader configuration: untyped
+
+    attr_reader json_compatibility: untyped
+
+    # @rbs () -> Check
+    def check_json: () -> Check
 
     # @rbs () -> Check
     def check_configuration: () -> Check

@@ -11,6 +11,18 @@ stable identity, and its state lives in the SQL database that your app already
 uses. [Virtual actors in Ruby on Rails](docs/virtual-actors.md) explains the
 model and when to use it.
 
+**Status.** Version 1.0: the public API follows semantic versioning and does
+not break before 2.0. [Versioning](docs/versioning.md) gives the limits of the
+promise. First public release: August 6, 2026. One maintainer.
+
+**Production use.** One first-party application with more than 100,000 users
+runs it in production. That is a count of users, not a measure of load. No
+production use by other people is known. The [benchmarks](docs/benchmarks.md)
+are development measurements, and longer soak tests are open work.
+
+**It is not** Solid Queue, SolidJS, or the `service_actor` gem, and it is not
+affiliated with Rails or Cloudflare.
+
 In a shopping cart, paying twice at the same time is a big problem. The payment provider might time out, and your Rails site could be restarting before recovery finishes.
 
 To deal with this safely, you often need logic scattered between 7-10 files like database row locks, Redis locks, delayed jobs, retries, and cleanup code to keep that process straight. They are not all large, but they must agree about the same payment state and failure rules. That coordination is the difficult part.
@@ -193,9 +205,11 @@ explanations remain in `docs/`. The README stops here.
 
 ## Status and license
 
-Solid Objects Ruby is a pre-1.0 early release. Its correctness core is tested
-against SQLite, PostgreSQL, and MySQL, but the project makes no production-ready
-claim. That requires more hardening and operational soak evidence. Expect breaking changes.
+Version 1.0 promises a stable public API. Its correctness core is tested
+against SQLite, PostgreSQL, and MySQL. It makes no claim of measured scale:
+the [benchmarks](docs/benchmarks.md) are development measurements, and longer
+soak tests are open work. [Versioning](docs/versioning.md) says what a release
+can change.
 
 Solid Objects is released under the [MIT License](MIT-LICENSE). It is an
 independent project and is not affiliated with, sponsored by, or endorsed by

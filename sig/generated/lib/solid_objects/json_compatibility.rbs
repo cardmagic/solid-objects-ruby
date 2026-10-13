@@ -1,0 +1,22 @@
+# Generated from lib/solid_objects/json_compatibility.rb with RBS::Inline
+
+module SolidObjects
+  class JsonCompatibility
+    PROBE: ::String
+
+    @decode: ^(String) -> untyped
+
+    # @rbs (?decode: ^(String) -> untyped) -> void
+    def initialize: (?decode: ^(String) -> untyped) -> void
+
+    # @rbs () -> String?
+    def problem: () -> String?
+
+    # @rbs () -> void
+    def warn_about_problem: () -> void
+
+    private
+
+    attr_reader decode: untyped
+  end
+end

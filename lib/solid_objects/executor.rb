@@ -41,6 +41,7 @@ module SolidObjects
       SolidObjects.instrument(:"recovery.reclaimed", **instrumentation_payload) if message.attempt_count > 1 && message.error.nil?
       SolidObjects.instrument(:"message.started", **instrumentation_payload)
       result = invoke_actor(message_context)
+      actor.ensure_schedule_calls_have_operations!
       observable_changes = changed_observables(observables_before, actor.observable_values)
       state_after = actor.state.to_h_with_byte_size
       ensure_query_is_read_only!(state_before, state_after.value)

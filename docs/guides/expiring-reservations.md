@@ -164,7 +164,7 @@ See [the transactional outbox guide](transactional-outbox.md).
 - Delivery is at least once. Each operation must be safe to run again.
 - There are no transactions across actors. A reservation that spans two shows needs its own design.
 - One busy show runs its calls one at a time. Many shows run at the same time.
-- The gem is pre-1.0 and makes no production-ready claim.
+- Version 1.0 promises a stable public API. It makes no claim of measured scale.
 
 ## More information
 

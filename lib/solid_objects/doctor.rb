@@ -99,14 +99,17 @@ module SolidObjects
 
     # @rbs @connection: untyped
     # @rbs @configuration: Configuration
+    # @rbs @json_compatibility: JsonCompatibility
 
-    # @rbs (?connection: untyped, ?configuration: Configuration) -> void
+    # @rbs (?connection: untyped, ?configuration: Configuration, ?json_compatibility: JsonCompatibility) -> void
     def initialize(
       connection: SolidObjects::Record.connection,
-      configuration: SolidObjects.configuration
+      configuration: SolidObjects.configuration,
+      json_compatibility: JsonCompatibility.new
     )
       @connection = connection
       @configuration = configuration
+      @json_compatibility = json_compatibility
     end
 
     # @rbs () -> Report
@@ -114,6 +117,7 @@ module SolidObjects
       configuration_check = check_configuration
       schema_check = check_schema
       checks = [
+        check_json,
         configuration_check,
         schema_check,
         check_authorization,
@@ -129,7 +133,15 @@ module SolidObjects
 
     private
 
-    attr_reader :connection, :configuration
+    attr_reader :connection, :configuration, :json_compatibility
+
+    # @rbs () -> Check
+    def check_json
+      problem = json_compatibility.problem
+      return fail_check(:json, problem) if problem
+
+      pass(:json, "Active Support decodes JSON with the json gem #{JSON::VERSION}")
+    end
 
     # @rbs () -> Check
     def check_configuration

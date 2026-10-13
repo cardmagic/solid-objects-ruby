@@ -9,6 +9,17 @@
   [observability](observability.md).
 
 - Rails engine, install generator, migration, and CLI
+- A stable public API from version 1.0, with the limits in
+  [versioning](versioning.md)
+- A turn that calls `schedule` and then calls no operation on the result fails
+  with `ScheduleWithoutOperation`, which is not retried, matching JavaScript.
+  Before 1.0 such a call stored no reminder and gave no error. The projection
+  guard counts such a call in an observable as staged work, so that turn fails
+  with `QueryMutatedState`.
+- A `json` check in `solid_objects:doctor` and a warning during the boot, for
+  the `json` gem 3.x on an Active Support release that cannot decode with it.
+  The check decodes one document and does not compare version numbers. This
+  surface is Rails-only.
 - Explicit actor registry, references, JSON state, and state migrations
 - Queries, observable projections, and personalized payloads reject state mutation
   and staged durable work with `QueryMutatedState`, matching JavaScript. Query
@@ -245,5 +256,6 @@
    latency, query counts, and the three reactive delivery paths are measured on
    SQLite; adapter-specific and end-to-end browser measurements are not.
 
-No production-ready claim should be made until these hardening milestones have
-operational soak evidence.
+Version 1.0 freezes the public API under [semantic versioning](versioning.md).
+It does not complete these hardening milestones. The project makes no claim of
+measured scale until they have operational soak evidence.

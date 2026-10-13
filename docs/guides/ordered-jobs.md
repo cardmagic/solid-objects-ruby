@@ -221,7 +221,7 @@ You do not assign sequence numbers. The actor mailbox gives the order.
 - Delivery is at least once. Each operation must be safe to run again.
 - The gem provides no transactions across actors. A transfer between two accounts needs its own design, for example one SQL transaction on normal tables.
 - One busy account runs its entries one at a time.
-- The gem is pre-1.0 and makes no production-ready claim.
+- Version 1.0 promises a stable public API. It makes no claim of measured scale.
 
 ## More information
 
