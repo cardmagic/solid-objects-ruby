@@ -33,6 +33,9 @@ schedule(at: 10.minutes.from_now, key: buyer).expire(buyer:)
 
 You can keep the result and call the operation later in the same turn.
 
+An observable cannot call `schedule`, with or without an operation. The turn
+that reads the observable fails with `SolidObjects::QueryMutatedState`.
+
 ## A reminder is one named alarm per actor
 
 The uniqueness key is `(actor, reminder name)`. Scheduling a name that is

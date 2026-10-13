@@ -37,6 +37,25 @@ class ScheduleWithoutOperationTest < ActiveSupport::TestCase
     end
   end
 
+  class ProjectionScheduler < SolidObjects::Actor
+    actor_type "schedule-in-projection"
+
+    attribute :status, default: "open"
+
+    observable :deadline do
+      schedule(at: 10.minutes.from_now, key: "ada") if status == "held"
+      status
+    end
+
+    def hold
+      self.status = "held"
+    end
+
+    def release
+      self.status = "open"
+    end
+  end
+
   setup do
     SolidObjects.configuration.max_attempts = 3
     SolidObjects.configuration.retry_delay = ->(_) { 0 }
@@ -88,5 +107,22 @@ class ScheduleWithoutOperationTest < ActiveSupport::TestCase
     reference.sync.hold
 
     assert_equal [ "expire" ], SolidObjects::Reminder.pluck(:operation)
+  end
+
+  test "a schedule call with no operation in an observable fails the turn that reads it" do
+    error = assert_raises(SolidObjects::MessageFailed) { ProjectionScheduler.ref("one").sync.hold }
+
+    assert_equal "SolidObjects::QueryMutatedState", error.details.fetch("class")
+    assert_empty SolidObjects::Instance.find_by!(actor_id: "one").state
+    assert_equal 1, SolidObjects::Message.sole.attempt_count
+  end
+
+  test "a schedule call with no operation in an observable does not make the next turn fail" do
+    reference = ProjectionScheduler.ref("one")
+    assert_raises(SolidObjects::MessageFailed) { reference.sync.hold }
+
+    reference.sync.release
+
+    assert_equal 1, SolidObjects::DeadLetter.count
   end
 end

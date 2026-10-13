@@ -13,7 +13,9 @@
   [versioning](versioning.md)
 - A turn that calls `schedule` and then calls no operation on the result fails
   with `ScheduleWithoutOperation`, which is not retried, matching JavaScript.
-  Before 1.0 such a call stored no reminder and gave no error.
+  Before 1.0 such a call stored no reminder and gave no error. The projection
+  guard counts such a call in an observable as staged work, so that turn fails
+  with `QueryMutatedState`.
 - A `json` check in `solid_objects:doctor` and a warning during the boot, for
   the `json` gem 3.x on an Active Support release that cannot decode with it.
   The check decodes one document and does not compare version numbers. This

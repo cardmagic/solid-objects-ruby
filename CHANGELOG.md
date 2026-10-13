@@ -11,7 +11,9 @@
   does not retry that turn, and the message becomes a dead letter. Before this
   release, such a call stored no reminder and gave no error. Correct code,
   such as `schedule(at: time).expire`, does not change. The turn can keep the
-  result and call the operation later. JavaScript has the same behavior.
+  result and call the operation later. A `schedule` call with no operation in
+  an observable fails the turn with `SolidObjects::QueryMutatedState`.
+  JavaScript has the same behavior.
 - `bin/rails solid_objects:doctor` has a new `json` check, and the boot prints
   a warning, when Active Support cannot decode JSON with the installed `json`
   gem. This is the case for `json` 3.x on Rails older than 8.1.4. The check

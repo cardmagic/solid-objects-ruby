@@ -586,7 +586,14 @@ module SolidObjects
 
     # @rbs () -> Array[Array[Hash[Symbol, Object]]]
     def intent_snapshot
-      [ effect_intents, effect_recovery_intents, commit_action_intents, reminder_intents, outbound_message_intents ].map do |intents|
+      [
+        effect_intents,
+        effect_recovery_intents,
+        commit_action_intents,
+        reminder_intents,
+        outbound_message_intents,
+        open_schedule_calls
+      ].map do |intents|
         intents.map { |intent| intent.to_h.deep_dup }
       end
     end
