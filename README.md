@@ -193,6 +193,7 @@ every claim in [`test/guides/`](test/guides/):
 - [Virtual actors in Ruby on Rails](docs/virtual-actors.md)
 - [Guide for coding agents](docs/agents.md)
 - [Choosing Solid Objects](docs/fit.md)
+- [Comparisons with Solid Queue and GoodJob](docs/comparisons.md)
 - [Operations and recovery](docs/operations.md)
 - [Observability and diagnostics](docs/observability.md)
 - [Reminders](docs/reminders.md)
