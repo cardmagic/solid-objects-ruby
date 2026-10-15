@@ -28,10 +28,19 @@ class GuideDocumentsTest < ActiveSupport::TestCase
       "examples/guides/transactional_outbox/solid_objects.rb"
     ]
   }.freeze
+  BILLING_SYNC_EXAMPLES = [
+    "examples/compare/customer_billing_sync/customer_billing_sync.rb",
+    "examples/compare/customer_billing_sync/solid_objects.rb"
+  ].freeze
+  COMPARISONS = {
+    "docs/compare/solid-queue.md" => BILLING_SYNC_EXAMPLES,
+    "docs/compare/good-job.md" => BILLING_SYNC_EXAMPLES
+  }.freeze
+  DOCUMENTS = GUIDES.merge(COMPARISONS).merge("docs/comparisons.md" => []).freeze
   DASHES = [ "–", "—" ].freeze
   LINK = /(?<!!)\[[^\]]*\]\(([^)\s]+)\)/
 
-  GUIDES.each do |guide, examples|
+  DOCUMENTS.each do |guide, examples|
     test "#{guide} embeds each tested example file verbatim" do
       source = File.read(File.join(ROOT, guide))
 
@@ -59,6 +68,16 @@ class GuideDocumentsTest < ActiveSupport::TestCase
         assert File.exist?(target), "#{guide} links to missing #{link}"
       end
     end
+  end
+
+  test "the comparisons page lists every comparison and the README links to it" do
+    comparisons = File.read(File.join(ROOT, "docs/comparisons.md"))
+    readme = File.read(File.join(ROOT, "README.md"))
+
+    COMPARISONS.each_key do |comparison|
+      assert_includes comparisons, "(#{comparison.delete_prefix("docs/")})"
+    end
+    assert_includes readme, "(docs/comparisons.md)"
   end
 
   test "the README and the agent guide list every guide" do
