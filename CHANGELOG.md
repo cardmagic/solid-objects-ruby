@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Correct `docs/reminders.md`, which said that Solid Objects has no
+  `unschedule`. The gem has `unschedule` and `unschedule_all`, and the guide
+  now has a section on how to cancel a reminder. The agent guide shows the
+  cancel call. A new test fails when the reminder guide does not name a public
+  reminder method of an actor.
+
 ## 1.0.0 - 2026-10-13
 
 - Version 1.0 freezes the public API under semantic versioning.
