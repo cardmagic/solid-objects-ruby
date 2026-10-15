@@ -91,6 +91,23 @@ class CustomerBillingSyncTest < ActiveSupport::TestCase
     assert_equal 1, customer.snapshot.last_synced_version
   end
 
+  test "a push after the backoff uses the same idempotency key" do
+    SolidObjects.configuration.max_attempts = 1
+    customer = CustomerBillingSync.ref("customer-1")
+    BillingApi.lose_next_response = true
+    customer.update_subscription(version: 1, plan: "basic")
+    drain_until_idle
+
+    SolidObjects.reset_caller_process!
+    run_due_reminders(now: 3.minutes.from_now)
+    drain_until_idle
+
+    assert_equal 2, BillingApi.calls.length
+    assert_equal 1, BillingApi.calls.map { |call| call.fetch("key") }.uniq.length
+    assert_equal 1, BillingApi.pushed.length
+    assert_equal 1, customer.snapshot.last_synced_version
+  end
+
   test "a repeated or older update changes nothing" do
     customer = CustomerBillingSync.ref("customer-1")
     customer.update_subscription(version: 2, plan: "pro")

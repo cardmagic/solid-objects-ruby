@@ -12,7 +12,7 @@ class CustomerBillingSync < SolidObjects::Actor
   def update_subscription(version:, plan:)
     return newest_version if version <= newest_version
 
-    self.pending = pending + [ { "version" => version, "plan" => plan } ]
+    self.pending = pending + [ { "version" => version, "plan" => plan, "key" => "billing-#{actor_id}-v#{version}" } ]
     push_next unless pushing || next_retry_at
     version
   end
@@ -51,6 +51,7 @@ class CustomerBillingSync < SolidObjects::Actor
 
     self.pushing = true
     emit :push_subscription,
+      idempotency_key: update.fetch("key"),
       customer_id: actor_id,
       version: update.fetch("version"),
       plan: update.fetch("plan"),

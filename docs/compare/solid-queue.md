@@ -106,7 +106,7 @@ class CustomerBillingSync < SolidObjects::Actor
   def update_subscription(version:, plan:)
     return newest_version if version <= newest_version
 
-    self.pending = pending + [ { "version" => version, "plan" => plan } ]
+    self.pending = pending + [ { "version" => version, "plan" => plan, "key" => "billing-#{actor_id}-v#{version}" } ]
     push_next unless pushing || next_retry_at
     version
   end
@@ -145,6 +145,7 @@ class CustomerBillingSync < SolidObjects::Actor
 
     self.pushing = true
     emit :push_subscription,
+      idempotency_key: update.fetch("key"),
       customer_id: actor_id,
       version: update.fetch("version"),
       plan: update.fetch("plan"),
@@ -157,9 +158,9 @@ end
 The initializer registers the effect that calls the billing API:
 
 ```ruby
-SolidObjects.register_effect(:push_subscription) do |arguments, context|
+SolidObjects.register_effect(:push_subscription) do |arguments, _context|
   BillingApi.push_subscription(
-    idempotency_key: context.id,
+    idempotency_key: arguments.fetch("idempotency_key"),
     customer_id: arguments.fetch("customer_id"),
     version: arguments.fetch("version"),
     plan: arguments.fetch("plan")
@@ -182,7 +183,7 @@ How it works:
 - The runtime stores each message in SQL before `async` returns. Messages for one customer run one at a time, in the order that the runtime stores them.
 - `update_subscription` appends the update to `pending`. It ignores a version that is not newer than the newest one it knows, so a repeated delivery changes nothing.
 - `push_next` stages one effect for the oldest pending update. `pushing` stays true until that effect succeeds or fails. So the billing API never gets two pushes for one customer at the same time, and it gets the versions in order.
-- The effect handler uses `context.id` as the idempotency key. The effect can run more than once after a crash, but the ID stays the same.
+- Each pending update carries its own idempotency key, made from the customer ID and the version. The effect handler sends that key. So the billing API applies an update once, even when a crash runs the effect again or a backoff reminder stages a new effect.
 - The runtime retries a failed effect with a short delay (5 attempts by default). If every attempt fails, `push_failed` counts the failure and schedules `retry_push` with backoff: 2, 4, 8 minutes, up to 60 minutes. The update stays first in `pending`, so it keeps its place. A newer update waits for the retry too.
 - The reminder is a row in the database. It runs after a deploy or a restart.
 
@@ -193,6 +194,7 @@ How it works:
 - Three updates for one customer reach the billing API one at a time, as versions 1, 2, and 3.
 - Two customers each have a staged push at the same time. One customer does not wait for the other.
 - A push that runs again after a lost response uses the same idempotency key, and the billing API applies it once.
+- A push that runs again after the backoff also uses the same idempotency key, and the billing API applies it once.
 - A repeated or older update sends no push to the billing API.
 - A newer update that arrives during the backoff waits for the retry.
 - A failed push records the retry count and the next retry time. After the test resets the caller process and moves the clock 3 minutes ahead, the reminder runs, the push succeeds, and the retry count goes back to 0.
@@ -211,7 +213,7 @@ Solid Queue is older and has more users. If that matters more than order for eac
 
 **Does it need another process?** Yes. `bundle exec solid_objects start` runs async messages, effects, and reminders. Solid Queue also needs a process: `bin/jobs` or the Puma plugin. While the Solid Objects process is down, pending work stays in SQL.
 
-**Is delivery exactly once?** No. Delivery is at least once. A turn can run again after a crash. Use the effect ID as the idempotency key for each external call, as the example does. See [correctness and delivery semantics](../correctness.md).
+**Is delivery exactly once?** No. Delivery is at least once. A turn can run again after a crash. Give each external call a stable idempotency key. The effect ID (`context.id`) is stable across the retries of one effect. The example stores a key with each update, so the key also survives a backoff retry. See [correctness and delivery semantics](../correctness.md).
 
 **Can actor code write my tables?** Not directly. An actor reads application records. To write a row in the same transaction as the actor state, use a commit action. The [ordered jobs guide](../guides/ordered-jobs.md) shows one.
 
