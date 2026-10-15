@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.1 - 2026-10-14
 
 - Correct `docs/reminders.md`, which said that Solid Objects has no
   `unschedule`. The gem has `unschedule` and `unschedule_all`, and the guide
