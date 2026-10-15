@@ -13,7 +13,7 @@ class ReminderDocumentsTest < ActiveSupport::TestCase
   test "the reminder guide names each public reminder method of an actor" do
     REMINDER_METHODS.each do |method|
       assert SolidObjects::Actor.public_method_defined?(method), "SolidObjects::Actor has no public #{method}"
-      assert_includes guide("docs/reminders.md"), "`#{method}", "docs/reminders.md does not name #{method}"
+      assert_includes guide("docs/reminders.md"), "`#{method}`", "docs/reminders.md does not name #{method}"
     end
   end
 
