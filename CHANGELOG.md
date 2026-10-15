@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.2 - 2026-10-15
+
+- Add two comparison pages in `docs/compare/`: Solid Queue
+  `limits_concurrency` and GoodJob concurrency controls. Each page compares an
+  ordered billing sync for each customer, says when the job queue is the
+  better choice, and links the primary sources that were checked on October
+  15, 2026. The billing sync actor is in `examples/compare/` and runs in the
+  test suite. `docs/comparisons.md` lists the pages, and the README links it.
+  An evaluation on October 15, 2026 found that Claude Code, with web search,
+  searched for these names and never found Solid Objects.
+- The guide document test now covers the comparison pages: embedded examples,
+  links, dashes, and the list in `docs/comparisons.md`.
+
 ## 1.0.1 - 2026-10-14
 
 - Correct `docs/reminders.md`, which said that Solid Objects has no
