@@ -129,8 +129,35 @@ cannot strand an entry because the handler drains by time rather than by alarm.
 Prefer it when the queue is large and the items are interchangeable; prefer
 `key:` when an item needs its own alarm that can be moved on its own.
 
-Solid Objects has no `unschedule`. A reminder stops when its handler does not
-re-arm it, and destroying an actor removes its reminders.
+## Cancel a reminder
+
+`unschedule` cancels one reminder: by operation, by operation and key, or by
+the handle that the operation call on the `schedule` result returns.
+`unschedule_all` cancels every key of one operation.
+
+```ruby
+def confirm(buyer:)
+  self.holds = holds.except(buyer)
+  unschedule(:expire, key: buyer)
+end
+
+def close_sale
+  unschedule_all(:expire)
+end
+```
+
+A cancellation is staged like a schedule. It commits with the state change of
+the same turn, and a turn that raises cancels nothing. A cancellation of a
+reminder that does not exist is not an error. An unknown operation raises
+`UnknownMessage`. A cancellation cannot recall an occurrence that the scheduler
+already turned into a message.
+
+A reminder also stops when its handler does not re-arm it, and the destruction
+of an actor removes its reminders.
+
+`reminder` returns the status of one reminder, or `nil`. `reminders` lists
+every key of one operation. Both include the changes that the current turn
+staged.
 
 Self-scheduling actors should also have a low-frequency application reconciler.
 It may read `SolidObjects::Instance.states_for`, `.without_pending_work`, and

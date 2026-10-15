@@ -169,6 +169,7 @@ Obey these rules in actor code:
 - Keep state in `attribute` values. State must be JSON-compatible.
 - Use `schedule(at:, key:)` for delayed work. A reminder is one named alarm
   for each actor and key. A new `schedule` with the same key moves the alarm.
+  `unschedule(:expire, key: buyer)` cancels it.
 - Use `reject(code, message)` for a business rule failure that must not retry.
   It takes a code and a message, for example
   `reject(:room_full, "The room is full")`.
@@ -191,6 +192,7 @@ Avoid these mistakes:
 | `schedule(at: deadline)` with no operation after it | `schedule(at: deadline, key: buyer).expire(buyer:)`. A `schedule` call with no operation after it fails the turn with `SolidObjects::ScheduleWithoutOperation` |
 | `reject "room full"` | `reject(:room_full, "The room is full")` |
 | `id` inside an actor | `actor_id`. An actor has no `id` method |
+| A guessed cancel method, such as `cancel_reminder` | `unschedule(:expire, key: buyer)`. `unschedule_all(:expire)` cancels every key of one operation |
 | `register_effect(:name) { \|context, arguments\| ... }` | `register_effect(:name) { \|arguments, context\| ... }`. The arguments come first |
 
 [Reminders](reminders.md) and the [architecture guide](architecture.md) give
