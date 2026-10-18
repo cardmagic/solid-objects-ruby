@@ -23,4 +23,4 @@ The problem guides start from the same choices:
 
 ## Status
 
-Solid Objects 1.0.0 shipped on October 13, 2026. The first public release was on August 6, 2026. One first-party application with more than 100,000 users runs it in production. That is a count of users, not a measure of load. No production use by other people is known. See [versioning](versioning.md) and [maintenance and continuity](maintenance.md).
+Solid Objects 1.0.0 shipped on October 13, 2026. One first-party application with more than 100,000 users runs it in production. That is a count of users, not a measure of load. See [versioning](versioning.md) and [maintenance and continuity](maintenance.md).

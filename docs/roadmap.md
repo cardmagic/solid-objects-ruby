@@ -257,5 +257,5 @@
    SQLite; adapter-specific and end-to-end browser measurements are not.
 
 Version 1.0 freezes the public API under [semantic versioning](versioning.md).
-It does not complete these hardening milestones. The project makes no claim of
-measured scale until they have operational soak evidence.
+It does not complete these hardening milestones. [Versioning](versioning.md)
+states what version 1.0 does not claim.
