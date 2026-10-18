@@ -59,7 +59,7 @@ The task: a Rails 8 app on PostgreSQL syncs each customer's subscription with an
 
 ### With the Temporal Ruby SDK
 
-There is one `CustomerBillingWorkflow` for each customer. This code follows the Temporal Ruby documentation. On October 18, 2026, it ran with the `temporalio` gem in the Temporal time-skipping test environment: three updates reached the billing API in order, and a failed push ran again with the same key. The Solid Objects test suite does not run it.
+There is one `CustomerBillingWorkflow` for each customer. This code follows the Temporal Ruby documentation. On October 18, 2026, it ran with the `temporalio` gem in the Temporal time-skipping test environment: three updates reached the billing API in order, and a failed push ran again with the same key. The Continue-As-New branch did not run in that check. The Solid Objects test suite does not run it.
 
 ```ruby
 require "temporalio/activity"
@@ -91,7 +91,7 @@ class CustomerBillingWorkflow < Temporalio::Workflow::Definition
   def execute(_state)
     loop do
       Temporalio::Workflow.wait_condition { @pending.any? || Temporalio::Workflow.continue_as_new_suggested }
-      break if @pending.empty?
+      break if Temporalio::Workflow.continue_as_new_suggested
 
       update = @pending.first
       Temporalio::Workflow.execute_activity(
@@ -101,6 +101,7 @@ class CustomerBillingWorkflow < Temporalio::Workflow::Definition
       @last_synced_version = update.fetch("version")
       @pending.shift
     end
+    Temporalio::Workflow.wait_condition { Temporalio::Workflow.all_handlers_finished? }
     raise Temporalio::Workflow::ContinueAsNewError.new(
       { "last_synced_version" => @last_synced_version, "pending" => @pending }
     )
@@ -150,7 +151,7 @@ What to know:
 - Workflow code must be deterministic. It cannot read Active Record or call the billing API. The activity does that.
 - The state (`@pending` and `@last_synced_version`) lives in the event history, not in your tables. The app reads `last_synced_version` with a query.
 - Temporal counts the attempts of each activity. This workflow does not copy the retry count or the next retry time into its own state.
-- Each signal and each activity adds events to the history. The history is "limited to 51,200 Events or 50 MB", so the workflow continues as new when Temporal suggests it and no update is pending.
+- Each signal and each activity adds events to the history. The history is "limited to 51,200 Events or 50 MB", so the workflow continues as new when Temporal suggests it. It carries the pending updates into the new run.
 - Activities run at least once. The docs say that an activity "may be executed multiple times". The billing API must accept the idempotency key.
 - You operate a Temporal Service, or you use Temporal Cloud, and you run a worker process beside the Rails app.
 
@@ -268,7 +269,7 @@ The task: turn-based game rooms in a Rails 8 app on PostgreSQL. Players send mov
 
 ### With the Temporal Ruby SDK
 
-There is one `GameRoomWorkflow` for each room. This code also ran in the Temporal time-skipping test environment on October 18, 2026. A move out of turn was rejected, and the timer skipped a turn after 60 seconds.
+There is one `GameRoomWorkflow` for each room. This code also ran in the Temporal time-skipping test environment on October 18, 2026. A move out of turn was rejected, and the timer skipped a turn after 60 seconds. The Continue-As-New branch did not run in that check.
 
 ```ruby
 require "temporalio/workflow"
@@ -279,15 +280,17 @@ class GameRoomWorkflow < Temporalio::Workflow::Definition
   workflow_query_attr_reader :turn_number, :skipped_turns
 
   workflow_init
-  def initialize(players)
-    @players = players
-    @turn_number = 0
-    @moves = []
-    @skipped_turns = []
+  def initialize(state)
+    @players = state.fetch("players")
+    @turn_number = state.fetch("turn_number")
+    @moves = state.fetch("moves")
+    @skipped_turns = state.fetch("skipped_turns")
   end
 
-  def execute(_players)
+  def execute(_state)
     loop do
+      break if Temporalio::Workflow.continue_as_new_suggested
+
       turn = @turn_number
       Temporalio::Workflow.timeout(TURN_SECONDS) do
         Temporalio::Workflow.wait_condition { @turn_number > turn }
@@ -296,6 +299,10 @@ class GameRoomWorkflow < Temporalio::Workflow::Definition
       @skipped_turns << turn
       @turn_number += 1
     end
+    Temporalio::Workflow.wait_condition { Temporalio::Workflow.all_handlers_finished? }
+    raise Temporalio::Workflow::ContinueAsNewError.new(
+      { "players" => @players, "turn_number" => @turn_number, "moves" => @moves, "skipped_turns" => @skipped_turns }
+    )
   end
 
   workflow_update_validator(:play)
@@ -320,6 +327,7 @@ end
 ```
 
 - An update with a validator can reject a move, and the caller gets the error. A signal cannot do that. The server answers a signal "without waiting for the Workflow to process the Signal".
+- The workflow continues as new when Temporal suggests it, and carries the room state into the new run. So a long game stays inside the history limit.
 - `Temporalio::Workflow.timeout` starts a durable timer. "Timers are persisted", so the timer fires after a worker restart.
 - The Action Cable channel calls `execute_update` on the workflow handle. The docs say that a client that sends an update "must wait until the Server delivers the Update to a Worker".
 
@@ -383,7 +391,7 @@ end
 - With no key, `schedule(at:)` gives an actor one alarm for each operation. Each new turn moves the alarm, so one room has one timer.
 - The reminder is a row in the database. Another process runs it after a restart.
 
-[The tests](../../test/compare/game_room_test.rb) show that moves apply in the order they arrived, that a move out of turn or for an old turn is rejected, that a move moves the timer, and that the timer skips the turn after a restart.
+[The tests](../../test/compare/game_room_test.rb) show that moves apply in the order they arrived, that a move out of turn or for an old turn is rejected, that a move moves the timer, that an old timeout behind a move does not skip the next turn, and that the timer skips the turn after a restart.
 
 ## Questions that teams ask
 
