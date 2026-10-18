@@ -17,7 +17,18 @@ Solid Objects is an independent project. It is not affiliated with Rails, 37sign
 | Databases | MySQL, PostgreSQL, SQLite | SQLite, PostgreSQL, MySQL |
 | Licence | MIT | MIT |
 
-The Solid Queue facts come from the [Solid Queue 1.7.0 README](https://github.com/rails/solid_queue/blob/v1.7.0/README.md) (checked October 15, 2026).
+The Solid Queue facts come from the [Solid Queue 1.7.0 README](https://github.com/rails/solid_queue/blob/v1.7.0/README.md) (checked October 18, 2026).
+
+## Does Solid Queue release blocked jobs in order?
+
+Not with a guarantee. Solid Queue says that "Jobs are unblocked in order of priority" and that "there's no guarantee about _the order of execution_" ([Solid Queue 1.7.0 README](https://github.com/rails/solid_queue/blob/v1.7.0/README.md#concurrency-controls), checked October 18, 2026). With `limits_concurrency` and the default `on_conflict: :block`, jobs over the limit stay blocked "until another job finishes and unblocks them, or after the set expiry time (concurrency limit's _duration_) elapses".
+
+- An unblocked job does not run at once. Solid Queue moves it "from _blocked_ to _ready_".
+- In the 1.7.0 source code, Solid Queue releases blocked jobs by priority, then by job ID ([`execution.rb`](https://github.com/rails/solid_queue/blob/v1.7.0/app/models/solid_queue/execution.rb)).
+- "Jobs that have been blocked for more than `duration` are candidates to be released, but only as many of them as the concurrency rules allow".
+- A job that `retry_on` enqueues again waits like a new job. Retried jobs "get in the queue for getting an open semaphore". So the retry of an earlier job can run after a job that was enqueued later.
+- With `on_conflict: :discard`, Solid Queue discards the job instead.
+- In Solid Objects, a second message for the same actor waits in the mailbox. Messages run in the order that the runtime stores them.
 
 ## Choose Solid Queue when
 
@@ -223,7 +234,7 @@ Solid Queue is older and has more users. If that matters more than order for eac
 
 ## Sources
 
-Checked October 15, 2026:
+Checked October 18, 2026:
 
 - [Solid Queue 1.7.0 README: concurrency controls](https://github.com/rails/solid_queue/blob/v1.7.0/README.md#concurrency-controls)
 - [Solid Queue 1.7.0 README: jobs interrupted by non-graceful process death](https://github.com/rails/solid_queue/blob/v1.7.0/README.md#jobs-interrupted-by-non-graceful-process-death)

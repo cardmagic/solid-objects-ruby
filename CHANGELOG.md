@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- Add `docs/compare/temporal.md`, a comparison with the Temporal Ruby SDK.
+  The first paragraph states that the SDK is generally available, with the
+  source and the date that it was checked. The page compares an ordered
+  billing sync for each customer and game rooms with turn timers, and says
+  when Temporal is the better choice. The new `GameRoom` actor is in
+  `examples/compare/game_room/` and runs in the test suite.
+  `docs/comparisons.md` lists the page.
+- The Solid Queue page now answers whether Solid Queue releases blocked jobs
+  in order. The GoodJob page now answers whether its concurrency controls keep
+  first-in-first-out (FIFO) order. Each answer quotes the README and gives the
+  date that it was checked. A replay on October 18, 2026 of the searches that
+  coding agents made found no Solid Objects page for these questions.
+
 ## 1.0.4 - 2026-10-18
 
 - The README no longer states the first public release date, that no

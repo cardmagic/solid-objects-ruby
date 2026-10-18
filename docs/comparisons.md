@@ -6,12 +6,14 @@ Each page compares Solid Objects with one tool on one real task. Each page says 
 | --- | --- | --- |
 | [Solid Queue limits_concurrency and Solid Objects](compare/solid-queue.md) | Solid Queue, the Rails 8 default job backend | Ordered billing sync for each customer |
 | [GoodJob concurrency controls and Solid Objects](compare/good-job.md) | GoodJob, a PostgreSQL job backend | Ordered billing sync for each customer |
+| [Temporal Ruby SDK and Solid Objects](compare/temporal.md) | Temporal, a durable workflow engine (the `temporalio` gem) | Ordered billing sync for each customer, and game rooms with turn timers |
 
 ## Choose the smallest tool that works
 
 - The whole rule fits in one request: use a row lock (`with_lock`), a constraint, or a short transaction.
 - Independent background work: use a job queue such as Solid Queue or GoodJob.
 - One job at a time for each key, order not important: use the concurrency controls of your job queue.
+- A long workflow of many steps, with an event history to replay: use a workflow engine such as Temporal.
 - Order for each key, state for each key, reminders, and recovery after a restart: use an actor for each key.
 
 The problem guides start from the same choices:

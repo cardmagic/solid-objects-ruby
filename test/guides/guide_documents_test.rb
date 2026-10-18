@@ -34,7 +34,8 @@ class GuideDocumentsTest < ActiveSupport::TestCase
   ].freeze
   COMPARISONS = {
     "docs/compare/solid-queue.md" => BILLING_SYNC_EXAMPLES,
-    "docs/compare/good-job.md" => BILLING_SYNC_EXAMPLES
+    "docs/compare/good-job.md" => BILLING_SYNC_EXAMPLES,
+    "docs/compare/temporal.md" => BILLING_SYNC_EXAMPLES + [ "examples/compare/game_room/game_room.rb" ]
   }.freeze
   DOCUMENTS = GUIDES.merge(COMPARISONS).merge("docs/comparisons.md" => []).freeze
   DASHES = [ "–", "—" ].freeze
