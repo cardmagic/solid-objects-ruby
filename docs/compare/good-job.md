@@ -208,11 +208,10 @@ How it works:
 
 **Is Solid Objects mature enough?** Here are the facts:
 
-- First public release: August 6, 2026.
 - Version 1.0.0: October 13, 2026. The public API follows [semantic versioning](../versioning.md).
 - [Maintenance and continuity](../maintenance.md) tells you who maintains the project and how a release is made.
-- One first-party application with more than 100,000 users runs it in production. That is a count of users, not a measure of load. No production use by other people is known.
-- The [benchmarks](../benchmarks.md) are development measurements. Longer soak tests are open work.
+- One first-party application with more than 100,000 users runs it in production. That is a count of users, not a measure of load.
+- The [benchmarks](../benchmarks.md) are development measurements. [Versioning](../versioning.md) states what version 1.0 does not claim.
 
 GoodJob is older and has more users. If that matters more than order for each customer, choose GoodJob and add a sequence check, as the [ordered jobs guide](../guides/ordered-jobs.md) shows.
 

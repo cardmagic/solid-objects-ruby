@@ -224,7 +224,7 @@ Delivery is at least once, so an effect can run more than once. See [effect idem
 - Delivery is at least once, not exactly once. Write each operation so that it can run again.
 - There are no transactions across actors. A change that must touch two events atomically needs one SQL transaction on normal tables.
 - One busy event runs its calls one at a time. Many events can run at the same time.
-- Version 1.0 promises a stable public API. It makes no claim of measured scale.
+- Version 1.0 promises a stable public API. [Versioning](../versioning.md) states the limits of that promise.
 
 ## More information
 
