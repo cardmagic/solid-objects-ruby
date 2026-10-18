@@ -13,7 +13,7 @@ model and when to use it.
 
 **Status.** Version 1.0: the public API follows semantic versioning and does
 not break before 2.0. [Versioning](docs/versioning.md) gives the limits of the
-promise. First public release: August 6, 2026. One maintainer.
+promise. First public release: August 6, 2026.
 
 **Production use.** One first-party application with more than 100,000 users
 runs it in production. That is a count of users, not a measure of load. No
@@ -199,6 +199,7 @@ every claim in [`test/guides/`](test/guides/):
 - [Reminders](docs/reminders.md)
 - [Reactive ERB](docs/realtime.md)
 - [Detailed architecture](docs/architecture.md)
+- [Maintenance and continuity](docs/maintenance.md)
 - [Detailed documentation](docs/)
 
 The dashboard, benchmarks, migration cookbook, schema, and exhaustive API

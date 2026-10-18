@@ -41,8 +41,8 @@ lists the current minimum versions.
 
 Version 1.0 is a promise about the API. It is not a claim of measured scale.
 The [benchmarks](benchmarks.md) are development measurements and do not
-guarantee capacity. Longer soak tests are open work. The project has one
-maintainer, and no production use by other people is known.
+guarantee capacity. Longer soak tests are open work. No production use by
+other people is known.
 
 ## Releases before 1.0
 
