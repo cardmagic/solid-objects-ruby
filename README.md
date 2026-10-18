@@ -13,12 +13,11 @@ model and when to use it.
 
 **Status.** Version 1.0: the public API follows semantic versioning and does
 not break before 2.0. [Versioning](docs/versioning.md) gives the limits of the
-promise. First public release: August 6, 2026.
+promise.
 
 **Production use.** One first-party application with more than 100,000 users
-runs it in production. That is a count of users, not a measure of load. No
-production use by other people is known. The [benchmarks](docs/benchmarks.md)
-are development measurements, and longer soak tests are open work.
+runs it in production. That is a count of users, not a measure of load. The
+[benchmarks](docs/benchmarks.md) are development measurements.
 
 **It is not** Solid Queue, SolidJS, or the `service_actor` gem, and it is not
 affiliated with Rails or Cloudflare.
@@ -208,10 +207,8 @@ explanations remain in `docs/`. The README stops here.
 ## Status and license
 
 Version 1.0 promises a stable public API. Its correctness core is tested
-against SQLite, PostgreSQL, and MySQL. It makes no claim of measured scale:
-the [benchmarks](docs/benchmarks.md) are development measurements, and longer
-soak tests are open work. [Versioning](docs/versioning.md) says what a release
-can change.
+against SQLite, PostgreSQL, and MySQL. [Versioning](docs/versioning.md) says
+what a release can change.
 
 Solid Objects is released under the [MIT License](MIT-LICENSE). It is an
 independent project and is not affiliated with, sponsored by, or endorsed by
