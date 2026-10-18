@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.4 - 2026-10-18
+
+- The README no longer states the first public release date, that no
+  production use by other people is known, that longer soak tests are open
+  work, or that version 1.0 makes no claim of measured scale.
+  `docs/versioning.md` keeps the other three limits, and the README links it.
+  The comparison pages keep the first public release date.
+
 ## 1.0.3 - 2026-10-18
 
 - Add `docs/maintenance.md`. It tells you who maintains the gem, how CI checks
