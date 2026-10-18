@@ -49,6 +49,19 @@ class GameRoomTest < ActiveSupport::TestCase
     assert_in_delta 90.seconds.from_now, turn_reminders("room-1").first.next_run_at, 2
   end
 
+  test "an old timeout behind a move does not skip the next turn" do
+    room = GameRoom.ref("room-1")
+    room.start(players: [ "alice", "bob" ])
+    room.async(idempotency_key: "move-0").play(player_id: "alice", move: "e4", turn_number: 0)
+
+    run_due_reminders(now: 61.seconds.from_now)
+    drain_solid_objects(roles: [ :actors ])
+
+    assert_equal 1, room.snapshot.turn_number
+    assert_empty room.snapshot.skipped_turns
+    assert_equal 1, turn_reminders("room-1").count
+  end
+
   test "the turn timer fires after a restart and skips the turn" do
     room = GameRoom.ref("room-1")
     room.start(players: [ "alice", "bob" ])
