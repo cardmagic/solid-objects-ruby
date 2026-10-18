@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.5 - 2026-10-18
+
+- `docs/versioning.md` is now the only page that states that version 1.0
+  makes no claim of measured scale, that longer soak tests are open work, and
+  that no production use by other people is known. The comparison pages, the
+  comparison hub, `docs/agents.md`, `docs/virtual-actors.md`, the problem
+  guides, and the roadmap link it instead. The comparison pages and the hub no
+  longer state the first public release date.
+
 ## 1.0.4 - 2026-10-18
 
 - The README no longer states the first public release date, that no
