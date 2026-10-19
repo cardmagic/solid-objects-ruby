@@ -145,7 +145,7 @@ One successful turn commits the actor state, the staged effects, the same-databa
 - Solid Objects requires Ruby 3.3 or newer and Rails 7.1 or newer.
 - Delivery is at least once. Each effect handler must deduplicate with `context.id`.
 - Solid Objects provides no transactions across actors.
-- Version 1.0 promises a stable public API. It makes no claim of measured scale.
+- Version 1.0 promises a stable public API. [Versioning](../versioning.md) states the limits of that promise.
 
 ## More information
 
