@@ -12,8 +12,8 @@ State and mailboxes live in the SQLite, PostgreSQL, or MySQL database that the
 Rails application already uses. Redis and a separate actor service are not
 necessary.
 
-Solid Objects 1.0 promises a stable public API. It makes no claim of measured
-scale. Read
+Solid Objects 1.0 promises a stable public API. [Versioning](versioning.md)
+states the limits of that promise. Read
 [Compatibility and maturity](#compatibility-and-maturity) before you choose it.
 
 ## What a virtual actor is
