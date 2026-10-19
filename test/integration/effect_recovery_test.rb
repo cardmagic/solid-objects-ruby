@@ -61,46 +61,11 @@ class EffectRecoveryTest < ActiveSupport::TestCase
   end
 
   test "a running effect keeps its process heartbeat fresh" do
-    SolidObjects.configuration.process_heartbeat_interval = 0.02
-    SolidObjects.configuration.process_alive_threshold = 0.1
-    ExportActor.ref("long-handler").async.start_recoverable_export
-    worker = SolidObjects::Worker.new
-    worker.run_until_idle
-    entered = Queue.new
-    release = Queue.new
-    heartbeats = Queue.new
-    executing = nil
-    registry = SolidObjects::ProcessRegistry.new
-    registry.define_singleton_method(:heartbeat) do
-      updated = super()
-      heartbeats << Thread.current if updated && executing
-      updated
-    end
-    SolidObjects.register_effect(:build_report) do
-      executing = Thread.current
-      entered << true
-      release.pop
-      { "artifact_key" => "report.pdf" }
-    end
-    executor = SolidObjects::EffectExecutor.new(process_registry: registry)
-    effect_thread = Thread.new do
-      SolidObjects::Record.connection_pool.with_connection { executor.run_once }
-    end
-    Timeout.timeout(5) { entered.pop }
-    heartbeat_thread = Timeout.timeout(2) { heartbeats.pop }
-    Timeout.timeout(2) { 7.times { heartbeats.pop } }
-    SolidObjects::EffectRecoveryCoordinator.new.recover_available
-    assert_equal "processing", SolidObjects::Effect.find_by!(name: "build_report").status
-    assert_empty SolidObjects::Message.where(operation: "retired")
-    release << true
-    assert effect_thread.value
-    refute heartbeat_thread.alive?
-    assert_equal "completed", SolidObjects::Effect.find_by!(name: "build_report").status
-  ensure
-    release&.push(true)
-    effect_thread&.join(5)
-    executor&.stop
-    worker&.stop
+    assert_running_effect_keeps_heartbeat_fresh(heartbeat_delay: 0)
+  end
+
+  test "a running effect keeps its process heartbeat fresh when heartbeat writes are slow" do
+    assert_running_effect_keeps_heartbeat_fresh(heartbeat_delay: 0.15)
   end
 
   test "a failed handler stops its heartbeat before scheduling a retry" do
@@ -634,6 +599,61 @@ class EffectRecoveryTest < ActiveSupport::TestCase
   end
 
   private
+
+  def assert_running_effect_keeps_heartbeat_fresh(heartbeat_delay:)
+    SolidObjects.configuration.process_heartbeat_interval = 0.02
+    SolidObjects.configuration.process_alive_threshold = 0.1
+    ExportActor.ref("long-handler").async.start_recoverable_export
+    worker = SolidObjects::Worker.new
+    worker.run_until_idle
+    entered = Queue.new
+    release = Queue.new
+    heartbeats = Queue.new
+    executing = nil
+    registry = SolidObjects::ProcessRegistry.new
+    registry.define_singleton_method(:heartbeat) do
+      updated = super()
+      sleep(heartbeat_delay) if updated && executing
+      heartbeats << Thread.current if updated && executing
+      updated
+    end
+    SolidObjects.register_effect(:build_report) do
+      executing = Thread.current
+      entered << true
+      release.pop
+      { "artifact_key" => "report.pdf" }
+    end
+    executor = SolidObjects::EffectExecutor.new(process_registry: registry)
+    effect_thread = Thread.new do
+      SolidObjects::Record.connection_pool.with_connection { executor.run_once }
+    end
+    Timeout.timeout(5) { entered.pop }
+    effect = SolidObjects::Effect.find_by!(name: "build_report")
+    owner = SolidObjects::Process.find(effect.claimed_by)
+    threshold = SolidObjects.configuration.process_alive_threshold
+    heartbeat_thread = Timeout.timeout(2) { heartbeats.pop }
+    Timeout.timeout(5) { heartbeats.pop until owner.reload.last_heartbeat_at - effect.claimed_at > threshold }
+    recover_at(owner.last_heartbeat_at + (threshold / 2))
+    assert_equal "processing", effect.reload.status
+    assert_empty SolidObjects::Message.where(operation: "retired")
+    release << true
+    assert effect_thread.value
+    refute heartbeat_thread.alive?
+    assert_equal "completed", effect.reload.status
+  ensure
+    release&.push(true)
+    effect_thread&.join(5)
+    executor&.stop
+    worker&.stop
+  end
+
+  def recover_at(database_now)
+    adapter = SolidObjects.database_adapter
+    adapter.define_singleton_method(:database_clock_now) { database_now }
+    SolidObjects::EffectRecoveryCoordinator.new.recover_available
+  ensure
+    adapter.singleton_class.send(:remove_method, :database_clock_now)
+  end
 
   def processing_export(actor_id)
     ExportActor.ref(actor_id).async.start_checked_export
