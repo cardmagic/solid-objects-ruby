@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- The short answer in `docs/virtual-actors.md` no longer states that version
+  1.0 makes no claim of measured scale. It links `docs/versioning.md`, the one
+  page that states the limits of version 1.0. Version 1.0.5 missed this
+  sentence.
+
 ## 1.0.5 - 2026-10-18
 
 - `docs/versioning.md` is now the only page that states that version 1.0
