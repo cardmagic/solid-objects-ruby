@@ -18,7 +18,16 @@ Solid Objects is an independent project. It is not affiliated with GoodJob or Ra
 | Databases | PostgreSQL only | SQLite, PostgreSQL, MySQL |
 | Licence | MIT | MIT |
 
-The GoodJob facts come from the [GoodJob 4.22.1 README](https://github.com/bensheldon/good_job/blob/v4.22.1/README.md) (checked October 15, 2026).
+The GoodJob facts come from the [GoodJob 4.22.1 README](https://github.com/bensheldon/good_job/blob/v4.22.1/README.md) (checked October 18, 2026).
+
+## Do GoodJob concurrency controls keep first-in-first-out (FIFO) order?
+
+Not strictly. The GoodJob README says: "First-in-first-out job execution order is not strictly preserved: a waiting job that is re-scheduled can be overtaken by a newly enqueued job, and jobs retried with incremental back-off run in backoff order" ([GoodJob 4.22.1 README](https://github.com/bensheldon/good_job/blob/v4.22.1/README.md#how-concurrency-controls-work), checked October 18, 2026).
+
+- `perform_limit` "counts running jobs". When a job exceeds it, the job raises `ConcurrencyExceededError`, and a `retry_on` handler "re-schedules the job to execute in the near future with an incremental backoff".
+- After you migrate the `good_job_concurrency_claims` table, when a job that holds the key finishes, "the longest-waiting job is re-scheduled to run immediately rather than waiting for its backoff". The incremental backoff "remains as a fallback".
+- Each rule applies to the jobs that carry its label. A `good_job_concurrency_rule` "with `key:` and no `label:`" is deprecated and "will raise in GoodJob v5".
+- In Solid Objects, a second message for the same actor waits in the mailbox. Messages run in the order that the runtime stores them.
 
 ## Choose GoodJob when
 
@@ -227,7 +236,7 @@ GoodJob is older and has more users. If that matters more than order for each cu
 
 ## Sources
 
-Checked October 15, 2026:
+Checked October 18, 2026:
 
 - [GoodJob 4.22.1 README: concurrency controls](https://github.com/bensheldon/good_job/blob/v4.22.1/README.md#concurrency-controls)
 - [GoodJob 4.22.1 README: how concurrency controls work](https://github.com/bensheldon/good_job/blob/v4.22.1/README.md#how-concurrency-controls-work)
