@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.6 - 2026-11-08
+
 - Add `docs/compare/temporal.md`, a comparison with the Temporal Ruby SDK.
   The first paragraph states that the SDK is generally available, with the
   source and the date that it was checked. The page compares an ordered
@@ -18,6 +20,9 @@
   1.0 makes no claim of measured scale. It links `docs/versioning.md`, the one
   page that states the limits of version 1.0. Version 1.0.5 missed this
   sentence.
+
+- Make the effect-heartbeat recovery tests independent of database write
+  speed, including coverage of slow heartbeat writes.
 
 ## 1.0.5 - 2026-10-18
 
